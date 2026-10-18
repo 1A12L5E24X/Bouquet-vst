@@ -2,9 +2,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "../dsp/GranularEngine.h"
-#include "MurmurLookAndFeel.h"
+#include "BouquetLookAndFeel.h"
 
-namespace murmur::ui
+namespace bouquet::ui
 {
 // The aura: an XY field that shapes the cloud (left dust, right smear; low close,
 // high vast) and shows every grain as a mote of light. Height is pitch, distance
@@ -49,4 +49,4 @@ private:
     std::array<juce::Point<float>, 14> trail {};
     juce::Random random;
 };
-} // namespace murmur::ui
+} // namespace bouquet::ui

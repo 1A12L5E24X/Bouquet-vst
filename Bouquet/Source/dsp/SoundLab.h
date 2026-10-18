@@ -5,7 +5,7 @@
 #include <vector>
 #include "DspUtils.h"
 
-namespace murmur
+namespace bouquet
 {
 // The voices of the Sound Lab. Every instrument is synthesised (modal, physical or
 // formant models), so the plugin ships no sample libraries.
@@ -54,6 +54,8 @@ public:
 
     // Adds this voice's output into left/right.
     void render (float* left, float* right, int numSamples, float pitchBendSemis);
+
+    float getNote() const { return note; }
 
     bool active = false;
     bool keyDown = false;     // the physical key is still held
@@ -148,6 +150,16 @@ private:
     int delayInt = 100;
 };
 
+// A voice starting or being let go, for the UI (the garden grows bouquets from these).
+struct NoteEvent
+{
+    float note;
+    float velocity;
+    int chordShape;
+    int instrument;
+    bool on;
+};
+
 class SoundLab
 {
 public:
@@ -163,7 +175,13 @@ public:
     // Number of voices currently sounding (for the UI's "breathing").
     int activeVoiceCount() const;
 
+    // UI thread: pop note starts/releases since the last call.
+    int popNoteEvents (NoteEvent* dest, int maxEvents);
+
 private:
+    void pushNoteEvent (float note, float velocity, bool on);
+    void releaseVoice (InstrumentVoice&);
+
     void handleMidi (const juce::MidiMessage&);
     void noteOn (int key, float velocity);
     void noteOff (int key);
@@ -182,5 +200,8 @@ private:
     uint32_t seedCounter = 1;
     float sr = 48000.0f;
     Random rng { 0x1234567u };
+
+    juce::AbstractFifo noteFifo { 256 };
+    std::array<NoteEvent, 256> noteEvents {};
 };
-} // namespace murmur
+} // namespace bouquet

@@ -3,7 +3,7 @@
 #include <juce_core/juce_core.h>
 #include <vector>
 
-namespace murmur
+namespace bouquet
 {
 // A spell is a complete Magic Lab setting with a name and a line of poetry.
 struct SpellValues
@@ -25,4 +25,4 @@ struct Spell
 
 juce::StringArray spellCategories();
 const std::vector<Spell>& spellBook();
-} // namespace murmur
+} // namespace bouquet

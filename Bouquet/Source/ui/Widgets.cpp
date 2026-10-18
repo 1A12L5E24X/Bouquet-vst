@@ -1,6 +1,6 @@
 #include "Widgets.h"
 
-namespace murmur::ui
+namespace bouquet::ui
 {
 void drawSparkle (juce::Graphics& g, juce::Point<float> c, float r, juce::Colour colour)
 {
@@ -100,21 +100,21 @@ void GlowItem::paint (juce::Graphics& g)
         if (selectLight > 0.01f)
         {
             // Light pooling outward from the chosen pill.
-            drawGlow (g, pill.getCentre(), pill.getWidth() * 0.75f, accentA.withAlpha (0.16f * selectLight * breathe));
-            juce::ColourGradient grad (accentA.withAlpha (0.32f * selectLight), pill.getX(), pill.getY(),
-                                       accentB.withAlpha (0.22f * selectLight), pill.getRight(), pill.getBottom(), false);
+            drawGlow (g, bounds, accentA.withAlpha (0.22f * selectLight * breathe));
+            juce::ColourGradient grad (accentA.withAlpha (0.38f * selectLight), pill.getX(), pill.getY(),
+                                       accentB.withAlpha (0.30f * selectLight), pill.getRight(), pill.getBottom(), false);
             g.setGradientFill (grad);
             g.fillRoundedRectangle (pill, radius);
         }
 
-        g.setColour (ink.withAlpha (0.025f + 0.03f * hoverLight));
+        g.setColour (frost.withAlpha (0.55f + 0.3f * hoverLight - 0.3f * selectLight));
         g.fillRoundedRectangle (pill, radius);
-        g.setColour (selectLight > 0.5f ? accentB.interpolatedWith (ink, 0.3f).withAlpha (0.55f)
-                                        : ink.withAlpha (0.10f + 0.12f * hoverLight));
+        g.setColour (selectLight > 0.5f ? accentA.interpolatedWith (ink, 0.15f).withAlpha (0.6f)
+                                        : ink.withAlpha (0.09f + 0.10f * hoverLight));
         g.drawRoundedRectangle (pill, radius, 1.0f);
 
         g.setFont (font);
-        g.setColour (ink.withAlpha (0.55f + 0.3f * hoverLight + 0.45f * selectLight));
+        g.setColour (ink.withAlpha (0.62f + 0.2f * hoverLight + 0.3f * selectLight));
         g.drawText (text, pill, juce::Justification::centred, false);
         return;
     }
@@ -127,17 +127,18 @@ void GlowItem::paint (juce::Graphics& g)
         const juce::Point<float> dot (7.0f, bounds.getCentreY());
         if (selectLight > 0.01f)
             drawGlow (g, dot, 14.0f, accentA.withAlpha (0.7f * selectLight * breathe));
-        g.setColour (ink.withAlpha (0.15f + 0.85f * selectLight));
-        g.fillEllipse (juce::Rectangle<float> (4.0f + selectLight, 4.0f + selectLight).withCentre (dot));
+        g.setColour ((selectLight > 0.5f ? accentA : ink).withAlpha (0.2f + 0.8f * selectLight));
+        g.fillEllipse (juce::Rectangle<float> (4.0f + 1.5f * selectLight, 4.0f + 1.5f * selectLight).withCentre (dot));
         textX = 20.0f;
     }
 
     if (selectLight > 0.01f)
-        drawGlow (g, { textX + textW * 0.5f, bounds.getCentreY() }, textW * 0.75f + 10.0f,
-                  accentA.withAlpha (0.13f * selectLight * breathe));
+        drawGlow (g, juce::Rectangle<float> (std::min (bounds.getWidth() - textX, textW + 24.0f), bounds.getHeight())
+                         .withCentre ({ textX + textW * 0.5f, bounds.getCentreY() }),
+                  accentA.withAlpha (0.28f * selectLight * breathe));
 
     g.setFont (font);
-    g.setColour (ink.withAlpha (0.42f + 0.33f * hoverLight + 0.58f * selectLight));
+    g.setColour (ink.withAlpha (0.5f + 0.3f * hoverLight + 0.45f * selectLight));
     g.drawText (text, bounds.withTrimmedLeft (textX), showDot ? juce::Justification::centredLeft
                                                               : juce::Justification::centred, false);
 }
@@ -162,10 +163,12 @@ void GlowKeyboard::drawWhiteNote (int note, juce::Graphics& g, juce::Rectangle<f
 {
     using namespace colours;
     auto key = area.reduced (1.0f, 0.0f);
-    juce::ColourGradient body (ink.withAlpha (0.035f), key.getX(), key.getY(),
-                               ink.withAlpha (isOver ? 0.10f : 0.065f), key.getX(), key.getBottom(), false);
+    juce::ColourGradient body (frost.withAlpha (0.92f), key.getX(), key.getY(),
+                               (isOver ? lilac.withAlpha (0.18f).interpolatedWith (frost, 0.5f) : paper), key.getX(), key.getBottom(), false);
     g.setGradientFill (body);
     g.fillRoundedRectangle (key, 5.0f);
+    g.setColour (ink.withAlpha (0.08f));
+    g.drawRoundedRectangle (key.reduced (0.25f), 5.0f, 0.7f);
 
     if (isDown)
     {
@@ -179,7 +182,7 @@ void GlowKeyboard::drawWhiteNote (int note, juce::Graphics& g, juce::Rectangle<f
     if (note % 12 == 0)
     {
         g.setFont (Fonts::sans (9.0f, 0.05f));
-        g.setColour (ink.withAlpha (0.3f));
+        g.setColour (ink.withAlpha (0.35f));
         g.drawText ("C" + juce::String (note / 12 - 1), key.removeFromBottom (16.0f), juce::Justification::centred, false);
     }
 }
@@ -188,10 +191,12 @@ void GlowKeyboard::drawBlackNote (int, juce::Graphics& g, juce::Rectangle<float>
 {
     using namespace colours;
     const auto key = area.reduced (0.5f, 0.0f).withTrimmedBottom (1.0f);
-    g.setColour (nightDeep.withAlpha (0.92f));
+    juce::ColourGradient body (ink.withAlpha (0.92f), key.getX(), key.getY(),
+                               ink.brighter (0.25f).withAlpha (0.9f), key.getX(), key.getBottom(), false);
+    g.setGradientFill (body);
     g.fillRoundedRectangle (key, 4.0f);
-    g.setColour (ink.withAlpha (isOver ? 0.16f : 0.08f));
-    g.drawRoundedRectangle (key, 4.0f, 0.8f);
+    g.setColour (frost.withAlpha (isOver ? 0.3f : 0.12f));
+    g.drawRoundedRectangle (key.reduced (0.5f), 4.0f, 0.8f);
 
     if (isDown)
     {
@@ -228,16 +233,16 @@ void FreezeOrb::paint (juce::Graphics& g)
     const float hover = isMouseOver() ? 1.0f : 0.0f;
 
     if (on)
-        drawGlow (g, c, size * 1.2f, aqua.withAlpha (0.35f * pulse));
+        drawGlow (g, c, size * 1.2f, sky.withAlpha (0.4f * pulse));
 
-    g.setColour (ink.withAlpha (on ? 0.10f : 0.03f + 0.03f * hover));
+    g.setColour (on ? sky.withAlpha (0.22f) : frost.withAlpha (0.6f + 0.25f * hover));
     g.fillEllipse (juce::Rectangle<float> (size, size).withCentre (c));
-    g.setColour (on ? aqua.withAlpha (0.8f) : ink.withAlpha (0.18f + 0.15f * hover));
+    g.setColour (on ? sky.withAlpha (0.9f) : ink.withAlpha (0.14f + 0.12f * hover));
     g.drawEllipse (juce::Rectangle<float> (size, size).withCentre (c), 1.0f);
 
     // A six-armed crystal.
     const float arm = size * 0.26f;
-    g.setColour (on ? ink : ink.withAlpha (0.5f + 0.3f * hover));
+    g.setColour (on ? sky.darker (0.35f) : ink.withAlpha (0.45f + 0.3f * hover));
     const float spin = on ? t * 0.15f : 0.0f;
     for (int i = 0; i < 6; ++i)
     {
@@ -249,4 +254,4 @@ void FreezeOrb::paint (juce::Graphics& g)
     g.setColour (ink.withAlpha (on ? 0.9f : 0.45f));
     g.drawText (on ? "frozen" : "freeze", labelArea, juce::Justification::centred, false);
 }
-} // namespace murmur::ui
+} // namespace bouquet::ui

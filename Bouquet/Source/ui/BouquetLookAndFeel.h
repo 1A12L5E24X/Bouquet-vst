@@ -2,22 +2,31 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
-namespace murmur::ui
+namespace bouquet::ui
 {
-// The palette: ivory ink on a deep night, warm light on the left, cool light on the right.
+// The palette: a bright day. Warm charcoal ink on sunlit paper, warm light on the
+// left (Sound Lab), cool sky light on the right (Magic Lab).
 namespace colours
 {
-    const juce::Colour night     { 0xff0c0a12 };
-    const juce::Colour nightDeep { 0xff07060b };
-    const juce::Colour ink       { 0xfff3ede4 };
-    const juce::Colour coral     { 0xffe8836b };
-    const juce::Colour peach     { 0xfff2b48a };
-    const juce::Colour rose      { 0xffe77fa0 };
-    const juce::Colour amber     { 0xfff5c26b };
-    const juce::Colour violet    { 0xff9b7bff };
-    const juce::Colour lavender  { 0xffc3a8ff };
-    const juce::Colour indigo    { 0xff5b6cff };
-    const juce::Colour aqua      { 0xff6fe3d6 };
+    const juce::Colour paper     { 0xfffbf7f0 };   // warm white
+    const juce::Colour paperDeep { 0xffefe7da };
+    const juce::Colour frost     { 0xffffffff };   // frosted glass
+    const juce::Colour ink       { 0xff2b2631 };   // warm charcoal
+
+    const juce::Colour coral     { 0xffe8735a };
+    const juce::Colour peach     { 0xfff4a77c };
+    const juce::Colour rose      { 0xffe4789b };
+    const juce::Colour butter    { 0xfff2c14e };
+    const juce::Colour sky       { 0xff6fa8f5 };
+    const juce::Colour lilac     { 0xffa58cf0 };
+    const juce::Colour mint      { 0xff5cc9a7 };
+
+    // Roles carried over from the first design.
+    const juce::Colour amber     = butter;
+    const juce::Colour violet    { 0xff8a6fe6 };
+    const juce::Colour lavender  = lilac;
+    const juce::Colour indigo    { 0xff6f86f0 };
+    const juce::Colour aqua      { 0xff4fb8c9 };
 }
 
 struct Fonts
@@ -34,11 +43,13 @@ double clock();
 
 // A soft round pool of light.
 void drawGlow (juce::Graphics&, juce::Point<float> centre, float radius, juce::Colour);
+// An elliptical pool of light that fades out exactly at the edges of area.
+void drawGlow (juce::Graphics&, juce::Rectangle<float> area, juce::Colour);
 
-class MurmurLookAndFeel : public juce::LookAndFeel_V4
+class BouquetLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
-    MurmurLookAndFeel();
+    BouquetLookAndFeel();
 
     juce::Typeface::Ptr getTypefaceForFont (const juce::Font&) override;
 
@@ -52,4 +63,4 @@ public:
     juce::Font getPopupMenuFont() override;
     void drawPopupMenuBackground (juce::Graphics&, int width, int height) override;
 };
-} // namespace murmur::ui
+} // namespace bouquet::ui

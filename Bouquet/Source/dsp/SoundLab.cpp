@@ -1,6 +1,6 @@
 #include "SoundLab.h"
 
-namespace murmur
+namespace bouquet
 {
 const std::vector<ChordShape>& chordShapes()
 {
@@ -582,7 +582,7 @@ void SoundLab::handleMidi (const juce::MidiMessage& m)
         sustainPedal = false;
         for (auto& v : voices)
             if (v.active && v.sustained)
-                v.release();
+                releaseVoice (v);
     }
     else if (m.isPitchWheel())
     {
@@ -593,6 +593,8 @@ void SoundLab::handleMidi (const juce::MidiMessage& m)
         numPending = 0;
         for (auto& v : voices)
         {
+            if (v.active && (v.keyDown || v.sustained))
+                pushNoteEvent (v.getNote(), 0.0f, false);
             if (m.isAllSoundOff())
                 v.kill();
             else if (v.active)
@@ -666,10 +668,32 @@ void SoundLab::releaseVoicesForKey (int key)
             }
             else
             {
-                v.release();
+                releaseVoice (v);
             }
         }
     }
+}
+
+void SoundLab::releaseVoice (InstrumentVoice& v)
+{
+    pushNoteEvent (v.getNote(), 0.0f, false);
+    v.release();
+}
+
+void SoundLab::pushNoteEvent (float note, float velocity, bool on)
+{
+    const auto scope = noteFifo.write (1);
+    if (scope.blockSize1 > 0)
+        noteEvents[(size_t) scope.startIndex1] = { note, velocity, settings.chord, (int) settings.instrument, on };
+}
+
+int SoundLab::popNoteEvents (NoteEvent* dest, int maxEvents)
+{
+    const auto scope = noteFifo.read (std::min (maxEvents, noteFifo.getNumReady()));
+    int n = 0;
+    for (int i = 0; i < scope.blockSize1; ++i) dest[n++] = noteEvents[(size_t) (scope.startIndex1 + i)];
+    for (int i = 0; i < scope.blockSize2; ++i) dest[n++] = noteEvents[(size_t) (scope.startIndex2 + i)];
+    return n;
 }
 
 void SoundLab::startVoice (int key, float note, float velocity)
@@ -690,9 +714,14 @@ void SoundLab::startVoice (int key, float note, float velocity)
             if (chosen == nullptr || v.startedAt < chosen->startedAt)
                 chosen = &v;
 
+    // A stolen voice that was still held counts as let go.
+    if (chosen->active && (chosen->keyDown || chosen->sustained))
+        pushNoteEvent (chosen->getNote(), 0.0f, false);
+    pushNoteEvent (note, velocity, true);
+
     seedCounter = seedCounter * 1664525u + 1013904223u;
     chosen->start (settings.instrument, note, velocity, settings, seedCounter);
     chosen->sourceKey = key;
     chosen->startedAt = ++voiceCounter;
 }
-} // namespace murmur
+} // namespace bouquet

@@ -1,6 +1,6 @@
 #include "GranularEngine.h"
 
-namespace murmur
+namespace bouquet
 {
 const std::vector<HarmonySet>& harmonySets()
 {
@@ -308,4 +308,4 @@ void GranularEngine::readMemory (std::array<float, memoryBins>& dest) const
     for (int i = 0; i < memoryBins; ++i)
         dest[(size_t) i] = memory[(size_t) ((head - i + memoryBins) % memoryBins)].load (std::memory_order_relaxed);
 }
-} // namespace murmur
+} // namespace bouquet

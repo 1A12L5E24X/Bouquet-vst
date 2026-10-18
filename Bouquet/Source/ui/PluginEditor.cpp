@@ -1,13 +1,26 @@
 #include "PluginEditor.h"
 
-namespace murmur::ui
+namespace bouquet::ui
 {
 namespace
 {
     constexpr int pad = 22;
     const juce::Rectangle<int> soundArea { 24, 84, 404, 556 };
     const juce::Rectangle<int> magicArea { 444, 84, 692, 556 };
-    const juce::Rectangle<int> keysArea  { 24, 652, 1112, 68 };
+    const juce::Rectangle<int> gardenArea { 24, 640, 1112, 142 };
+    const juce::Rectangle<int> keysArea  { 24, 782, 1112, 66 };
+
+    // A soft shadow made of a few widening, faint layers (much cheaper than a blur).
+    void softShadow (juce::Graphics& g, juce::Rectangle<float> r, float radius, juce::Colour colour, float spread, float dropY)
+    {
+        constexpr int layers = 7;
+        for (int i = layers; i >= 1; --i)
+        {
+            const float k = (float) i / (float) layers;
+            g.setColour (colour.withMultipliedAlpha (1.0f / (float) layers));
+            g.fillRoundedRectangle (r.expanded (spread * k).translated (0.0f, dropY * k), radius + spread * k);
+        }
+    }
 
     struct AuroraBlob
     {
@@ -16,18 +29,19 @@ namespace
         bool warm;
     };
 
+    // Sunlight: warm on the left, sky on the right, a pale sun up in the corner.
     const AuroraBlob blobs[] = {
-        { 0.12f, 0.30f, 0.42f, 0.11f, 0.0f, colours::coral,  true },
-        { 0.28f, 0.85f, 0.38f, 0.08f, 1.7f, colours::rose,   true },
-        { 0.05f, 0.95f, 0.30f, 0.13f, 3.1f, colours::amber,  true },
-        { 0.62f, 0.20f, 0.45f, 0.07f, 0.9f, colours::violet, false },
-        { 0.90f, 0.70f, 0.42f, 0.09f, 2.4f, colours::indigo, false },
-        { 0.78f, 1.00f, 0.32f, 0.12f, 4.2f, colours::aqua,   false },
-        { 0.48f, 0.55f, 0.28f, 0.05f, 5.0f, colours::lavender, false },
+        { 0.10f, 0.08f, 0.55f, 0.05f, 0.0f, colours::butter, true },
+        { 0.18f, 0.55f, 0.40f, 0.11f, 1.7f, colours::peach,  true },
+        { 0.08f, 0.95f, 0.32f, 0.13f, 3.1f, colours::rose,   true },
+        { 0.62f, 0.18f, 0.42f, 0.07f, 0.9f, colours::sky,    false },
+        { 0.92f, 0.60f, 0.40f, 0.09f, 2.4f, colours::lilac,  false },
+        { 0.75f, 1.00f, 0.32f, 0.12f, 4.2f, colours::mint,   false },
+        { 0.45f, 0.50f, 0.26f, 0.05f, 5.0f, colours::butter, false },
     };
 }
 
-Surface::Surface (MurmurProcessor& p)
+Surface::Surface (BouquetProcessor& p)
     : processor (p),
       state (p.apvts),
       tone    (state, ids::labTone, "tone", colours::coral, colours::peach),
@@ -40,8 +54,12 @@ Surface::Surface (MurmurProcessor& p)
       space   (state, ids::space, "space", colours::indigo, colours::lavender),
       life    (state, ids::life, "life", colours::violet, colours::rose),
       freeze  (state),
-      output  (state, ids::output, "output", colours::lavender, colours::ink),
-      keyboard (p.keyboardState)
+      output  (state, ids::output, "output", colours::lilac, colours::sky),
+      keyboard (p.keyboardState),
+      garden (p, [this] (float note)
+      {
+          return keyboard.getRectangleForKey (juce::jlimit (36, 107, juce::roundToInt (note))).getCentreX();
+      })
 {
     setOpaque (true);
 
@@ -129,12 +147,13 @@ Surface::Surface (MurmurProcessor& p)
     mutate.onClick = [this] { processor.mutate(); };
 
     addAndMakeVisible (keyboard);
+    addAndMakeVisible (garden);
 
     // A fixed field of film grain (signed brightness offsets), tiled over the light.
     {
         juce::Random r (7);
         for (auto& n : grainNoise)
-            n = (juce::int8) juce::roundToInt ((r.nextFloat() + r.nextFloat() - 1.0f) * 6.0f);
+            n = (juce::int8) juce::roundToInt ((r.nextFloat() + r.nextFloat() - 1.0f) * 3.0f);
     }
     aurora = juce::Image (juce::Image::RGB, designWidth / 4, designHeight / 4, false);
 
@@ -194,6 +213,7 @@ void Surface::resized()
     mutate.setBounds (designWidth - 24 - 56 - 116, 30, 108, 34);
 
     keyboard.setBounds (keysArea);
+    garden.setBounds (gardenArea);
     keyboard.setKeyWidth ((float) keysArea.getWidth() / 42.0f);
 
     soundPanel = soundArea.toFloat();
@@ -266,8 +286,9 @@ void Surface::frame (float dt)
     shownOctave = octave;
     shownSpell = spell;
 
-    // The aurora drifts slowly; refresh it a few times a second.
-    if (background.isNull() || clock() - backgroundTime > 0.2)
+    // The aurora drifts slowly; refresh it a few times a second (and when the
+    // window moves to a screen with a different pixel density).
+    if (background.isNull() || clock() - backgroundTime > 0.2 || pixelScale() != backgroundScale)
     {
         backgroundTime = clock();
         renderBackground();
@@ -276,6 +297,8 @@ void Surface::frame (float dt)
 
     syncSelections();
     aura.tick (dt);
+    const bool gardenWasAlive = garden.isAlive();
+    garden.tick (dt);
 
     const float target = std::min (1.0f, processor.outputMeter.load() * 1.6f);
     heartLevel += (target - heartLevel) * (target > heartLevel ? 0.5f : 0.08f);
@@ -305,9 +328,20 @@ void Surface::frame (float dt)
 
     aura.repaint();
     freeze.repaint();
+    if (garden.isAlive() || gardenWasAlive)
+        garden.repaint();
     repaint (heartArea);
     repaint (spellLineArea.withWidth (30));
     repaint (mutate.getBounds());
+}
+
+int Surface::pixelScale() const
+{
+    // The editor's own zoom times the display's pixel density (2 on Retina screens).
+    float s = juce::Component::getApproximateScaleFactorForComponent (this);
+    if (auto* display = juce::Desktop::getInstance().getDisplays().getDisplayForRect (getScreenBounds()))
+        s *= (float) display->scale;
+    return juce::jlimit (1, 3, (int) std::ceil (s - 0.05f));
 }
 
 //==============================================================================
@@ -315,8 +349,15 @@ void Surface::frame (float dt)
 // a second (aurora, film grain and glass), and simply copied on every frame.
 void Surface::renderBackground()
 {
-    if (background.isNull())
-        background = juce::Image (juce::Image::RGB, designWidth, designHeight, false);
+    // Rendered at the screen's pixel density so it stays sharp on Retina displays.
+    const int scale = pixelScale();
+    const int pixelW = designWidth * scale, pixelH = designHeight * scale;
+    if (background.getWidth() != pixelW)
+    {
+        background = juce::Image (juce::Image::RGB, pixelW, pixelH, false);
+        columns.clear();
+    }
+    backgroundScale = scale;
     juce::Graphics g (background);
 
     const float t = (float) clock();
@@ -328,7 +369,7 @@ void Surface::renderBackground()
     {
         juce::Graphics ag (aurora);
         const float w = (float) aurora.getWidth(), h = (float) aurora.getHeight();
-        juce::ColourGradient base (colours::night.brighter (0.05f), 0, 0, colours::nightDeep, 0, h, false);
+        juce::ColourGradient base (colours::paper.brighter (0.02f), 0, 0, colours::paperDeep, 0, h, false);
         ag.setGradientFill (base);
         ag.fillAll();
 
@@ -337,17 +378,17 @@ void Surface::renderBackground()
             const float cx = (b.x + 0.08f * std::sin (t * b.speed + b.phase) + 0.02f * breath) * w;
             const float cy = (b.y + 0.06f * std::cos (t * b.speed * 0.8f + b.phase * 1.3f)) * h;
             const float r = b.radius * w * (1.0f + 0.06f * std::sin (t * 0.3f + b.phase));
-            const float alpha = 0.22f * (b.warm ? warm : cool);
+            const float alpha = 0.3f * (b.warm ? warm : cool);
             juce::ColourGradient grad (b.colour.withAlpha (std::min (0.6f, alpha)), cx, cy,
                                        b.colour.withAlpha (0.0f), cx + r, cy, true);
             ag.setGradientFill (grad);
             ag.fillEllipse (cx - r, cy - r, r * 2.0f, r * 2.0f);
         }
 
-        // Vignette.
-        juce::ColourGradient vignette (juce::Colours::transparentBlack, w * 0.5f, h * 0.45f,
-                                       colours::nightDeep.withAlpha (0.75f), 0.0f, 0.0f, true);
-        ag.setGradientFill (vignette);
+        // Daylight: the centre washed brighter, the edges a touch warmer.
+        juce::ColourGradient wash (colours::frost.withAlpha (0.35f), w * 0.5f, h * 0.4f,
+                                   colours::paperDeep.withAlpha (0.0f), 0.0f, 0.0f, true);
+        ag.setGradientFill (wash);
         ag.fillAll();
     }
 
@@ -356,13 +397,13 @@ void Surface::renderBackground()
         const juce::Image::BitmapData src (aurora, juce::Image::BitmapData::readOnly);
         juce::Image::BitmapData dst (background, juce::Image::BitmapData::writeOnly);
         const int srcW = aurora.getWidth(), srcH = aurora.getHeight();
-        const float sx = (float) (srcW - 1) / (float) (designWidth - 1);
-        const float sy = (float) (srcH - 1) / (float) (designHeight - 1);
+        const float sx = (float) (srcW - 1) / (float) (pixelW - 1);
+        const float sy = (float) (srcH - 1) / (float) (pixelH - 1);
 
-        if ((int) columns.size() != designWidth)
+        if ((int) columns.size() != pixelW)
         {
-            columns.resize ((size_t) designWidth);
-            for (int x = 0; x < designWidth; ++x)
+            columns.resize ((size_t) pixelW);
+            for (int x = 0; x < pixelW; ++x)
             {
                 const float fx = (float) x * sx;
                 const int x0 = std::min ((int) fx, srcW - 2);
@@ -370,7 +411,7 @@ void Surface::renderBackground()
             }
         }
 
-        for (int y = 0; y < designHeight; ++y)
+        for (int y = 0; y < pixelH; ++y)
         {
             const float fy = (float) y * sy;
             const int y0 = std::min ((int) fy, srcH - 2);
@@ -381,7 +422,7 @@ void Surface::renderBackground()
             const juce::int8* noise = grainNoise.data() + (size_t) ((y & 255) * 256);
             const int stride = src.pixelStride;
 
-            for (int x = 0; x < designWidth; ++x, out += dst.pixelStride)
+            for (int x = 0; x < pixelW; ++x, out += dst.pixelStride)
             {
                 const auto& col = columns[(size_t) x];
                 const juce::uint8* a = row0 + col.offset;
@@ -398,15 +439,29 @@ void Surface::renderBackground()
         }
     }
 
+    g.addTransform (juce::AffineTransform::scale ((float) scale));
     paintPanel (g, soundPanel, colours::coral);
     paintPanel (g, magicPanel, colours::violet);
     aura.paintBackdrop (g);
 
     // Glass behind the keys.
-    g.setColour (colours::nightDeep.withAlpha (0.35f));
-    g.fillRoundedRectangle (keysArea.toFloat().expanded (4.0f), 14.0f);
-    g.setColour (colours::ink.withAlpha (0.06f));
-    g.drawRoundedRectangle (keysArea.toFloat().expanded (4.0f), 14.0f, 1.0f);
+    {
+        juce::Path keysGlass;
+        keysGlass.addRoundedRectangle (keysArea.toFloat().expanded (4.0f), 14.0f);
+        softShadow (g, keysArea.toFloat().expanded (4.0f), 14.0f, colours::ink.withAlpha (0.06f), 12.0f, 5.0f);
+        g.setColour (colours::frost.withAlpha (0.6f));
+        g.fillPath (keysGlass);
+        g.setColour (colours::ink.withAlpha (0.07f));
+        g.strokePath (keysGlass, juce::PathStrokeType (1.0f));
+    }
+
+    // The soil line the bouquets grow from.
+    juce::ColourGradient soil (colours::coral.withAlpha (0.0f), (float) gardenArea.getX(), 0.0f,
+                               colours::sky.withAlpha (0.0f), (float) gardenArea.getRight(), 0.0f, false);
+    soil.addColour (0.2, colours::mint.withAlpha (0.35f));
+    soil.addColour (0.8, colours::mint.withAlpha (0.35f));
+    g.setGradientFill (soil);
+    g.fillRect ((float) gardenArea.getX(), (float) gardenArea.getBottom() - 1.5f, (float) gardenArea.getWidth(), 1.0f);
 
     // A divider of light under the header.
     juce::ColourGradient line (colours::coral.withAlpha (0.0f), 24.0f, 0.0f, colours::violet.withAlpha (0.0f), (float) designWidth - 24.0f, 0.0f, false);
@@ -418,31 +473,34 @@ void Surface::renderBackground()
 
 void Surface::paintPanel (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour glow)
 {
+    // Frosted glass resting in the sun: a soft shadow below, a bright rim on top.
     const float radius = 26.0f;
-    g.setColour (colours::nightDeep.withAlpha (0.28f));
-    g.fillRoundedRectangle (r, radius);
-    g.setColour (colours::ink.withAlpha (0.022f));
-    g.fillRoundedRectangle (r, radius);
+    juce::Path panel;
+    panel.addRoundedRectangle (r, radius);
+    softShadow (g, r, radius, glow.withAlpha (0.10f), 26.0f, 0.0f);
+    softShadow (g, r, radius, colours::ink.withAlpha (0.07f), 18.0f, 7.0f);
 
-    // Glass edge: brighter along the top, as if lit from above.
-    juce::ColourGradient edge (colours::ink.withAlpha (0.16f), r.getX(), r.getY(),
-                               colours::ink.withAlpha (0.04f), r.getX(), r.getBottom(), false);
-    edge.addColour (0.5, glow.withAlpha (0.07f));
+    g.setColour (colours::frost.withAlpha (0.58f));
+    g.fillPath (panel);
+
+    juce::ColourGradient edge (colours::frost, r.getX(), r.getY(),
+                               colours::ink.withAlpha (0.07f), r.getX(), r.getBottom(), false);
+    edge.addColour (0.5, glow.withAlpha (0.12f));
     g.setGradientFill (edge);
-    g.drawRoundedRectangle (r.reduced (0.5f), radius, 1.0f);
+    g.drawRoundedRectangle (r.reduced (0.5f), radius, 1.2f);
 }
 
 void Surface::paintSectionLabel (juce::Graphics& g, const juce::String& text, int x, int y)
 {
     g.setFont (Fonts::sansMedium (9.5f, 0.2f));
-    g.setColour (colours::ink.withAlpha (0.32f));
+    g.setColour (colours::ink.withAlpha (0.42f));
     g.drawText (text.toUpperCase(), x, y, 300, 14, juce::Justification::centredLeft, false);
 }
 
 void Surface::paint (juce::Graphics& g)
 {
     using namespace colours;
-    g.drawImageAt (background, 0, 0);
+    g.drawImage (background, getLocalBounds().toFloat());
 
     // Most frames repaint a few small regions; skip any text that lies outside them.
     auto text = [&g] (const juce::String& str, const juce::Font& font, juce::Colour colour, juce::Rectangle<int> area,
@@ -456,7 +514,7 @@ void Surface::paint (juce::Graphics& g)
     };
     auto label = [&text] (const juce::String& str, int x, int y)
     {
-        text (str.toUpperCase(), Fonts::sansMedium (9.5f, 0.2f), ink.withAlpha (0.32f), { x, y, 300, 14 });
+        text (str.toUpperCase(), Fonts::sansMedium (9.5f, 0.2f), ink.withAlpha (0.42f), { x, y, 300, 14 });
     };
 
     // --- Header: a heart that beats with the sound, and the name.
@@ -464,16 +522,20 @@ void Surface::paint (juce::Graphics& g)
     if (g.clipRegionIntersects (heartArea))
     {
         const juce::Point<float> heart (44.0f, 47.0f);
-        const auto heartColour = coral.interpolatedWith (violet, 0.5f + 0.5f * std::sin (t * 0.4f));
-        drawGlow (g, heart, 22.0f + 34.0f * heartLevel, heartColour.withAlpha (0.55f + 0.3f * heartLevel));
-        g.setColour (ink);
-        g.fillEllipse (juce::Rectangle<float> (7.0f + 3.0f * heartLevel, 7.0f + 3.0f * heartLevel).withCentre (heart));
+        // A little sun.
+        const auto heartColour = coral.interpolatedWith (butter, 0.5f + 0.5f * std::sin (t * 0.4f));
+        drawGlow (g, heart, 22.0f + 34.0f * heartLevel, heartColour.withAlpha (0.6f + 0.3f * heartLevel));
+        const auto core = juce::Rectangle<float> (9.0f + 3.0f * heartLevel, 9.0f + 3.0f * heartLevel).withCentre (heart);
+        g.setColour (frost);
+        g.fillEllipse (core);
+        g.setColour (heartColour.darker (0.1f));
+        g.drawEllipse (core, 1.4f);
     }
 
     const auto wordmark = Fonts::serif (40.0f);
-    text ("murmur", wordmark, ink, { 66, 22, 200, 48 });
-    const int subtitleX = 66 + (int) juce::GlyphArrangement::getStringWidth (wordmark, "murmur") + 16;
-    text (processor.isEffect ? "a granular effect that sings back" : "a granular instrument that sings back",
+    text ("bouquet", wordmark, ink, { 66, 22, 200, 48 });
+    const int subtitleX = 66 + (int) juce::GlyphArrangement::getStringWidth (wordmark, "bouquet") + 16;
+    text (processor.isEffect ? "a granular effect in bloom" : "a granular instrument in bloom",
           Fonts::serifItalic (17.0f), ink.withAlpha (0.45f), { subtitleX, 35, 360, 30 });
 
     // --- Sound Lab
@@ -485,8 +547,8 @@ void Surface::paint (juce::Graphics& g)
     const int instrument = (int) param (ids::instrument);
     auto description = instrumentDescriptions()[instrument];
     if (instrument == 0 && ! processor.isEffect && processor.getMainBusNumInputChannels() == 0)
-        description = "route audio into murmur to hear it";
-    text (description, Fonts::serifItalic (15.5f), peach.withAlpha (0.75f), { lx, 334, lw, 24 });
+        description = "route audio into bouquet to hear it";
+    text (description, Fonts::serifItalic (15.5f), coral.darker (0.15f), { lx, 334, lw, 24 });
 
     label ("chord", lx, 372);
     label ("voicing", lx, 462);
@@ -505,9 +567,9 @@ void Surface::paint (juce::Graphics& g)
     if (juce::isPositiveAndBelow (spell, (int) spellBook().size()) && g.clipRegionIntersects (spellLineArea))
     {
         const auto& s = spellBook()[(size_t) spell];
-        drawSparkle (g, { (float) mx + 6.0f, 238.0f }, 5.5f, lavender.withAlpha (0.6f + 0.3f * std::sin (t * 2.0f)));
+        drawSparkle (g, { (float) mx + 6.0f, 238.0f }, 5.5f, butter.withAlpha (0.7f + 0.3f * std::sin (t * 2.0f)));
         text (juce::String (s.name) + juce::String (juce::CharPointer_UTF8 ("  \xe2\x80\x94  ")) + s.description,
-              Fonts::serifItalic (16.5f), lavender.withAlpha (0.85f), { mx + 20, 226, mw - 20, 24 });
+              Fonts::serifItalic (16.5f), violet.darker (0.2f), { mx + 20, 226, mw - 20, 24 });
     }
 
     label ("harmony", harmony.getX(), 440);
@@ -515,44 +577,44 @@ void Surface::paint (juce::Graphics& g)
 
     const auto m = mutate.getBounds().toFloat();
     if (g.clipRegionIntersects (mutate.getBounds()))
-        drawSparkle (g, { m.getX() + 20.0f, m.getCentreY() }, 5.0f, lavender.withAlpha (0.7f + 0.3f * std::sin (t * 1.3f)));
+        drawSparkle (g, { m.getX() + 20.0f, m.getCentreY() }, 5.0f, butter.withAlpha (0.8f + 0.2f * std::sin (t * 1.3f)));
 }
-} // namespace murmur::ui
+} // namespace bouquet::ui
 
 //==============================================================================
-MurmurEditor::MurmurEditor (MurmurProcessor& p)
+BouquetEditor::BouquetEditor (BouquetProcessor& p)
     : AudioProcessorEditor (p), surface (p)
 {
     setLookAndFeel (&lookAndFeel);
     addAndMakeVisible (surface);
-    surface.setBounds (0, 0, murmur::ui::Surface::designWidth, murmur::ui::Surface::designHeight);
+    surface.setBounds (0, 0, bouquet::ui::Surface::designWidth, bouquet::ui::Surface::designHeight);
 
     setResizable (true, true);
-    const double ratio = (double) murmur::ui::Surface::designWidth / murmur::ui::Surface::designHeight;
+    const double ratio = (double) bouquet::ui::Surface::designWidth / bouquet::ui::Surface::designHeight;
     getConstrainer()->setFixedAspectRatio (ratio);
-    setResizeLimits (murmur::ui::Surface::designWidth / 2, murmur::ui::Surface::designHeight / 2,
-                     murmur::ui::Surface::designWidth * 2, murmur::ui::Surface::designHeight * 2);
-    setSize (murmur::ui::Surface::designWidth, murmur::ui::Surface::designHeight);
+    setResizeLimits (bouquet::ui::Surface::designWidth / 2, bouquet::ui::Surface::designHeight / 2,
+                     bouquet::ui::Surface::designWidth * 2, bouquet::ui::Surface::designHeight * 2);
+    setSize (bouquet::ui::Surface::designWidth, bouquet::ui::Surface::designHeight);
 
-    lastFrame = murmur::ui::clock();
+    lastFrame = bouquet::ui::clock();
     startTimerHz (30);
 }
 
-MurmurEditor::~MurmurEditor()
+BouquetEditor::~BouquetEditor()
 {
     stopTimer();
     setLookAndFeel (nullptr);
 }
 
-void MurmurEditor::resized()
+void BouquetEditor::resized()
 {
-    const float scale = (float) getWidth() / (float) murmur::ui::Surface::designWidth;
+    const float scale = (float) getWidth() / (float) bouquet::ui::Surface::designWidth;
     surface.setTransform (juce::AffineTransform::scale (scale));
 }
 
-void MurmurEditor::timerCallback()
+void BouquetEditor::timerCallback()
 {
-    const double now = murmur::ui::clock();
+    const double now = bouquet::ui::clock();
     const auto dt = (float) juce::jlimit (0.0, 0.1, now - lastFrame);
     lastFrame = now;
     surface.frame (dt);

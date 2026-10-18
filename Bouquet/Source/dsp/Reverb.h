@@ -4,7 +4,7 @@
 #include <vector>
 #include "DspUtils.h"
 
-namespace murmur
+namespace bouquet
 {
 // An 8-line feedback delay network with slow delay modulation and damping,
 // preceded by a short allpass diffuser. Tuned to be soft, wide and dark.
@@ -148,4 +148,4 @@ private:
     std::array<Line, numLines> lines;
     std::array<std::array<Allpass, numDiffusers>, 2> diffusers;
 };
-} // namespace murmur
+} // namespace bouquet

@@ -2,20 +2,21 @@
 
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "../PluginProcessor.h"
-#include "MurmurLookAndFeel.h"
+#include "BouquetLookAndFeel.h"
 #include "Widgets.h"
 #include "AuraPad.h"
+#include "Garden.h"
 
-namespace murmur::ui
+namespace bouquet::ui
 {
 // Everything lives in this fixed-size surface; the editor scales it to the window.
 class Surface : public juce::Component
 {
 public:
     static constexpr int designWidth = 1160;
-    static constexpr int designHeight = 740;
+    static constexpr int designHeight = 860;
 
-    explicit Surface (MurmurProcessor&);
+    explicit Surface (BouquetProcessor&);
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -23,6 +24,7 @@ public:
 
 private:
     void renderBackground();
+    int pixelScale() const;
     void paintPanel (juce::Graphics&, juce::Rectangle<float>, juce::Colour glow);
     void paintSectionLabel (juce::Graphics&, const juce::String&, int x, int y);
     void setParam (const juce::String& id, float value);
@@ -30,7 +32,7 @@ private:
     void showCategory (int category);
     void syncSelections();
 
-    MurmurProcessor& processor;
+    BouquetProcessor& processor;
     juce::AudioProcessorValueTreeState& state;
 
     // Sound Lab
@@ -55,11 +57,13 @@ private:
     GlowKnob output;
 
     GlowKeyboard keyboard;
+    Garden garden;
 
     juce::Image aurora, background;
     std::array<juce::int8, 256 * 256> grainNoise {};
     struct Column { int offset, t; };
     std::vector<Column> columns;
+    int backgroundScale = 1;
     double backgroundTime = -1.0;
     juce::Rectangle<float> soundPanel, magicPanel;
     float heartLevel = 0.0f;
@@ -67,23 +71,23 @@ private:
     const juce::Rectangle<int> heartArea { 0, 0, 66, 94 };
     juce::Rectangle<int> spellLineArea;
 };
-} // namespace murmur::ui
+} // namespace bouquet::ui
 
-class MurmurEditor : public juce::AudioProcessorEditor,
+class BouquetEditor : public juce::AudioProcessorEditor,
                      private juce::Timer
 {
 public:
-    explicit MurmurEditor (MurmurProcessor&);
-    ~MurmurEditor() override;
+    explicit BouquetEditor (BouquetProcessor&);
+    ~BouquetEditor() override;
 
     void resized() override;
 
 private:
     void timerCallback() override;
 
-    murmur::ui::MurmurLookAndFeel lookAndFeel;
-    murmur::ui::Surface surface;
+    bouquet::ui::BouquetLookAndFeel lookAndFeel;
+    bouquet::ui::Surface surface;
     double lastFrame = 0.0;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MurmurEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BouquetEditor)
 };

@@ -7,7 +7,7 @@
 #include "DspUtils.h"
 #include "Reverb.h"
 
-namespace murmur
+namespace bouquet
 {
 // Interval sets that grains may be transposed to ("harmony").
 struct HarmonySet
@@ -117,4 +117,4 @@ private:
     int memoryCounter = 0, samplesPerBin = 2400;
     float memoryPeak = 0.0f, wetEnvelope = 0.0f;
 };
-} // namespace murmur
+} // namespace bouquet

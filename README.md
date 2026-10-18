@@ -1,18 +1,45 @@
 # vst3-test
 
-Two plugins built with [JUCE](https://juce.com) 8, sharing one CMake project.
+Plugins built with [JUCE](https://juce.com) 8, sharing one CMake project. **macOS is the main platform.**
 
 | Plugin | What it is | Formats |
 | --- | --- | --- |
-| **Murmur** | A granular instrument: synthesised live instruments on the left, a cloud of granular "spells" on the right | VST3 instrument, Standalone |
-| **Murmur FX** | The same engine as an audio effect that granulates whatever track it sits on | VST3 effect (accepts MIDI) |
-| **Simple Synth** | A small polyphonic subtractive synth | VST3, Standalone |
+| **Bouquet** | A granular instrument: synthesised live instruments on the left, a cloud of granular "spells" on the right, and a garden that grows a bouquet for every chord | AU + VST3 instrument, standalone app |
+| **Bouquet FX** | The same engine as an audio effect that granulates whatever track it sits on | AU (music effect) + VST3 effect |
+| **Simple Synth** | A small polyphonic subtractive synth | AU, VST3, standalone |
 
-## Murmur
+## Install on a Mac
 
-![Murmur](docs/murmur.jpg)
+1. Open the repository's **Actions** tab on GitHub, open the newest green **Build** run, and download
+   **Bouquet-macOS-installer** from its Artifacts.
+2. Unzip it and open **Bouquet-macOS.pkg**. The installer isn't signed by a registered Apple developer,
+   so the first time **right-click → Open** (or allow it in System Settings → Privacy & Security).
+3. It installs Bouquet and Bouquet FX as Audio Units (`/Library/Audio/Plug-Ins/Components`) and VST3
+   (`/Library/Audio/Plug-Ins/VST3`), plus the standalone app.
+4. Rescan plug-ins in your DAW:
+   - **Logic Pro / GarageBand**: they appear under Audio Units → VST3Test.
+   - **Ableton Live**: Settings → Plug-Ins → turn on "Use Audio Units" (and/or the VST3 system folder),
+     then Rescan. Put **Bouquet** on a MIDI track; put **Bouquet FX** on an audio track to granulate it.
 
-*a granular instrument that sings back.*
+The binaries are universal (Apple Silicon and Intel) and need macOS 11 or later. Every macOS CI run
+passes Apple's `auval` validator for both Audio Units.
+
+## Bouquet
+
+![Bouquet](docs/bouquet.jpg)
+
+*a granular instrument in bloom.*
+
+### The garden
+
+Every chord you play grows its own **bouquet** along the bottom of the window, rising out of the keys
+you played. It's unique to that chord: the notes, chord shape, instrument and how hard you play decide
+which flowers grow (daisies, tulips, poppies, cosmos, bellflowers, wild roses), how many, their
+colours (bright warm colours for major chords, lilac and blue for minor, mint for suspended, plum for
+diminished) and how they're tied. Each chord tone becomes one flower, and higher notes grow taller.
+The bouquet blooms while you hold the chord and sways with the sound. When you let go it slowly rots:
+it browns, bows over, drops its petals and fades. A loud granular tail keeps it alive a little
+longer. On live input, a swell after silence plants a bouquet too.
 
 ### Sound Lab: choose a voice
 
@@ -20,7 +47,7 @@ Nine instruments, all synthesised from scratch (no sample libraries), plus live 
 
 | Voice | How it's made |
 | --- | --- |
-| live input | the audio on the track (Murmur FX, or hosts that route audio into instruments) |
+| live input | the audio on the track (Bouquet FX, or hosts that route audio into instruments) |
 | piano | 16 inharmonic string partials with detuned unison pairs and a felt hammer |
 | rhodes | FM tine with a fading bell bark |
 | marimba | tuned wooden-bar modes (1 : 3.9 : 9.2) with a resonator tube |
@@ -67,13 +94,13 @@ Spells are also exposed to the host as programs, and every control is automatabl
 
 ### Design
 
-Ivory serif type (Newsreader) and small tracked sans labels (Inter) on a deep night
-background. A warm coral aurora sits behind the Sound Lab and a cool violet one behind
-the Magic Lab; both drift slowly and brighten with the sound. Glass panels, arcs of light
-for knobs, a heart beside the name that pulses with the output. The window can be resized
-(with the aspect ratio locked).
+A bright day: serif type (Newsreader) and small tracked sans labels (Inter) in warm charcoal on
+sunlit paper. Warm light (butter, peach, rose) drifts behind the Sound Lab and sky light (blue,
+lilac, mint) behind the Magic Lab; both brighten with the sound. Frosted glass panels, arcs of
+colour for knobs, a small sun beside the name that pulses with the output, and hand-drawn flowers.
+The window can be resized (with the aspect ratio locked) and renders at full Retina sharpness.
 
-Both fonts are under the SIL Open Font License; see `Murmur/assets/fonts/`.
+Both fonts are under the SIL Open Font License; see `Bouquet/assets/fonts/`.
 
 ## Building
 
@@ -93,16 +120,20 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release -j
 ```
 
-Outputs:
+On a Mac, build universal and make the installer yourself (needs Xcode command-line tools):
 
-- `build/Murmur/Murmur_artefacts/Release/VST3/Murmur.vst3`
-- `build/Murmur/MurmurFX_artefacts/Release/VST3/Murmur FX.vst3`
-- `build/Murmur/Murmur_artefacts/Release/Standalone/`
-- `build/SimpleSynth/SimpleSynth_artefacts/Release/VST3/Simple Synth.vst3`
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+cmake --build build --config Release -j
+scripts/package-macos.sh build      # signs ad hoc, runs auval, writes build/Bouquet-macOS.pkg
+```
 
-Copy the `.vst3` bundles to your plugin folder (`~/.vst3` on Linux,
-`C:\Program Files\Common Files\VST3` on Windows, `~/Library/Audio/Plug-Ins/VST3` on macOS)
-and rescan in your DAW.
+Outputs (under `build/Bouquet/`):
+
+- `Bouquet_artefacts/Release/AU/Bouquet.component`, `.../VST3/Bouquet.vst3`, `.../Standalone/Bouquet.app`
+- `BouquetFX_artefacts/Release/AU/Bouquet FX.component`, `.../VST3/Bouquet FX.vst3`
+
+On Windows, copy the `.vst3` bundles to `C:\Program Files\Common Files\VST3`; on Linux, to `~/.vst3`.
 
 ## Testing
 
@@ -110,13 +141,14 @@ and rescan in your DAW.
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-The Murmur test plays every instrument dry, runs every spell, granulates and freezes a
-live input, round-trips state, and checks it renders well faster than real time. The test
+The Bouquet test plays every instrument dry, runs every spell, granulates and freezes a
+live input, checks the note events the garden grows from (and that every chord gets its own
+bouquet), round-trips state, and checks it renders well faster than real time. The test
 binary can also render demos and screenshots:
 
 ```sh
-MurmurTest --demo out.wav <spell> <instrument>   # e.g. 24 6 = shimmer halo on violin
-MurmurTest --snapshot out.png [inst|fx] <spell> <instrument>
+BouquetTest --demo out.wav <spell> <instrument>   # e.g. 24 6 = shimmer halo on violin
+BouquetTest --snapshot out.png [inst|fx] <spell> <instrument> [rot] [zoom]
 ```
 
-All three plugins pass [pluginval](https://github.com/Tracktion/pluginval) at strictness level 10.
+All plugins pass [pluginval](https://github.com/Tracktion/pluginval) at strictness level 10.

@@ -1,11 +1,12 @@
-// Offline tests for Murmur: every instrument through every spell, the live-input
+// Offline tests for Bouquet: every instrument through every spell, the live-input
 // path, freeze, state, and a rough CPU measurement.
 #include "PluginProcessor.h"
+#include "ui/Garden.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <iostream>
 
-using namespace murmur;
+using namespace bouquet;
 
 static int failures = 0;
 static void check (bool ok, const juce::String& what)
@@ -23,7 +24,7 @@ struct Stats { float peak = 0.0f; double sumSq = 0.0; long n = 0; bool finite = 
 static constexpr double sr = 48000.0;
 static constexpr int block = 512;
 
-static Stats render (MurmurProcessor& p, juce::MidiBuffer& midi, float seconds,
+static Stats render (BouquetProcessor& p, juce::MidiBuffer& midi, float seconds,
                      std::function<void (juce::AudioBuffer<float>&)> fillInput = {})
 {
     Stats s;
@@ -48,7 +49,7 @@ static Stats render (MurmurProcessor& p, juce::MidiBuffer& midi, float seconds,
     return s;
 }
 
-static void set (MurmurProcessor& p, const juce::String& id, float value)
+static void set (BouquetProcessor& p, const juce::String& id, float value)
 {
     auto* param = p.apvts.getParameter (id);
     param->setValueNotifyingHost (param->convertTo0to1 (value));
@@ -58,9 +59,9 @@ static void chordOn (juce::MidiBuffer& m, int root) { for (int k : { 0, 7 }) m.a
 static void chordOff (juce::MidiBuffer& m, int root) { for (int k : { 0, 7 }) m.addEvent (juce::MidiMessage::noteOff (1, root + k), 0); }
 
 // Renders the editor with a chord playing and writes it to a PNG.
-static int snapshot (const juce::File& file, bool effect, int spell, int instrument)
+static int snapshot (const juce::File& file, bool effect, int spell, int instrument, bool rotting, float zoom)
 {
-    MurmurProcessor p (effect);
+    BouquetProcessor p (effect);
     p.setPlayConfigDetails (effect ? 2 : 0, 2, sr, block);
     p.prepareToPlay (sr, block);
     p.castSpell (spell, 0.0);
@@ -70,6 +71,8 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
     set (p, ids::auraY, 0.7f);
 
     std::unique_ptr<juce::AudioProcessorEditor> editor (p.createEditor());
+    if (zoom > 1.0f) // exercises the high-density (Retina) background path
+        editor->setSize (juce::roundToInt ((float) editor->getWidth() * zoom), juce::roundToInt ((float) editor->getHeight() * zoom));
     juce::MidiBuffer midi;
     p.keyboardState.noteOn (1, 57, 0.8f);
     juce::AudioBuffer<float> buf (2, block);
@@ -111,17 +114,32 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
     const double frame = timePaint (partial);
     std::cout << "Editor paint: full " << full << " ms, animation frame " << frame << " ms\n";
 
-    // Let the cloud fill back in before taking the picture.
-    p.keyboardState.noteOn (1, 64, 0.8f);
-    for (int f = 0; f < 60; ++f)
+    // Play a little progression so the garden shows bouquets rising, blooming and rotting.
+    auto play = [&] (float seconds)
     {
-        for (int b = 0; b < 3; ++b)
+        for (int f = 0; f < (int) (seconds * 60.0f); ++f)
         {
-            buf.clear();
-            p.processBlock (buf, midi);
+            for (int b = 0; b < 2; ++b)
+            {
+                buf.clear();
+                p.processBlock (buf, midi);
+            }
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (16);
         }
-        juce::MessageManager::getInstance()->runDispatchLoopUntil (16);
+    };
+    p.keyboardState.noteOff (1, 57, 0.0f);
+    const int roots[] = { 45, 53, 60, 67 };
+    const int shapes[] = { 6, 5, 8, 4 };
+    for (int i = 0; i < 4; ++i)
+    {
+        set (p, ids::chord, (float) shapes[i]);
+        p.keyboardState.noteOn (1, roots[i], 0.85f);
+        play (i < 3 ? 1.3f : 1.8f);
+        if (i < 3 || rotting)
+            p.keyboardState.noteOff (1, roots[i], 0.0f);
     }
+    if (rotting)
+        play (2.2f);
 
     const auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);
     file.deleteFile();
@@ -133,7 +151,7 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
 // Renders a short chord progression through a spell into a WAV file.
 static int renderDemo (const juce::File& file, int spell, int instrument)
 {
-    MurmurProcessor p (false);
+    BouquetProcessor p (false);
     p.setPlayConfigDetails (0, 2, sr, block);
     p.prepareToPlay (sr, block);
     p.castSpell (spell, 0.0);
@@ -188,14 +206,16 @@ int main (int argc, char** argv)
     if (argc >= 3 && juce::String (argv[1]) == "--snapshot")
         return snapshot (juce::File (argv[2]), argc > 3 && juce::String (argv[3]) == "fx",
                          argc > 4 ? juce::String (argv[4]).getIntValue() : 0,
-                         argc > 5 ? juce::String (argv[5]).getIntValue() : 1);
+                         argc > 5 ? juce::String (argv[5]).getIntValue() : 1,
+                         argc > 6 && juce::String (argv[6]) == "rot",
+                         argc > 7 ? juce::String (argv[7]).getFloatValue() : 1.0f);
 
     const auto names = instrumentNames();
     const auto& book = spellBook();
 
     // 1. Each instrument, dry, to check levels are sane and voices end.
     {
-        MurmurProcessor p (false);
+        BouquetProcessor p (false);
         p.setPlayConfigDetails (0, 2, sr, block);
         p.prepareToPlay (sr, block);
         set (p, ids::mix, 0.0f);
@@ -223,7 +243,7 @@ int main (int argc, char** argv)
         std::cout << "Spells (piano + violin, wet):\n";
         for (int spell = 0; spell < (int) book.size(); ++spell)
         {
-            MurmurProcessor p (false);
+            BouquetProcessor p (false);
             p.setPlayConfigDetails (0, 2, sr, block);
             p.prepareToPlay (sr, block);
             p.castSpell (spell, 0.0);
@@ -251,7 +271,7 @@ int main (int argc, char** argv)
 
     // 3. Effect build: granulates the input; freeze holds it after the input stops.
     {
-        MurmurProcessor p (true);
+        BouquetProcessor p (true);
         p.setPlayConfigDetails (2, 2, sr, block);
         p.prepareToPlay (sr, block);
         check (p.apvts.getRawParameterValue (ids::instrument)->load() < 0.5f, "fx opens on live input");
@@ -279,23 +299,53 @@ int main (int argc, char** argv)
         check (held.rms() > 0.01f, "freeze keeps singing after the input stops");
     }
 
-    // 4. State round trip.
+    // 4. The garden: note events reach the UI, and chords grow their own bouquets.
     {
-        MurmurProcessor p (false);
+        BouquetProcessor p (false);
+        p.setPlayConfigDetails (0, 2, sr, block);
+        p.prepareToPlay (sr, block);
+        set (p, ids::instrument, (float) Instrument::piano);
+        set (p, ids::chord, 6.0f); // min7: one key, four notes
+        juce::MidiBuffer midi;
+        midi.addEvent (juce::MidiMessage::noteOn (1, 57, 0.8f), 0);
+        render (p, midi, 0.2f);
+        midi.addEvent (juce::MidiMessage::noteOff (1, 57), 0);
+        render (p, midi, 0.2f);
+
+        std::array<NoteEvent, 64> ev {};
+        const int n = p.popNoteEvents (ev.data(), (int) ev.size());
+        int ons = 0, offs = 0;
+        for (int i = 0; i < n; ++i)
+            (ev[(size_t) i].on ? ons : offs)++;
+        check (ons == 4 && offs == 4, "a min7 chord sends four note starts and four releases (got "
+                                       + juce::String (ons) + "/" + juce::String (offs) + ")");
+        check (n > 0 && ev[0].on && juce::roundToInt (ev[0].note) == 57, "the root arrives first");
+
+        using bouquet::ui::Garden;
+        const auto am7 = Garden::seedFor ({ 57, 60, 64, 67 }, 6, 1, 0.8f);
+        check (am7 == Garden::seedFor ({ 67, 64, 60, 57 }, 6, 1, 0.8f), "same chord, same bouquet");
+        check (am7 != Garden::seedFor ({ 60, 64, 67, 69 }, 6, 1, 0.8f), "C6 and Am7 share notes but not a bouquet");
+        check (am7 != Garden::seedFor ({ 57, 60, 64, 67 }, 6, 7, 0.8f), "a different instrument grows a different bouquet");
+        check (am7 != Garden::seedFor ({ 53, 57, 60, 64 }, 5, 1, 0.8f), "a different chord grows a different bouquet");
+    }
+
+    // 5. State round trip.
+    {
+        BouquetProcessor p (false);
         p.castSpell (24, 0.0);
         set (p, ids::chord, 5.0f);
         juce::MemoryBlock mb;
         p.getStateInformation (mb);
-        MurmurProcessor q (false);
+        BouquetProcessor q (false);
         q.setStateInformation (mb.getData(), (int) mb.getSize());
         check (q.getCurrentSpell() == 24, "spell restored");
         check (std::abs (q.apvts.getRawParameterValue (ids::chord)->load() - 5.0f) < 0.5f, "chord restored");
         check (std::abs (q.apvts.getRawParameterValue (ids::feedback)->load() - book[24].values.feedback) < 1e-3f, "feedback restored");
     }
 
-    // 5. CPU: dense spell, four-note chords on the choir with chord mode on.
+    // 6. CPU: dense spell, four-note chords on the choir with chord mode on.
     {
-        MurmurProcessor p (false);
+        BouquetProcessor p (false);
         p.setPlayConfigDetails (0, 2, sr, block);
         p.prepareToPlay (sr, block);
         p.castSpell (18, 0.0); // murmuration

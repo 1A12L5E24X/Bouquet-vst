@@ -4,7 +4,7 @@
 #include "dsp/SoundLab.h"
 #include "dsp/GranularEngine.h"
 
-namespace murmur::ids
+namespace bouquet::ids
 {
 // Sound Lab
 inline const juce::String instrument  = "instrument";
@@ -40,9 +40,9 @@ inline const juce::String mix       = "mix";
 inline const juce::String auraX     = "auraX";
 inline const juce::String auraY     = "auraY";
 inline const juce::String output    = "output";
-} // namespace murmur::ids
+} // namespace bouquet::ids
 
-namespace murmur
+namespace bouquet
 {
 juce::StringArray instrumentNames();
 juce::StringArray instrumentDescriptions();
@@ -53,4 +53,4 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout (bool 
 // Reads the parameter tree into DSP settings. Aura macros are applied here.
 SoundLabSettings readSoundLab (const juce::AudioProcessorValueTreeState&);
 GrainSettings readGrains (const juce::AudioProcessorValueTreeState&);
-} // namespace murmur
+} // namespace bouquet

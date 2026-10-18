@@ -1,7 +1,7 @@
 #include "Parameters.h"
 #include "Spells.h"
 
-namespace murmur
+namespace bouquet
 {
 juce::StringArray instrumentNames()
 {
@@ -148,4 +148,4 @@ GrainSettings readGrains (const juce::AudioProcessorValueTreeState& s)
     g.decaySec = std::clamp (g.decaySec * std::exp2 (1.2f * y), 0.3f, 40.0f);
     return g;
 }
-} // namespace murmur
+} // namespace bouquet

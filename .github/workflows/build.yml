@@ -9,7 +9,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest, macos-latest]
+        # macOS first: it's the main platform (universal binary, AU, installer).
+        os: [macos-latest, windows-latest, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -32,10 +33,24 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
 
+      # macOS: ad-hoc sign, run Apple's auval on both Audio Units, build the installer.
+      - name: Sign, validate and package
+        if: runner.os == 'macOS'
+        run: scripts/package-macos.sh build
+
+      - name: Upload macOS installer
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bouquet-macOS-installer
+          path: build/Bouquet-macOS.pkg
+
       - uses: actions/upload-artifact@v4
         with:
-          name: Plugins-VST3-${{ runner.os }}
+          name: Plugins-${{ runner.os }}
           path: |
-            build/Murmur/Murmur_artefacts/Release/VST3
-            build/Murmur/MurmurFX_artefacts/Release/VST3
+            build/Bouquet/Bouquet_artefacts/Release/VST3
+            build/Bouquet/Bouquet_artefacts/Release/AU
+            build/Bouquet/BouquetFX_artefacts/Release/VST3
+            build/Bouquet/BouquetFX_artefacts/Release/AU
             build/SimpleSynth/SimpleSynth_artefacts/Release/VST3

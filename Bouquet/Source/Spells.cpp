@@ -1,6 +1,6 @@
 #include "Spells.h"
 
-namespace murmur
+namespace bouquet
 {
 namespace
 {
@@ -105,4 +105,4 @@ const std::vector<Spell>& spellBook()
     };
     return book;
 }
-} // namespace murmur
+} // namespace bouquet

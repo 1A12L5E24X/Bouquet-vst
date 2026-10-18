@@ -1,7 +1,7 @@
-#include "MurmurLookAndFeel.h"
+#include "BouquetLookAndFeel.h"
 #include "BinaryData.h"
 
-namespace murmur::ui
+namespace bouquet::ui
 {
 namespace
 {
@@ -12,11 +12,11 @@ namespace
 
     struct Typefaces
     {
-        juce::Typeface::Ptr serifLight       = load (MurmurAssets::NewsreaderLight_ttf, MurmurAssets::NewsreaderLight_ttfSize);
-        juce::Typeface::Ptr serifLightItalic = load (MurmurAssets::NewsreaderLightItalic_ttf, MurmurAssets::NewsreaderLightItalic_ttfSize);
-        juce::Typeface::Ptr serifItalic      = load (MurmurAssets::NewsreaderItalic_ttf, MurmurAssets::NewsreaderItalic_ttfSize);
-        juce::Typeface::Ptr sansRegular      = load (MurmurAssets::InterRegular_ttf, MurmurAssets::InterRegular_ttfSize);
-        juce::Typeface::Ptr sansMedium       = load (MurmurAssets::InterMedium_ttf, MurmurAssets::InterMedium_ttfSize);
+        juce::Typeface::Ptr serifLight       = load (BouquetAssets::NewsreaderLight_ttf, BouquetAssets::NewsreaderLight_ttfSize);
+        juce::Typeface::Ptr serifLightItalic = load (BouquetAssets::NewsreaderLightItalic_ttf, BouquetAssets::NewsreaderLightItalic_ttfSize);
+        juce::Typeface::Ptr serifItalic      = load (BouquetAssets::NewsreaderItalic_ttf, BouquetAssets::NewsreaderItalic_ttfSize);
+        juce::Typeface::Ptr sansRegular      = load (BouquetAssets::InterRegular_ttf, BouquetAssets::InterRegular_ttfSize);
+        juce::Typeface::Ptr sansMedium       = load (BouquetAssets::InterMedium_ttf, BouquetAssets::InterMedium_ttfSize);
     };
 
     const Typefaces& typefaces()
@@ -57,13 +57,28 @@ void drawGlow (juce::Graphics& g, juce::Point<float> c, float radius, juce::Colo
     g.fillEllipse (c.x - radius, c.y - radius, radius * 2.0f, radius * 2.0f);
 }
 
+void drawGlow (juce::Graphics& g, juce::Rectangle<float> area, juce::Colour colour)
+{
+    if (area.isEmpty() || colour.getAlpha() == 0)
+        return;
+
+    // A unit radial gradient, stretched to the ellipse inside area.
+    juce::ColourGradient grad (colour, 0.0f, 0.0f, colour.withAlpha (0.0f), 1.0f, 0.0f, true);
+    grad.addColour (0.3, colour.withMultipliedAlpha (0.55f));
+    grad.addColour (0.65, colour.withMultipliedAlpha (0.15f));
+    const auto c = area.getCentre();
+    g.setFillType (juce::FillType (grad).transformed (juce::AffineTransform::scale (area.getWidth() * 0.5f, area.getHeight() * 0.5f)
+                                                                 .translated (c.x, c.y)));
+    g.fillEllipse (area);
+}
+
 //==============================================================================
-MurmurLookAndFeel::MurmurLookAndFeel()
+BouquetLookAndFeel::BouquetLookAndFeel()
 {
     using namespace colours;
-    setColour (juce::PopupMenu::backgroundColourId, night.brighter (0.08f));
+    setColour (juce::PopupMenu::backgroundColourId, paper);
     setColour (juce::PopupMenu::textColourId, ink.withAlpha (0.8f));
-    setColour (juce::PopupMenu::highlightedBackgroundColourId, violet.withAlpha (0.25f));
+    setColour (juce::PopupMenu::highlightedBackgroundColourId, lilac.withAlpha (0.25f));
     setColour (juce::PopupMenu::highlightedTextColourId, ink);
     setColour (juce::ComboBox::textColourId, ink.withAlpha (0.85f));
     setColour (juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
@@ -73,14 +88,14 @@ MurmurLookAndFeel::MurmurLookAndFeel()
     setColour (juce::Slider::thumbColourId, aqua);
 }
 
-juce::Typeface::Ptr MurmurLookAndFeel::getTypefaceForFont (const juce::Font& f)
+juce::Typeface::Ptr BouquetLookAndFeel::getTypefaceForFont (const juce::Font& f)
 {
     if (f.getTypefaceName() == juce::Font::getDefaultSansSerifFontName())
         return typefaces().sansRegular;
     return LookAndFeel_V4::getTypefaceForFont (f);
 }
 
-void MurmurLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height, float pos,
+void BouquetLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height, float pos,
                                           float startAngle, float endAngle, juce::Slider& s)
 {
     using namespace colours;
@@ -95,9 +110,12 @@ void MurmurLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w
     const float valueAngle = startAngle + pos * (endAngle - startAngle);
     const float originAngle = bipolar ? (startAngle + endAngle) * 0.5f : startAngle;
 
-    // The well: a barely-there disc.
-    g.setColour (ink.withAlpha (0.025f + 0.02f * hover));
-    g.fillEllipse (juce::Rectangle<float> (radius * 1.5f, radius * 1.5f).withCentre (c));
+    // The well: a small frosted disc.
+    const auto well = juce::Rectangle<float> (radius * 1.35f, radius * 1.35f).withCentre (c);
+    g.setColour (frost.withAlpha (0.45f + 0.25f * hover));
+    g.fillEllipse (well);
+    g.setColour (ink.withAlpha (0.06f));
+    g.drawEllipse (well, 0.8f);
 
     auto arc = [&] (float from, float to, float r)
     {
@@ -116,7 +134,7 @@ void MurmurLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w
         juce::ColourGradient grad (a, c.x - radius, c.y + radius, b, c.x + radius, c.y - radius, false);
 
         // Glow layers, then the bright line.
-        for (auto [w, alpha] : { std::pair { 9.0f, 0.06f }, std::pair { 5.0f, 0.12f } })
+        for (auto [w, alpha] : { std::pair { 9.0f, 0.08f }, std::pair { 5.0f, 0.16f } })
         {
             g.setGradientFill (grad);
             g.setOpacity (alpha * (1.0f + 0.6f * hover));
@@ -124,16 +142,18 @@ void MurmurLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w
         }
         g.setOpacity (1.0f);
         g.setGradientFill (grad);
-        g.strokePath (value, juce::PathStrokeType (1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.strokePath (value, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
     const juce::Point<float> dot (c.x + r * std::sin (valueAngle), c.y - r * std::cos (valueAngle));
-    drawGlow (g, dot, 9.0f + 3.0f * hover, b.withAlpha (0.55f));
-    g.setColour (ink);
-    g.fillEllipse (juce::Rectangle<float> (3.2f, 3.2f).withCentre (dot));
+    drawGlow (g, dot, 9.0f + 3.0f * hover, b.withAlpha (0.45f));
+    g.setColour (frost);
+    g.fillEllipse (juce::Rectangle<float> (5.0f, 5.0f).withCentre (dot));
+    g.setColour (b.interpolatedWith (ink, 0.15f));
+    g.drawEllipse (juce::Rectangle<float> (5.0f, 5.0f).withCentre (dot), 1.2f);
 }
 
-void MurmurLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox& box)
+void BouquetLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox& box)
 {
     const auto r = juce::Rectangle<float> (0, 0, (float) width, (float) height).reduced (0.5f);
     g.setColour (colours::ink.withAlpha (box.isMouseOver (true) ? 0.22f : 0.12f));
@@ -148,21 +168,21 @@ void MurmurLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, 
     g.strokePath (chevron, juce::PathStrokeType (1.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 
-juce::Font MurmurLookAndFeel::getComboBoxFont (juce::ComboBox&) { return Fonts::serifItalic (16.0f); }
+juce::Font BouquetLookAndFeel::getComboBoxFont (juce::ComboBox&) { return Fonts::serifItalic (16.0f); }
 
-void MurmurLookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
+void BouquetLookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
 {
     label.setBounds (12, 0, box.getWidth() - 30, box.getHeight());
     label.setFont (getComboBoxFont (box));
     label.setJustificationType (juce::Justification::centredLeft);
 }
 
-juce::Font MurmurLookAndFeel::getPopupMenuFont() { return Fonts::serifItalic (16.0f); }
+juce::Font BouquetLookAndFeel::getPopupMenuFont() { return Fonts::serifItalic (16.0f); }
 
-void MurmurLookAndFeel::drawPopupMenuBackground (juce::Graphics& g, int width, int height)
+void BouquetLookAndFeel::drawPopupMenuBackground (juce::Graphics& g, int width, int height)
 {
     g.fillAll (findColour (juce::PopupMenu::backgroundColourId));
     g.setColour (colours::ink.withAlpha (0.08f));
     g.drawRect (0, 0, width, height);
 }
-} // namespace murmur::ui
+} // namespace bouquet::ui

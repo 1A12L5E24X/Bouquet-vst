@@ -3,7 +3,9 @@ juce_add_plugin(SimpleSynth
     PLUGIN_MANUFACTURER_CODE Vst3
     PLUGIN_CODE SmSy
     PRODUCT_NAME "Simple Synth"
-    FORMATS VST3 Standalone
+    FORMATS AU VST3 Standalone
+    BUNDLE_ID com.vst3test.simplesynth
+    HARDENED_RUNTIME_ENABLED TRUE
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE

@@ -5,13 +5,13 @@
 #include "Parameters.h"
 #include "Spells.h"
 
-class MurmurProcessor : public juce::AudioProcessor,
+class BouquetProcessor : public juce::AudioProcessor,
                         private juce::Timer,
                         private juce::AsyncUpdater
 {
 public:
-    explicit MurmurProcessor (bool isEffect = ! JucePlugin_IsSynth);
-    ~MurmurProcessor() override;
+    explicit BouquetProcessor (bool isEffect = ! JucePlugin_IsSynth);
+    ~BouquetProcessor() override;
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
@@ -44,10 +44,13 @@ public:
     void mutate();
     int getCurrentSpell() const;
 
+    // UI thread: notes started and let go since the last call (for the garden).
+    int popNoteEvents (bouquet::NoteEvent* dest, int maxEvents) { return soundLab.popNoteEvents (dest, maxEvents); }
+
     const bool isEffect;
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState keyboardState;
-    murmur::GranularEngine engine;
+    bouquet::GranularEngine engine;
 
     std::atomic<float> sourceMeter { 0.0f }, outputMeter { 0.0f };
     std::atomic<int> soundingVoices { 0 };
@@ -64,7 +67,7 @@ private:
         float from, to;
     };
 
-    murmur::SoundLab soundLab;
+    bouquet::SoundLab soundLab;
     juce::AudioBuffer<float> scratch;
     juce::SmoothedValue<float> sourceGain, outputGain;
     float sourceEnv = 0.0f, outputEnv = 0.0f;
@@ -75,5 +78,5 @@ private:
     std::atomic<int> pendingProgram { -1 };
     std::atomic<int> currentSpell { 0 };   // mirrors the "spell" state property for any thread
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MurmurProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BouquetProcessor)
 };

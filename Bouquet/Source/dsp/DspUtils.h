@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <algorithm>
 
-namespace murmur
+namespace bouquet
 {
 constexpr float pi    = 3.14159265358979f;
 constexpr float twoPi = 6.28318530717959f;
@@ -145,4 +145,4 @@ inline float polyBlep (float t, float dt)
     if (t > 1.0f - dt) { t = (t - 1.0f) / dt; return t * t + t + t + 1.0f; }
     return 0.0f;
 }
-} // namespace murmur
+} // namespace bouquet

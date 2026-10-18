@@ -1,7 +1,7 @@
 #include "PluginProcessor.h"
 #include "ui/PluginEditor.h"
 
-using namespace murmur;
+using namespace bouquet;
 
 namespace
 {
@@ -15,7 +15,7 @@ namespace
     }
 }
 
-juce::AudioProcessor::BusesProperties MurmurProcessor::makeBuses (bool isEffect)
+juce::AudioProcessor::BusesProperties BouquetProcessor::makeBuses (bool isEffect)
 {
     // The instrument also offers an (optional, off by default) input so hosts that
     // route audio into instruments can feed "live input".
@@ -24,21 +24,21 @@ juce::AudioProcessor::BusesProperties MurmurProcessor::makeBuses (bool isEffect)
         .withOutput ("Output", juce::AudioChannelSet::stereo(), true);
 }
 
-MurmurProcessor::MurmurProcessor (bool effect)
+BouquetProcessor::BouquetProcessor (bool effect)
     : AudioProcessor (makeBuses (effect)),
       isEffect (effect),
-      apvts (*this, nullptr, "MURMUR", createParameterLayout (effect))
+      apvts (*this, nullptr, "BOUQUET", createParameterLayout (effect))
 {
     apvts.state.setProperty ("spell", 0, nullptr);
 }
 
-MurmurProcessor::~MurmurProcessor()
+BouquetProcessor::~BouquetProcessor()
 {
     cancelPendingUpdate();
     stopTimer();
 }
 
-bool MurmurProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool BouquetProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
     const auto out = layouts.getMainOutputChannelSet();
     if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
@@ -51,7 +51,7 @@ bool MurmurProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
     return in.isDisabled() || in == juce::AudioChannelSet::mono() || in == juce::AudioChannelSet::stereo();
 }
 
-void MurmurProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void BouquetProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     soundLab.prepare (sampleRate);
     engine.prepare (sampleRate);
@@ -63,7 +63,7 @@ void MurmurProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     outputGain.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (apvts.getRawParameterValue (ids::output)->load()));
 }
 
-void MurmurProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
+void BouquetProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
     const int n = buffer.getNumSamples();
@@ -146,16 +146,16 @@ void MurmurProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     midi.clear();
 }
 
-juce::AudioProcessorEditor* MurmurProcessor::createEditor()
+juce::AudioProcessorEditor* BouquetProcessor::createEditor()
 {
-    return new MurmurEditor (*this);
+    return new BouquetEditor (*this);
 }
 
 //==============================================================================
-int MurmurProcessor::getNumPrograms()   { return (int) spellBook().size(); }
-int MurmurProcessor::getCurrentProgram() { return getCurrentSpell(); }
+int BouquetProcessor::getNumPrograms()   { return (int) spellBook().size(); }
+int BouquetProcessor::getCurrentProgram() { return getCurrentSpell(); }
 
-void MurmurProcessor::setCurrentProgram (int index)
+void BouquetProcessor::setCurrentProgram (int index)
 {
     // Hosts often re-send the current program after restoring state; don't clobber it.
     if (! juce::isPositiveAndBelow (index, getNumPrograms()) || index == getCurrentSpell())
@@ -166,26 +166,26 @@ void MurmurProcessor::setCurrentProgram (int index)
     triggerAsyncUpdate();
 }
 
-void MurmurProcessor::handleAsyncUpdate()
+void BouquetProcessor::handleAsyncUpdate()
 {
     const int index = pendingProgram.exchange (-1);
     if (index >= 0)
         castSpell (index);
 }
 
-const juce::String MurmurProcessor::getProgramName (int index)
+const juce::String BouquetProcessor::getProgramName (int index)
 {
     if (juce::isPositiveAndBelow (index, getNumPrograms()))
         return spellBook()[(size_t) index].name;
     return {};
 }
 
-int MurmurProcessor::getCurrentSpell() const
+int BouquetProcessor::getCurrentSpell() const
 {
     return currentSpell.load();
 }
 
-void MurmurProcessor::castSpell (int index, double glideSeconds)
+void BouquetProcessor::castSpell (int index, double glideSeconds)
 {
     const auto& book = spellBook();
     if (! juce::isPositiveAndBelow (index, (int) book.size()))
@@ -205,7 +205,7 @@ void MurmurProcessor::castSpell (int index, double glideSeconds)
     }, glideSeconds);
 }
 
-void MurmurProcessor::mutate()
+void BouquetProcessor::mutate()
 {
     std::vector<std::pair<juce::String, float>> targets;
     for (auto* id : { &ids::density, &ids::size, &ids::time, &ids::spray, &ids::detune, &ids::reverse,
@@ -221,7 +221,7 @@ void MurmurProcessor::mutate()
     startMorph (targets, 1.0);
 }
 
-void MurmurProcessor::startMorph (const std::vector<std::pair<juce::String, float>>& targets, double seconds)
+void BouquetProcessor::startMorph (const std::vector<std::pair<juce::String, float>>& targets, double seconds)
 {
     for (auto& t : morphTargets)
         t.param->endChangeGesture();
@@ -252,7 +252,7 @@ void MurmurProcessor::startMorph (const std::vector<std::pair<juce::String, floa
     timerCallback();
 }
 
-void MurmurProcessor::timerCallback()
+void BouquetProcessor::timerCallback()
 {
     const double elapsed = juce::Time::getMillisecondCounterHiRes() - morphStartMs;
     const double t = morphLengthMs <= 0.0 ? 1.0 : juce::jlimit (0.0, 1.0, elapsed / morphLengthMs);
@@ -271,13 +271,13 @@ void MurmurProcessor::timerCallback()
 }
 
 //==============================================================================
-void MurmurProcessor::getStateInformation (juce::MemoryBlock& destData)
+void BouquetProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     if (auto xml = apvts.copyState().createXml())
         copyXmlToBinary (*xml, destData);
 }
 
-void MurmurProcessor::setStateInformation (const void* data, int sizeInBytes)
+void BouquetProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     auto xml = getXmlFromBinary (data, sizeInBytes);
     if (xml == nullptr || ! xml->hasTagName (apvts.state.getType()))
@@ -295,5 +295,5 @@ void MurmurProcessor::setStateInformation (const void* data, int sizeInBytes)
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new MurmurProcessor();
+    return new BouquetProcessor();
 }

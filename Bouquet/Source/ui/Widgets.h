@@ -2,9 +2,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
-#include "MurmurLookAndFeel.h"
+#include "BouquetLookAndFeel.h"
 
-namespace murmur::ui
+namespace bouquet::ui
 {
 // A minimal rotary control: a thin arc of light, its name beneath,
 // which turns into the value while you touch it.
@@ -91,4 +91,4 @@ public:
 
 // Paints a small four-pointed star.
 void drawSparkle (juce::Graphics&, juce::Point<float> centre, float radius, juce::Colour);
-} // namespace murmur::ui
+} // namespace bouquet::ui
