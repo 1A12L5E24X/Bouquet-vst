@@ -8,11 +8,20 @@ Plugins built with [JUCE](https://juce.com) 8, sharing one CMake project. **macO
 | **Bouquet FX** | The same engine as an audio effect that granulates whatever track it sits on | AU (music effect) + VST3 effect |
 | **Simple Synth** | A small polyphonic subtractive synth | AU, VST3, standalone |
 
+## Download
+
+**[Download the latest release →](https://github.com/1A12L5E24X/vst3-test/releases/latest)**
+
+The macOS installer there is **Bouquet-macOS.pkg**. It installs Bouquet and Bouquet FX as Audio Units and
+VST3, plus the standalone app. If there's no release yet, or you want the newest build, grab it from the
+Actions tab as described below.
+
 ## Install on a Mac
 
-1. Open the repository's **Actions** tab on GitHub, open the newest green **Build** run, and download
-   **Bouquet-macOS-installer** from its Artifacts.
-2. Unzip it and open **Bouquet-macOS.pkg**. The installer isn't signed by a registered Apple developer,
+1. Download **Bouquet-macOS.pkg** from the [latest release](https://github.com/1A12L5E24X/vst3-test/releases/latest),
+   or grab the latest build from the repository's **Actions** tab: open the newest green **Build** run and
+   download **Bouquet-macOS-installer** from its Artifacts, then unzip it.
+2. Open **Bouquet-macOS.pkg**. The installer isn't signed by a registered Apple developer,
    so the first time **right-click → Open** (or allow it in System Settings → Privacy & Security).
 3. It installs Bouquet and Bouquet FX as Audio Units (`/Library/Audio/Plug-Ins/Components`) and VST3
    (`/Library/Audio/Plug-Ins/VST3`), plus the standalone app.
