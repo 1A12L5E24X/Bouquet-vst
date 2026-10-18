@@ -175,7 +175,8 @@ void Garden::paintRealGrass (juce::Graphics& g, float time, bool front) const
                 continue;
 
             // Wind and the ripples of each new chord shear the tuft.
-            float sway = std::sin (time * 1.6f + x * 0.015f + (float) i) * 0.12f * wind * (1.0f - 0.5f * breath);
+            const float gust = processor.modWheel.load();
+            float sway = std::sin (time * (1.6f + 2.0f * gust) + x * 0.015f + (float) i) * (0.12f + 0.3f * gust) * wind * (1.0f - 0.5f * breath);
             for (const auto& rp : ripples)
             {
                 const float dist = std::abs (x - rp.x);
@@ -356,11 +357,11 @@ void Garden::paint (juce::Graphics& g)
     const bool photoreal = processor.photorealFlowers() && sprites->available() && sprites->grassCount() > 0;
     const auto coverage = [this] (float x) { return grassCoverage (x); };
     if (photoreal) paintRealGrass (g, time, false);
-    else           grass.paint (g, ground, time, breath, ripples, false, coverage);
+    else           grass.paint (g, ground, time, breath, ripples, false, coverage, processor.modWheel.load());
     for (const auto& b : bouquets)
         paintBunch (g, b, time, sway);
     if (photoreal) paintRealGrass (g, time, true);
-    else           grass.paint (g, ground, time, breath, ripples, true, coverage);
+    else           grass.paint (g, ground, time, breath, ripples, true, coverage, processor.modWheel.load());
 }
 
 void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sway) const
@@ -371,13 +372,16 @@ void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sw
     const float bloomT = juce::jlimit (0.0f, 1.0f, (b.age - 0.55f * b.growSeconds) / (0.9f * b.growSeconds));
     const float bloom = bloomT * bloomT * (3.0f - 2.0f * bloomT);
     const float rot = b.rot;
+    // Expression: pressing into held keys lifts and lights the bouquet; the mod wheel is wind.
+    const float press = b.released ? 0.0f : processor.keyPressure.load();
+    const float gust = processor.modWheel.load();
 
     for (const auto& f : b.flowers)
     {
         // The head sways, lifts with the breath, and bows over as it rots.
         const float lean = f.spread >= 0.0f ? 1.0f : -1.0f;
-        const float breeze = (std::sin (time * 0.9f + f.genome.phase) * 3.0f + sway * 2.5f) * (1.0f - rot);
-        juce::Point<float> head (b.x + f.spread * 2.1f + breeze, baseY - f.height - 4.0f * breath * (1.0f - rot));
+        const float breeze = (std::sin (time * (0.9f + 1.6f * gust) + f.genome.phase) * 3.0f * (1.0f + 2.5f * gust) + sway * 2.5f) * (1.0f - rot);
+        juce::Point<float> head (b.x + f.spread * 2.1f + breeze, baseY - f.height - (4.0f * breath + 10.0f * press) * (1.0f - rot));
         const float droop = std::pow (rot, 1.2f) * 1.45f * lean;
         auto rotate = [&tie] (juce::Point<float> p, float a)
         {
@@ -396,13 +400,14 @@ void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sw
         pose.rot = rot;
         pose.time = time;
         pose.stemWidth = 2.4f;
+        pose.glow = press;
         if (processor.photorealFlowers() && sprites->available())
         {
             // Rendered flowers carry their own droop; we only fan them out and sway them.
             const float fan = f.spread * 0.011f + breeze * 0.008f;
             real::paintFlower (g, *sprites, f.genome.species, (int) (f.genome.seed % real::FlowerSprites::numVariants),
                                real::FlowerSprites::nearestColour (f.genome.petal),
-                               pose.base, f.height * 0.9f, fan, grow, pose.bloom, rot, time, 0.0f);
+                               pose.base, f.height * 0.9f * (1.0f + 0.06f * press), fan, grow, pose.bloom, rot, time, press);
         }
         else
         {

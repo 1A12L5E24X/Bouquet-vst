@@ -155,6 +155,9 @@ Surface::Surface (BouquetProcessor& p)
     flowerStyle.setFont (Fonts::serifItalic (16.0f));
     flowerStyle.onClick = [this] { processor.setPhotorealFlowers (! processor.photorealFlowers()); repaint(); };
     addAndMakeVisible (flowerStyle);
+    syncSwitch.setFont (Fonts::serifItalic (16.0f));
+    syncSwitch.onClick = [this] { setParam (ids::sync, param (ids::sync) > 0.5f ? 0.0f : 1.0f); };
+    addAndMakeVisible (syncSwitch);
     addAndMakeVisible (gardenButton);
     addAndMakeVisible (magicSwitch);
 
@@ -254,6 +257,7 @@ void Surface::resized()
     output.setBounds (designWidth - 24 - 56, 18, 56, 60);
     mutate.setBounds (designWidth - 24 - 56 - 116, 30, 108, 34);
     magicSwitch.setBounds (mutate.getX() - 128, 30, 120, 34);
+    syncSwitch.setBounds (magicSwitch.getX() - 120, 30, 112, 34);
 
     keyboard.setBounds (keysArea);
     garden.setBounds (gardenArea);
@@ -330,6 +334,8 @@ void Surface::syncSelections()
     magicSwitch.setSelected (param (ids::magic) > 0.5f);
     magicSwitch.setText (param (ids::magic) > 0.5f ? "magic lab on" : "magic lab off");
     flowerStyle.setSelected (processor.photorealFlowers());
+    syncSwitch.setSelected (param (ids::sync) > 0.5f);
+    syncSwitch.setText (param (ids::sync) > 0.5f ? "synced" : "tempo sync");
     flowerStyle.setText (processor.photorealFlowers() ? "photoreal" : "drawn");
 }
 
@@ -347,7 +353,7 @@ void Surface::frame (float dt)
         if (std::abs (magicTarget - magicShown) < 0.01f)
             magicShown = magicTarget;
         resized();
-        for (auto* item : { &gardenButton, &magicSwitch, &flowerStyle, &mutate })
+        for (auto* item : { &gardenButton, &magicSwitch, &flowerStyle, &syncSwitch, &mutate })
             item->animate();
         repaint();
         return;
@@ -380,7 +386,7 @@ void Surface::frame (float dt)
         for (auto* group : { &instruments, &chords, &voicings, &categories, &spells })
             for (auto* item : *group)
                 item->animate();
-        for (auto* item : { &octaveDown, &octaveUp, &mutate, &gardenButton, &magicSwitch, &flowerStyle })
+        for (auto* item : { &octaveDown, &octaveUp, &mutate, &gardenButton, &magicSwitch, &flowerStyle, &syncSwitch })
             item->animate();
         repaint();
         return;
@@ -390,7 +396,7 @@ void Surface::frame (float dt)
         for (auto* item : *group)
             if (item->animate())
                 item->repaint();
-    for (auto* item : { &octaveDown, &octaveUp, &mutate, &gardenButton, &magicSwitch, &flowerStyle })
+    for (auto* item : { &octaveDown, &octaveUp, &mutate, &gardenButton, &magicSwitch, &flowerStyle, &syncSwitch })
         if (item->animate())
             item->repaint();
     for (auto* knob : { &tone, &attack, &release, &strum, &forest, &wildlife, &level, &mix, &space, &life, &output })

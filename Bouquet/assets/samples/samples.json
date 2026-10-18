@@ -196,7 +196,7 @@
      "lo": 21,
      "hi": 22,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/025_061.ogg",
@@ -204,7 +204,7 @@
      "lo": 23,
      "hi": 26,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/029_061.ogg",
@@ -212,7 +212,7 @@
      "lo": 27,
      "hi": 30,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/033_061.ogg",
@@ -220,7 +220,7 @@
      "lo": 31,
      "hi": 34,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/037_061.ogg",
@@ -228,7 +228,7 @@
      "lo": 35,
      "hi": 38,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/041_061.ogg",
@@ -236,7 +236,7 @@
      "lo": 39,
      "hi": 42,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/045_061.ogg",
@@ -244,7 +244,7 @@
      "lo": 43,
      "hi": 46,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/049_061.ogg",
@@ -252,7 +252,7 @@
      "lo": 47,
      "hi": 50,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/053_061.ogg",
@@ -260,7 +260,7 @@
      "lo": 51,
      "hi": 54,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/057_061.ogg",
@@ -268,7 +268,7 @@
      "lo": 55,
      "hi": 58,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/061_061.ogg",
@@ -276,7 +276,7 @@
      "lo": 59,
      "hi": 62,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/065_061.ogg",
@@ -284,7 +284,7 @@
      "lo": 63,
      "hi": 66,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/069_061.ogg",
@@ -292,7 +292,7 @@
      "lo": 67,
      "hi": 70,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/073_061.ogg",
@@ -300,7 +300,7 @@
      "lo": 71,
      "hi": 74,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/077_061.ogg",
@@ -308,7 +308,7 @@
      "lo": 75,
      "hi": 78,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/081_061.ogg",
@@ -316,7 +316,7 @@
      "lo": 79,
      "hi": 82,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/085_061.ogg",
@@ -324,7 +324,7 @@
      "lo": 83,
      "hi": 86,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/089_061.ogg",
@@ -332,7 +332,7 @@
      "lo": 87,
      "hi": 90,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/093_061.ogg",
@@ -340,7 +340,7 @@
      "lo": 91,
      "hi": 94,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/097_061.ogg",
@@ -348,7 +348,7 @@
      "lo": 95,
      "hi": 98,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/101_061.ogg",
@@ -356,7 +356,7 @@
      "lo": 99,
      "hi": 102,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/105_061.ogg",
@@ -364,7 +364,7 @@
      "lo": 103,
      "hi": 106,
      "lovel": 61,
-     "hivel": 127
+     "hivel": 110
     },
     {
      "file": "piano/108_061.ogg",
@@ -372,6 +372,190 @@
      "lo": 107,
      "hi": 108,
      "lovel": 61,
+     "hivel": 110
+    },
+    {
+     "file": "piano/021_111.ogg",
+     "key": 21,
+     "lo": 21,
+     "hi": 22,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/025_111.ogg",
+     "key": 25,
+     "lo": 23,
+     "hi": 26,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/029_111.ogg",
+     "key": 29,
+     "lo": 27,
+     "hi": 30,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/033_111.ogg",
+     "key": 33,
+     "lo": 31,
+     "hi": 34,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/037_111.ogg",
+     "key": 37,
+     "lo": 35,
+     "hi": 38,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/041_111.ogg",
+     "key": 41,
+     "lo": 39,
+     "hi": 42,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/045_111.ogg",
+     "key": 45,
+     "lo": 43,
+     "hi": 46,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/049_111.ogg",
+     "key": 49,
+     "lo": 47,
+     "hi": 50,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/053_111.ogg",
+     "key": 53,
+     "lo": 51,
+     "hi": 54,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/057_111.ogg",
+     "key": 57,
+     "lo": 55,
+     "hi": 58,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/061_111.ogg",
+     "key": 61,
+     "lo": 59,
+     "hi": 62,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/065_111.ogg",
+     "key": 65,
+     "lo": 63,
+     "hi": 66,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/069_111.ogg",
+     "key": 69,
+     "lo": 67,
+     "hi": 70,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/073_111.ogg",
+     "key": 73,
+     "lo": 71,
+     "hi": 74,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/077_111.ogg",
+     "key": 77,
+     "lo": 75,
+     "hi": 78,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/081_111.ogg",
+     "key": 81,
+     "lo": 79,
+     "hi": 82,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/085_111.ogg",
+     "key": 85,
+     "lo": 83,
+     "hi": 86,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/089_111.ogg",
+     "key": 89,
+     "lo": 87,
+     "hi": 90,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/093_111.ogg",
+     "key": 93,
+     "lo": 91,
+     "hi": 94,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/097_111.ogg",
+     "key": 97,
+     "lo": 95,
+     "hi": 98,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/101_111.ogg",
+     "key": 101,
+     "lo": 99,
+     "hi": 102,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/105_111.ogg",
+     "key": 105,
+     "lo": 103,
+     "hi": 106,
+     "lovel": 111,
+     "hivel": 127
+    },
+    {
+     "file": "piano/108_111.ogg",
+     "key": 108,
+     "lo": 107,
+     "hi": 108,
+     "lovel": 111,
      "hivel": 127
     }
    ]

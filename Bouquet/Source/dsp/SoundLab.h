@@ -56,6 +56,10 @@ public:
     void release();
     void kill() { active = false; }
 
+    // Key pressure (aftertouch), 0..1: brightens and swells the note.
+    void setPressure (float p) { pressure = p; }
+    float getPressure() const { return pressureNow; }
+
     // Adds this voice's output into left/right.
     void render (float* left, float* right, int numSamples, float pitchBendSemis);
 
@@ -154,10 +158,18 @@ private:
     float loopGain = 0.99f, loopBlend = 0.5f, apCoeff = 0.0f, apX1 = 0.0f, apY1 = 0.0f, prevRead = 0.0f;
     int delayInt = 100;
 
-    // Sample playback
-    const void* region = nullptr;          // SampledInstrument::Region
-    double samplePos = 0.0, sampleStep = 1.0;
-    float sampleGain = 1.0f;
+    // Sample playback: up to two recorded layers cross-faded by velocity.
+    struct Playhead
+    {
+        const void* region = nullptr;      // SampledInstrument::Region
+        double pos = 0.0, step = 1.0;
+        float gain = 0.0f;
+        bool done = false;
+    };
+    std::array<Playhead, 2> heads {};
+    int numHeads = 0;
+
+    float pressure = 0.0f, pressureNow = 0.0f, toneBase = 1500.0f, toneApplied = 0.0f;
 };
 
 // A voice starting or being let go, for the UI (the garden grows bouquets from these).
@@ -188,6 +200,9 @@ public:
     // Number of voices currently sounding (for the UI's "breathing").
     int activeVoiceCount() const;
 
+    // The strongest key pressure on any held voice, 0..1 (for the UI).
+    float maxPressure() const;
+
     // UI thread: pop note starts/releases since the last call.
     int popNoteEvents (NoteEvent* dest, int maxEvents);
 
@@ -200,6 +215,7 @@ private:
     void noteOff (int key);
     void startVoice (int key, float note, float velocity);
     void releaseVoicesForKey (int key);
+    void setPressureForKey (int key, float pressure);
 
     struct PendingNote { int key; float note; float velocity; int samplesLeft; };
 

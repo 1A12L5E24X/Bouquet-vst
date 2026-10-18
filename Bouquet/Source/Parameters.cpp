@@ -89,6 +89,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout (bool 
     layout.add (std::make_unique<Float> (ParameterID { ids::auraY, 1 }, "Aura Y", NormalisableRange<float> (0.0f, 1.0f), 0.5f));
     layout.add (std::make_unique<Float> (ParameterID { ids::output, 1 }, "Output", NormalisableRange<float> (-24.0f, 6.0f), 0.0f, attrs ("dB")));
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ids::magic, 1 }, "Magic Lab", true));
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { ids::sync, 1 }, "Tempo Sync", false));
 
     return layout;
 }

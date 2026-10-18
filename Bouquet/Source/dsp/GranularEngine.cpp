@@ -113,6 +113,14 @@ void GranularEngine::spawnGrain (const GrainSettings& s, float gainComp)
     const double bufLen = (double) (bufMask + 1);
     const double writeSpeed = s.freeze ? 0.0 : 1.0;
     double delay = (double) ((s.timeSec * (1.0f + 0.5f * lifePosNow * s.life) + s.spray * 2.0f * rng.uni()) * fsr);
+    if (syncQuantumSec > 0.0)
+    {
+        // Synced: reach back whole note lengths, so every echo lands on the grid.
+        const double q = syncQuantumSec * sr;
+        const double steps = std::max (1.0, std::round ((double) s.timeSec * sr / q));
+        const double spraySteps = std::floor ((double) s.spray * 2.0 * sr / q * (double) rng.uni() + 0.5);
+        delay = (steps + spraySteps) * q;
+    }
 
     double lo = 0.0, hi = -1.0;
     for (int attempt = 0; attempt < 6; ++attempt)
@@ -154,6 +162,21 @@ void GranularEngine::spawnGrain (const GrainSettings& s, float gainComp)
     if (scope.blockSize1 > 0)
         events[(size_t) scope.startIndex1] = { (float) (delay / (memorySeconds * sr)), semis, pan,
                                                (float) length / fsr, amp, reversed, harmonic };
+}
+
+double GranularEngine::syncDivision (float density, double bpm)
+{
+    // Whole note down to 1/64, straight and triplet, in beats.
+    static const double divisions[] = { 4.0, 2.0, 4.0 / 3.0, 1.0, 2.0 / 3.0, 0.5, 1.0 / 3.0, 0.25,
+                                        1.0 / 6.0, 0.125, 1.0 / 12.0, 0.0625 };
+    const double wanted = 60.0 / std::clamp (bpm, 20.0, 400.0);   // seconds per beat
+    double best = 0.25, bestError = 1.0e9;
+    for (double d : divisions)
+    {
+        const double error = std::abs (std::log (d * wanted * (double) std::max (0.1f, density)));
+        if (error < bestError) { bestError = error; best = d; }
+    }
+    return best;
 }
 
 void GranularEngine::process (const float* srcL, const float* srcR, float* outL, float* outR,
@@ -199,7 +222,19 @@ void GranularEngine::process (const float* srcL, const float* srcR, float* outL,
     feedbackRamp.setTarget (s.freeze ? 0.0f : s.feedback);
     spaceRamp.setTarget (s.space);
 
-    const double baseInterval = sr / (double) density;
+    double baseInterval = sr / (double) density;
+    const double spb = sr * 60.0 / std::clamp (s.bpm, 20.0, 400.0);
+    double division = 0.0;
+    syncQuantumSec = 0.0;
+    if (s.sync)
+    {
+        division = syncDivision (density, s.bpm);
+        baseInterval = division * spb;
+        syncQuantumSec = std::max (division, 0.125) * spb / sr;
+    }
+    const bool onGrid = s.sync && s.playing && s.ppq >= 0.0;
+    if (! onGrid)
+        lastGridTick = -1.0;
     const double bufLen = (double) (bufMask + 1);
     float wetPeak = 0.0f;
 
@@ -227,9 +262,24 @@ void GranularEngine::process (const float* srcL, const float* srcR, float* outL,
             }
         }
 
-        // 2. Schedule new grains.
-        samplesToNextGrain -= 1.0;
-        if (samplesToNextGrain <= 0.0)
+        // 2. Schedule new grains: on the host's grid when synced and playing,
+        //    otherwise at the (possibly synced) rate with chaos in the timing.
+        if (onGrid)
+        {
+            const double tick = std::floor ((s.ppq + (double) i / spb) / division);
+            if (tick > lastGridTick || tick < lastGridTick - 0.5)
+            {
+                lastGridTick = tick;
+                // Chaos drops some beats and adds the odd ghost grain in between.
+                if (! rng.chance (s.chaos * 0.4f))
+                    spawnGrain (s, gainComp);
+                if (rng.chance (s.chaos * 0.25f))
+                    samplesToNextGrain = baseInterval * 0.5;
+            }
+            if (samplesToNextGrain > 0.0 && (samplesToNextGrain -= 1.0) <= 0.0)
+                spawnGrain (s, gainComp);
+        }
+        else if ((samplesToNextGrain -= 1.0) <= 0.0)
         {
             spawnGrain (s, gainComp);
             const double randomGap = -std::log (std::max (1.0e-6f, rng.uni()));

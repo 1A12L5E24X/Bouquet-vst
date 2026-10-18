@@ -23,6 +23,11 @@ struct SampledInstrument
 
     const Region* find (float note, float velocity) const;
 
+    // The recorded dynamic layers either side of a velocity, for a smooth cross-fade
+    // between soft and loud recordings (b is null when only one layer applies).
+    struct Layers { const Region* a = nullptr; const Region* b = nullptr; float mix = 0.0f; };
+    Layers findLayers (float note, float velocity) const;
+
     std::vector<Region> regions;
     double sampleRate = 44100.0;
     bool sustained = false;

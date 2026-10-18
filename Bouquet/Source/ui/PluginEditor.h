@@ -61,6 +61,7 @@ private:
     GlowItem gardenButton { "garden", GlowItem::Style::pill, colours::mint, colours::butter };
     GlowItem magicSwitch  { "magic lab", GlowItem::Style::pill, colours::violet, colours::sky };
     GlowItem flowerStyle  { "photoreal", GlowItem::Style::pill, colours::rose, colours::peach };
+    GlowItem syncSwitch   { "tempo sync", GlowItem::Style::pill, colours::mint, colours::sky };
     GlowItem mutate { "mutate", GlowItem::Style::pill, colours::violet, colours::aqua };
     GlowKnob output;
 

@@ -760,9 +760,9 @@ void Grass::generate (float width, float maxHeight, uint32_t seed, float density
 }
 
 void Grass::paint (juce::Graphics& g, juce::Point<float> origin, float time, float breath,
-                   const std::vector<Ripple>& ripples, bool front, const std::function<float (float)>& coverage) const
+                   const std::vector<Ripple>& ripples, bool front, const std::function<float (float)>& coverage, float gust) const
 {
-    const float wind = 0.6f + 0.4f * std::sin (time * 0.37f) * std::sin (time * 0.23f + 1.0f);
+    const float wind = (0.6f + 0.4f * std::sin (time * 0.37f) * std::sin (time * 0.23f + 1.0f)) * (1.0f + 2.5f * gust);
     for (const auto& b : blades)
     {
         if (b.front != front)

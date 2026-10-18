@@ -40,6 +40,12 @@ struct GrainSettings
     float life = 0.3f;
     bool freeze = false;
     float mix = 0.6f;
+
+    // Tempo sync: grains fall on the host's beat grid and echoes land on note lengths.
+    bool sync = false;
+    double bpm = 120.0;
+    double ppq = -1.0;         // beat position at the start of the block; < 0 when unknown
+    bool playing = false;
 };
 
 // What the UI needs to draw one grain.
@@ -73,6 +79,9 @@ public:
     // UI thread: snapshot of recent input loudness, newest first.
     void readMemory (std::array<float, memoryBins>& dest) const;
 
+    // Tempo sync: the note length (in beats) whose rate is closest to a grain density.
+    static double syncDivision (float density, double bpm);
+
     std::atomic<float> wetLevel { 0.0f };
     std::atomic<float> breath { 0.0f };    // slow organic modulation, -1..1
     std::atomic<int> activeGrains { 0 };
@@ -96,6 +105,8 @@ private:
     std::array<Grain, maxGrains> grains {};
     int numGrains = 0;
     double samplesToNextGrain = 0.0;
+    double lastGridTick = -1.0;
+    double syncQuantumSec = 0.0;   // echoes snap to multiples of this when synced
 
     std::array<float, 1025> riseTable {};
     Random rng { 0xC0FFEEu };

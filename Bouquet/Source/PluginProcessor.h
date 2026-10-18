@@ -69,6 +69,9 @@ public:
     std::atomic<float> sourceMeter { 0.0f }, outputMeter { 0.0f };
     std::atomic<int> soundingVoices { 0 };
 
+    // Expression, for the garden: key pressure (aftertouch) and the mod wheel, 0..1.
+    std::atomic<float> keyPressure { 0.0f }, modWheel { 0.0f };
+
 private:
     static BusesProperties makeBuses (bool isEffect);
     void timerCallback() override;

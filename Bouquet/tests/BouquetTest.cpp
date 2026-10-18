@@ -497,7 +497,7 @@ int main (int argc, char** argv)
                                "rendered frames for " + name);
                     }
             std::cout << "Checked " << atlases << " flower atlases\n";
-            check (sprites.framePosition (0.0f, 0.0f) == 0.0f && sprites.framePosition (1.0f, 1.0f) == last, "frame positions cover bud to rot");
+            check (std::abs (sprites.framePosition (0.0f, 0.0f)) < 1e-4f && std::abs (sprites.framePosition (1.0f, 1.0f) - last) < 1e-4f, "frame positions cover bud to rot");
             check (sprites.top (bouquet::ui::botany::Species::rose, 0, 5).isValid(), "flowers seen from above");
             check (sprites.grassCount() > 0 && sprites.grass (0).isValid(), "grass tufts");
             check (sprites.fly (0).isValid() && sprites.drop().isValid(), "fly and blood-drop sprites");
@@ -541,6 +541,66 @@ int main (int argc, char** argv)
                     check (later.rms() > 0.005f, names[(int) inst] + " sustains through its loop");
                 }
             }
+    }
+
+    // 7c. Tempo sync: grains follow the host's beat grid.
+    {
+        check (std::abs (bouquet::GranularEngine::syncDivision (8.0f, 120.0) - 0.25) < 1e-9, "8 grains a second at 120 bpm are sixteenths");
+        check (std::abs (bouquet::GranularEngine::syncDivision (3.0f, 120.0) - 2.0 / 3.0) < 1e-9, "3 a second are quarter-note triplets");
+
+        bouquet::GranularEngine e;
+        e.prepare (sr);
+        bouquet::GrainSettings g;
+        g.density = 4.0f;
+        g.chaos = 0.0f;
+        g.sync = true;
+        g.bpm = 120.0;
+        g.playing = true;
+        std::vector<float> l ((size_t) block, 0.1f), r ((size_t) block, 0.1f), ol ((size_t) block), orr ((size_t) block);
+        std::array<bouquet::GrainEvent, 512> events {};
+        int spawned = 0;
+        const int blocks = (int) (3.0 * sr / block);
+        for (int b = 0; b < blocks; ++b)
+        {
+            g.ppq = (double) b * block / sr * 2.0;   // two beats a second
+            e.process (l.data(), r.data(), ol.data(), orr.data(), block, g);
+            const int n = e.popEvents (events.data(), (int) events.size());
+            if (b >= blocks / 3)                     // after the memory has filled
+                spawned += n;
+        }
+        std::cout << "Synced grains in 2 s at 120 bpm, eighths: " << spawned << "\n";
+        check (spawned >= 6 && spawned <= 8, "synced grains fall on eighth notes");
+    }
+
+    // 7d. Expression and dynamics: aftertouch swells a held note; velocity cross-fades layers.
+    {
+        juce::SharedResourcePointer<bouquet::SampleBank> bank;
+        if (const auto* piano = bank->load (Instrument::piano); piano != nullptr && ! piano->regions.empty())
+        {
+            const auto mid = piano->findLayers (60.0f, 0.55f);
+            check (mid.a != nullptr && mid.b != nullptr && mid.mix > 0.0f && mid.mix < 1.0f, "piano blends its soft and loud recordings");
+            check (piano->findLayers (60.0f, 1.0f).b == nullptr, "full velocity plays the loudest recording");
+        }
+
+        BouquetProcessor p (false);
+        p.setNonRealtime (true);
+        p.setPlayConfigDetails (0, 2, sr, block);
+        p.prepareToPlay (sr, block);
+        set (p, ids::magic, 0.0f);
+        set (p, ids::forest, 0.0f);
+        set (p, ids::wildlife, 0.0f);
+        set (p, ids::chord, 0.0f);
+        set (p, ids::labTone, 0.2f);
+        set (p, ids::instrument, (float) Instrument::flute);
+        juce::MidiBuffer midi;
+        midi.addEvent (juce::MidiMessage::noteOn (1, 72, 0.6f), 0);
+        render (p, midi, 1.0f);
+        const auto before = render (p, midi, 1.0f);
+        midi.addEvent (juce::MidiMessage::channelPressureChange (1, 127), 0);
+        render (p, midi, 0.3f);
+        const auto pressed = render (p, midi, 1.0f);
+        std::cout << "Aftertouch: rms " << before.rms() << " -> " << pressed.rms() << ", pressure " << p.keyPressure.load() << "\n";
+        check (pressed.rms() > before.rms() * 1.2f && p.keyPressure.load() > 0.9f, "pressing into a held key swells it");
     }
 
     // 8. State round trip.

@@ -97,19 +97,38 @@ void InstrumentVoice::start (Instrument m, float midiNote, float vel, const Soun
     toneFilter.setCutoff (sr, 1500.0f * std::exp2 (tone * 3.0f));
     drift.prepare (sr, 0.7f, seed ^ 0xA5A5A5u);
 
-    region = nullptr;
+    pressure = pressureNow = 0.0f;
+    toneApplied = 0.0f;
+    toneBase = 1500.0f * std::exp2 (tone * 3.0f);
+    numHeads = 0;
     if (sampled != nullptr && model != Instrument::liveInput)
     {
-        if (auto* r = sampled->find (midiNote, vel); r != nullptr && r->length > 0)
+        const auto layers = sampled->findLayers (midiNote, vel);
+        if (layers.a != nullptr && layers.a->length > 0)
         {
-            region = r;
-            samplePos = 0.0;
-            sampleStep = std::exp2 ((midiNote - (float) r->key) / 12.0f) * sampled->sampleRate / sr;
-            // Velocity shapes loudness within a layer; the recordings carry the timbre.
-            sampleGain = 0.55f * (0.3f + 0.7f * vel);
+            // Every note a little different, like a player never hitting a key the same way twice.
+            const float detune = rng.bi() * 3.0f / 1200.0f;
+            const float level = 0.55f * (0.3f + 0.7f * vel) * (1.0f + rng.bi() * 0.09f);
+            auto add = [&] (const SampledInstrument::Region* r, float gain)
+            {
+                if (r == nullptr || r->length <= 0 || gain <= 0.001f)
+                    return;
+                auto& h = heads[(size_t) numHeads++];
+                h.region = r;
+                h.step = std::exp2 ((midiNote - (float) r->key) / 12.0f + detune) * sampled->sampleRate / sr;
+                h.pos = sampled->sustained ? (double) rng.uni() * 0.0015 * sampled->sampleRate : 0.0;
+                h.gain = gain * level;
+                h.done = false;
+            };
+            // Equal-power cross-fade between the soft and loud recordings.
+            add (layers.a, std::cos (layers.mix * pi * 0.5f));
+            add (layers.b, std::sin (layers.mix * pi * 0.5f));
+
             percussive = ! sampled->sustained;
             // Tone opens up to the full recording.
-            toneFilter.setCutoff (sr, std::min (sr * 0.45f, 2000.0f * std::exp2 (tone * 3.5f)));
+            toneBase = std::min (sr * 0.45f, 2000.0f * std::exp2 (tone * 3.5f));
+            toneFilter.setCutoff (sr, toneBase);
+            toneApplied = toneBase;
             env.start (sr, 0.002f + std::max (0.0f, s.attack));
             return;
         }
@@ -472,38 +491,67 @@ float InstrumentVoice::renderChoir (float hz)
 
 void InstrumentVoice::renderSampled (float* left, float* right, int numSamples, float bendRatio, float& peak)
 {
-    const auto& r = *static_cast<const SampledInstrument::Region*> (region);
-    const int16_t* data = r.data.data();
-    const int ch = r.channels;
-    const bool loops = r.loopEnd > r.loopStart && r.loopStart >= 0;
-    const double end = loops ? (double) r.loopEnd : (double) (r.length - 2);
-    const double step = sampleStep * bendRatio;
     constexpr float scale = 1.0f / 32767.0f;
-
-    auto at = [&] (int i, int c) { return (float) data[(size_t) (i * ch + c)] * scale; };
+    const float swell = 1.0f + 0.6f * pressureNow;   // pressing harder swells the note
 
     for (int i = 0; i < numSamples; ++i)
     {
-        if (samplePos >= end)
+        float l = 0.0f, rr = 0.0f;
+        bool stereo = false, sounding = false;
+        for (int k = 0; k < numHeads; ++k)
         {
-            if (! loops) { env.stage = Envelope::Stage::idle; break; }
-            samplePos -= (double) (r.loopEnd - r.loopStart);
+            auto& h = heads[(size_t) k];
+            if (h.done)
+                continue;
+            const auto& r = *static_cast<const SampledInstrument::Region*> (h.region);
+            const bool loops = r.loopEnd > r.loopStart && r.loopStart >= 0;
+            const double end = loops ? (double) r.loopEnd : (double) (r.length - 2);
+            if (h.pos >= end)
+            {
+                if (! loops) { h.done = true; continue; }
+                h.pos -= (double) (r.loopEnd - r.loopStart);
+            }
+            const int ch = r.channels;
+            const int16_t* data = r.data.data();
+            const int i0 = (int) h.pos;
+            const float t = (float) (h.pos - (double) i0);
+            const int i1 = loops && i0 + 1 >= r.loopEnd ? r.loopStart : std::min (i0 + 1, r.length - 1);
+            const float a0 = (float) data[(size_t) (i0 * ch)] * scale, a1 = (float) data[(size_t) (i1 * ch)] * scale;
+            const float sl = a0 + (a1 - a0) * t;
+            float sr2 = sl;
+            if (ch > 1)
+            {
+                const float b0 = (float) data[(size_t) (i0 * ch + 1)] * scale, b1 = (float) data[(size_t) (i1 * ch + 1)] * scale;
+                sr2 = b0 + (b1 - b0) * t;
+                stereo = true;
+            }
+            l += sl * h.gain;
+            rr += sr2 * h.gain;
+            h.pos += h.step * bendRatio;
+            sounding = true;
         }
-        const int i0 = (int) samplePos;
-        const float t = (float) (samplePos - (double) i0);
-        const int i1 = loops && i0 + 1 >= r.loopEnd ? r.loopStart : std::min (i0 + 1, r.length - 1);
-        const float e = env.next() * sampleGain;
-        const float l = at (i0, 0) + (at (i1, 0) - at (i0, 0)) * t;
-        const float rr = ch > 1 ? at (i0, 1) + (at (i1, 1) - at (i0, 1)) * t : l;
+        if (! sounding)
+        {
+            env.stage = Envelope::Stage::idle;
+            break;
+        }
+
+        const float e = env.next() * swell;
         // One tone filter on the mid signal keeps stereo recordings' width.
         const float mid = 0.5f * (l + rr);
         const float side = 0.5f * (l - rr);
         const float m = toneFilter.lp (mid) * e;
-        const float sL = m + side * e * 0.8f, sR = m - side * e * 0.8f;
-        left[i] += ch > 1 ? sL : m * gainL;
-        right[i] += ch > 1 ? sR : m * gainR;
+        if (stereo)
+        {
+            left[i] += m + side * e * 0.8f;
+            right[i] += m - side * e * 0.8f;
+        }
+        else
+        {
+            left[i] += m * gainL;
+            right[i] += m * gainR;
+        }
         peak = std::max (peak, std::abs (m));
-        samplePos += step;
         if (env.stage == Envelope::Stage::idle)
             break;
     }
@@ -517,7 +565,16 @@ void InstrumentVoice::render (float* left, float* right, int numSamples, float p
     const float hz = freq * semitonesToRatio (pitchBendSemis);
     float peak = 0.0f;
 
-    if (region != nullptr)
+    // Key pressure: glide towards it, opening the tone filter as it grows.
+    pressureNow += (pressure - pressureNow) * std::min (1.0f, (float) numSamples / (0.04f * sr));
+    const float toneTarget = std::min (sr * 0.45f, toneBase * std::exp2 (2.2f * pressureNow));
+    if (std::abs (toneTarget - toneApplied) > toneApplied * 0.01f)
+    {
+        toneApplied = toneTarget;
+        toneFilter.setCutoff (sr, toneApplied);
+    }
+
+    if (numHeads > 0)
     {
         renderSampled (left, right, numSamples, semitonesToRatio (pitchBendSemis), peak);
         samplesPlayed += numSamples;
@@ -531,7 +588,7 @@ void InstrumentVoice::render (float* left, float* right, int numSamples, float p
     {
         for (int i = 0; i < numSamples; ++i)
         {
-            const float e = env.next();
+            const float e = env.next() * (1.0f + 0.6f * pressureNow);
             const float s = toneFilter.lp (generate()) * e;
             left[i] += s * gainL;
             right[i] += s * gainR;
@@ -653,6 +710,17 @@ void SoundLab::handleMidi (const juce::MidiMessage& m)
             if (v.active && v.sustained)
                 releaseVoice (v);
     }
+    else if (m.isAftertouch())
+    {
+        setPressureForKey (m.getNoteNumber(), (float) m.getAfterTouchValue() / 127.0f);
+    }
+    else if (m.isChannelPressure())
+    {
+        const float p = (float) m.getChannelPressureValue() / 127.0f;
+        for (auto& v : voices)
+            if (v.active && v.keyDown)
+                v.setPressure (p);
+    }
     else if (m.isPitchWheel())
     {
         pitchBend = 2.0f * ((float) m.getPitchWheelValue() - 8192.0f) / 8192.0f;
@@ -741,6 +809,22 @@ void SoundLab::releaseVoicesForKey (int key)
             }
         }
     }
+}
+
+void SoundLab::setPressureForKey (int key, float p)
+{
+    for (auto& v : voices)
+        if (v.active && v.keyDown && v.sourceKey == key)
+            v.setPressure (p);
+}
+
+float SoundLab::maxPressure() const
+{
+    float p = 0.0f;
+    for (auto& v : voices)
+        if (v.active)
+            p = std::max (p, v.getPressure());
+    return p;
 }
 
 void SoundLab::releaseVoice (InstrumentVoice& v)

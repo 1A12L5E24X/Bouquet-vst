@@ -100,6 +100,14 @@ void BouquetProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
 
     keyboardState.processNextMidiBuffer (midi, 0, n, true);
 
+    // The mod wheel blows wind through the grains (and the garden).
+    for (const auto m : midi)
+    {
+        const auto msg = m.getMessage();
+        if (msg.isControllerOfType (1))
+            modWheel.store ((float) msg.getControllerValue() / 127.0f);
+    }
+
     const auto lab = readSoundLab (apvts);
     soundLab.setSettings (lab);
     // Recordings load in the background the first time an instrument is chosen; a bounce
@@ -107,6 +115,7 @@ void BouquetProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     soundLab.setSamples (isNonRealtime() ? sampleBank->load (lab.instrument) : sampleBank->get (lab.instrument));
     soundLab.process (midi, srcL, srcR, n);
     soundingVoices.store (soundLab.activeVoiceCount());
+    keyPressure.store (soundLab.maxPressure());
 
     // The instruments are heard as if recorded in a forest clearing.
     forest.process (srcL, srcR, n, apvts.getRawParameterValue (ids::forest)->load(),
@@ -134,7 +143,23 @@ void BouquetProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     }
     else
     {
-        engine.process (srcL, srcR, outL, outR, n, readGrains (apvts));
+        auto grains = readGrains (apvts);
+
+        // Mod wheel: scatter the grains further and less evenly.
+        const float wheel = modWheel.load();
+        grains.spray = std::min (1.0f, grains.spray + 0.6f * wheel);
+        grains.chaos = std::min (1.0f, grains.chaos + 0.35f * wheel);
+
+        // Tempo sync from the host's transport.
+        grains.sync = apvts.getRawParameterValue (ids::sync)->load() > 0.5f;
+        if (auto* head = getPlayHead())
+            if (const auto pos = head->getPosition())
+            {
+                grains.bpm = pos->getBpm().orFallback (120.0);
+                grains.ppq = pos->getPpqPosition().orFallback (-1.0);
+                grains.playing = pos->getIsPlaying();
+            }
+        engine.process (srcL, srcR, outL, outR, n, grains);
         for (int i = 0; i < n; ++i)
         {
             const float g = magicGain.next();

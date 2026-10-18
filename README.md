@@ -31,6 +31,11 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
   of the forest you hear.
 - **Magic Lab**: 40 granular spells (chord smear, frozen breath, shimmer halo…). Click one and everything
   glides there. Drag the aura pad, hit **freeze**, **mutate**. The on/off switch bypasses it and folds it away.
+  **tempo sync** locks the grains to your DAW's beat grid (the grain rate snaps to the nearest note
+  length, straight or triplet) and makes echoes land on whole note lengths.
+- **Expression**: press into held keys (aftertouch, channel or polyphonic) to swell and brighten a note
+  and lift its flowers; the mod wheel blows wind through the grains and the garden. The recordings
+  cross-fade smoothly between soft and loud layers, and no two notes are played quite the same.
 - **The garden**: grass springs up under the keys you play and every chord grows a bouquet that rots when
   you let go. **photoreal / drawn** switches between 3D-rendered and illustrated flowers.
 - **Presets**: click **garden** to look down on a lawn where every preset is a flower. Hover to see a name,

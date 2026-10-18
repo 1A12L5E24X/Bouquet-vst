@@ -46,6 +46,49 @@ const SampledInstrument::Region* SampledInstrument::find (float note, float velo
     return best;
 }
 
+SampledInstrument::Layers SampledInstrument::findLayers (float note, float velocity) const
+{
+    Layers out;
+    const int key = juce::roundToInt (note);
+    int nearest = 1 << 30;
+    for (auto& r : regions)
+        nearest = std::min (nearest, key < r.lo ? r.lo - key : (key > r.hi ? key - r.hi : 0));
+
+    // Every layer recorded for this part of the keyboard, soft to loud.
+    std::vector<const Region*> layers;
+    for (auto& r : regions)
+        if ((key < r.lo ? r.lo - key : (key > r.hi ? key - r.hi : 0)) == nearest)
+            layers.push_back (&r);
+    if (layers.empty())
+        return out;
+    auto centre = [] (const Region* r) { return 0.5f * (float) (r->lovel + r->hivel); };
+    std::sort (layers.begin(), layers.end(), [&] (const Region* x, const Region* y) { return centre (x) < centre (y); });
+
+    const float v = juce::jlimit (1.0f, 127.0f, velocity * 127.0f);
+    if (v <= centre (layers.front()) || layers.size() == 1)
+    {
+        out.a = layers.front();
+        return out;
+    }
+    if (v >= centre (layers.back()))
+    {
+        out.a = layers.back();
+        return out;
+    }
+    for (size_t i = 0; i + 1 < layers.size(); ++i)
+    {
+        const float lo = centre (layers[i]), hi = centre (layers[i + 1]);
+        if (v >= lo && v <= hi)
+        {
+            out.a = layers[i];
+            out.b = layers[i + 1];
+            out.mix = hi > lo ? (v - lo) / (hi - lo) : 0.0f;
+            break;
+        }
+    }
+    return out;
+}
+
 //==============================================================================
 SampleBank::SampleBank() : juce::Thread ("Bouquet samples")
 {

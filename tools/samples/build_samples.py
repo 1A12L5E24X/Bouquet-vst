@@ -29,7 +29,7 @@ SR = 44100
 
 # name: (source, sfz or folder, velocity layers to keep, max seconds, sustained, mono)
 INSTRUMENTS = {
-    "piano":   ("vsco", "UprightPiano.sfz", [(0, 60), (61, 110)], 6.0, False, False),
+    "piano":   ("vsco", "UprightPiano.sfz", [(0, 60), (61, 110), (111, 127)], 6.0, False, False),
     "violin":  ("vsco", "SViolinVib.sfz", None, 4.0, True, True),
     "cello":   ("vsco", "CelloEnsSusVib.sfz", None, 4.0, True, True),
     "flute":   ("vsco", "FluteSusVib.sfz", None, 4.0, True, True),
@@ -176,12 +176,14 @@ def build(args):
             print(f"{name} {r['key']} v{r['lovel']}-{r['hivel']} {len(x) / SR:.2f}s"
                   + (f" loop {loop_start / SR:.2f}-{loop_end / SR:.2f}" if loop_start is not None else ""), flush=True)
 
-        # Level every note to the instrument's own median, keeping soft layers softer.
+        # Level every note, then let the dynamic layers keep their natural steps:
+        # softer layers sit lower, so a velocity sweep still sounds like playing harder.
         target = 10 ** (-20 / 20)
+        top = max(0.5 * (r["lovel"] + r["hivel"]) for r, *_ in entries)
         records = []
         for i, (r, x, ls, le) in enumerate(entries):
-            soft = r["hivel"] < 100
-            gain = target / levels[i] * (0.6 if soft else 1.0)
+            layer = (0.5 * (r["lovel"] + r["hivel"]) / top) ** 0.6
+            gain = target / levels[i] * layer
             peak = np.abs(x).max() * gain
             if peak > 0.95:
                 gain *= 0.95 / peak

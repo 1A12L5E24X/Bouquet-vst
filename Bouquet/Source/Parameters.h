@@ -43,6 +43,7 @@ inline const juce::String auraX     = "auraX";
 inline const juce::String auraY     = "auraY";
 inline const juce::String output    = "output";
 inline const juce::String magic     = "magic";        // the Magic Lab on/off
+inline const juce::String sync      = "sync";         // grains and echoes follow the host tempo
 } // namespace bouquet::ids
 
 namespace bouquet

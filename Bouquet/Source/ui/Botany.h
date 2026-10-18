@@ -71,7 +71,7 @@ public:
     // coverage (optional): how grown the grass is at an x, 0 bare .. 1 full.
     void paint (juce::Graphics&, juce::Point<float> origin, float time, float breath,
                 const std::vector<Ripple>&, bool front,
-                const std::function<float (float x)>& coverage = {}) const;
+                const std::function<float (float x)>& coverage = {}, float gust = 0.0f) const;
 
 private:
     struct Blade
