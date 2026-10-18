@@ -30,6 +30,8 @@ BouquetProcessor::BouquetProcessor (bool effect)
       apvts (*this, nullptr, "BOUQUET", createParameterLayout (effect))
 {
     apvts.state.setProperty ("spell", 0, nullptr);
+    apvts.state.setProperty ("preset", "", nullptr);
+    presets.rescan();
 }
 
 BouquetProcessor::~BouquetProcessor()
@@ -54,7 +56,10 @@ bool BouquetProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 void BouquetProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     soundLab.prepare (sampleRate);
+    forest.prepare ((float) sampleRate);
     engine.prepare (sampleRate);
+    magicGain.reset ((float) sampleRate, 0.03f);
+    magicGain.snap (apvts.getRawParameterValue (ids::magic)->load() > 0.5f ? 1.0f : 0.0f);
     scratch.setSize (6, std::max (samplesPerBlock, 512), false, true, false);
 
     sourceGain.reset (sampleRate, 0.05);
@@ -100,6 +105,10 @@ void BouquetProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     soundLab.process (midi, srcL, srcR, n);
     soundingVoices.store (soundLab.activeVoiceCount());
 
+    // The instruments are heard as if recorded in a forest clearing.
+    forest.process (srcL, srcR, n, apvts.getRawParameterValue (ids::forest)->load(),
+                    apvts.getRawParameterValue (ids::wildlife)->load());
+
     const bool live = lab.instrument == Instrument::liveInput;
     sourceGain.setTargetValue (juce::Decibels::decibelsToGain (apvts.getRawParameterValue (ids::sourceLevel)->load()));
     float srcPeak = 0.0f;
@@ -111,7 +120,25 @@ void BouquetProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
         srcPeak = std::max (srcPeak, std::max (std::abs (srcL[i]), std::abs (srcR[i])));
     }
 
-    engine.process (srcL, srcR, outL, outR, n, readGrains (apvts));
+    // The Magic Lab, unless it's switched off (then it costs nothing at all).
+    magicGain.setTarget (apvts.getRawParameterValue (ids::magic)->load() > 0.5f ? 1.0f : 0.0f);
+    if (magicGain.value <= 0.0f && magicGain.target <= 0.0f)
+    {
+        std::copy_n (srcL, n, outL);
+        std::copy_n (srcR, n, outR);
+        engine.wetLevel.store (0.0f);
+        engine.activeGrains.store (0);
+    }
+    else
+    {
+        engine.process (srcL, srcR, outL, outR, n, readGrains (apvts));
+        for (int i = 0; i < n; ++i)
+        {
+            const float g = magicGain.next();
+            outL[i] = srcL[i] + (outL[i] - srcL[i]) * g;
+            outR[i] = srcR[i] + (outR[i] - srcR[i]) * g;
+        }
+    }
 
     outputGain.setTargetValue (juce::Decibels::decibelsToGain (apvts.getRawParameterValue (ids::output)->load()));
     float outPeak = 0.0f;
@@ -152,13 +179,13 @@ juce::AudioProcessorEditor* BouquetProcessor::createEditor()
 }
 
 //==============================================================================
-int BouquetProcessor::getNumPrograms()   { return (int) spellBook().size(); }
-int BouquetProcessor::getCurrentProgram() { return getCurrentSpell(); }
+int BouquetProcessor::getNumPrograms()   { return (int) PresetLibrary::factory().size(); }
+int BouquetProcessor::getCurrentProgram() { return std::max (0, currentFactory.load()); }
 
 void BouquetProcessor::setCurrentProgram (int index)
 {
     // Hosts often re-send the current program after restoring state; don't clobber it.
-    if (! juce::isPositiveAndBelow (index, getNumPrograms()) || index == getCurrentSpell())
+    if (! juce::isPositiveAndBelow (index, getNumPrograms()) || index == currentFactory.load())
         return;
 
     // Hosts may call this from the audio thread; the glide runs on the message thread.
@@ -170,13 +197,13 @@ void BouquetProcessor::handleAsyncUpdate()
 {
     const int index = pendingProgram.exchange (-1);
     if (index >= 0)
-        castSpell (index);
+        applyPreset (PresetLibrary::factory()[(size_t) index]);
 }
 
 const juce::String BouquetProcessor::getProgramName (int index)
 {
     if (juce::isPositiveAndBelow (index, getNumPrograms()))
-        return spellBook()[(size_t) index].name;
+        return PresetLibrary::factory()[(size_t) index].name;
     return {};
 }
 
@@ -205,6 +232,34 @@ void BouquetProcessor::castSpell (int index, double glideSeconds)
     }, glideSeconds);
 }
 
+void BouquetProcessor::applyPreset (const Preset& preset, double glideSeconds)
+{
+    apvts.state.setProperty ("preset", preset.name, nullptr);
+    int factoryIndex = -1;
+    const auto& factory = PresetLibrary::factory();
+    for (size_t i = 0; i < factory.size(); ++i)
+        if (factory[i].name == preset.name && preset.factory)
+            factoryIndex = (int) i;
+    currentFactory.store (factoryIndex);
+
+    std::vector<std::pair<juce::String, float>> targets;
+    for (auto& [id, value] : preset.values)
+        if (id != ids::output)
+            targets.push_back ({ id, value });
+    startMorph (targets, glideSeconds);
+}
+
+Preset BouquetProcessor::plantPreset (const juce::String& name)
+{
+    auto preset = capturePreset (apvts, name);
+    presets.save (preset);
+    if (auto* saved = presets.find (name))
+        preset = *saved;
+    apvts.state.setProperty ("preset", preset.name, nullptr);
+    currentFactory.store (-1);
+    return preset;
+}
+
 void BouquetProcessor::mutate()
 {
     std::vector<std::pair<juce::String, float>> targets;
@@ -230,6 +285,8 @@ void BouquetProcessor::startMorph (const std::vector<std::pair<juce::String, flo
     for (auto& [id, value] : targets)
     {
         auto* p = apvts.getParameter (id);
+        if (p == nullptr)   // a preset from a newer or older version
+            continue;
         const float to = p->convertTo0to1 (value);
 
         // Switches and choices land immediately; continuous controls glide.
@@ -285,6 +342,11 @@ void BouquetProcessor::setStateInformation (const void* data, int sizeInBytes)
 
     apvts.replaceState (juce::ValueTree::fromXml (*xml));
     currentSpell.store (juce::jlimit (0, (int) spellBook().size() - 1, (int) apvts.state.getProperty ("spell", 0)));
+    currentFactory.store (-1);
+    const auto& factory = PresetLibrary::factory();
+    for (size_t i = 0; i < factory.size(); ++i)
+        if (factory[i].name == getCurrentPresetName())
+            currentFactory.store ((int) i);
 
     // replaceState skips parameters whose cached (snapped) value already matches, which
     // can leave a switch or choice sitting between steps. Re-assert every value exactly.

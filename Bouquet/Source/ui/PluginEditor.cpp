@@ -5,8 +5,8 @@ namespace bouquet::ui
 namespace
 {
     constexpr int pad = 22;
-    const juce::Rectangle<int> soundArea { 24, 84, 404, 556 };
-    const juce::Rectangle<int> magicArea { 444, 84, 692, 556 };
+    const juce::Rectangle<int> soundHome { 24, 84, 404, 556 };
+    const juce::Rectangle<int> magicHome { 444, 84, 692, 556 };
     const juce::Rectangle<int> gardenArea { 24, 640, 1112, 142 };
     const juce::Rectangle<int> keysArea  { 24, 782, 1112, 66 };
 
@@ -48,6 +48,8 @@ Surface::Surface (BouquetProcessor& p)
       attack  (state, ids::attack, "attack", colours::coral, colours::peach),
       release (state, ids::release, "release", colours::coral, colours::peach),
       strum   (state, ids::strum, "strum", colours::rose, colours::amber),
+      forest  (state, ids::forest, "forest", juce::Colour (0xff6f9f5c), colours::mint),
+      wildlife (state, ids::wildlife, "wildlife", juce::Colour (0xff6f9f5c), colours::butter),
       level   (state, ids::sourceLevel, "level", colours::coral, colours::amber),
       aura    (state, p.engine),
       mix     (state, ids::mix, "mix", colours::violet, colours::aqua),
@@ -59,7 +61,8 @@ Surface::Surface (BouquetProcessor& p)
       garden (p, [this] (float note)
       {
           return keyboard.getRectangleForKey (juce::jlimit (36, 107, juce::roundToInt (note))).getCentreX();
-      })
+      }),
+      meadow (p)
 {
     setOpaque (true);
 
@@ -94,7 +97,7 @@ Surface::Surface (BouquetProcessor& p)
 
     octaveDown.onClick = [this] { setParam (ids::octave, std::max (-2.0f, param (ids::octave) - 1.0f)); };
     octaveUp.onClick   = [this] { setParam (ids::octave, std::min (2.0f, param (ids::octave) + 1.0f)); };
-    for (auto* c : std::initializer_list<juce::Component*> { &octaveDown, &octaveUp, &tone, &attack, &release, &strum, &level })
+    for (auto* c : std::initializer_list<juce::Component*> { &octaveDown, &octaveUp, &tone, &attack, &release, &strum, &forest, &wildlife, &level })
         addAndMakeVisible (c);
 
     // --- Magic Lab
@@ -145,9 +148,17 @@ Surface::Surface (BouquetProcessor& p)
 
     mutate.setFont (Fonts::serifItalic (16.0f));
     mutate.onClick = [this] { processor.mutate(); };
+    gardenButton.setFont (Fonts::serifItalic (17.0f));
+    gardenButton.onClick = [this] { meadow.open(); };
+    magicSwitch.setFont (Fonts::serifItalic (16.0f));
+    magicSwitch.onClick = [this] { setParam (ids::magic, param (ids::magic) > 0.5f ? 0.0f : 1.0f); };
+    addAndMakeVisible (gardenButton);
+    addAndMakeVisible (magicSwitch);
 
     addAndMakeVisible (keyboard);
     addAndMakeVisible (garden);
+    addChildComponent (meadow);
+    magicShown = param (ids::magic) > 0.5f ? 1.0f : 0.0f;
 
     // A fixed field of film grain (signed brightness offsets), tiled over the light.
     {
@@ -163,8 +174,34 @@ Surface::Surface (BouquetProcessor& p)
     syncSelections();
 }
 
+juce::Rectangle<int> Surface::soundArea() const
+{
+    // With the Magic Lab folded away the Sound Lab moves to the middle.
+    const float e = magicShown * magicShown * (3.0f - 2.0f * magicShown);
+    const int centred = (designWidth - soundHome.getWidth()) / 2;
+    return soundHome.withX (juce::roundToInt ((float) centred + (float) (soundHome.getX() - centred) * e));
+}
+
+juce::Rectangle<int> Surface::magicArea() const
+{
+    const float e = magicShown * magicShown * (3.0f - 2.0f * magicShown);
+    return magicHome.translated (juce::roundToInt ((1.0f - e) * 80.0f), 0);
+}
+
+std::vector<juce::Component*> Surface::magicComponents()
+{
+    std::vector<juce::Component*> list { &aura, &mix, &space, &life, &freeze, &harmony, &mutate };
+    for (auto* c : categories) list.push_back (c);
+    for (auto* c : spells)     list.push_back (c);
+    for (auto* c : inner)      list.push_back (c);
+    return list;
+}
+
 void Surface::resized()
 {
+    const auto soundArea = this->soundArea();
+    const auto magicArea = this->magicArea();
+
     // Sound Lab
     const int lx = soundArea.getX() + pad, lw = soundArea.getWidth() - 2 * pad;
     for (int i = 0; i < instruments.size(); ++i)
@@ -179,11 +216,11 @@ void Surface::resized()
     octaveDown.setBounds (lx + 228, 478, 34, 32);
     octaveUp.setBounds (lx + 326, 478, 34, 32);
 
-    int kx = lx - 6;
-    for (auto* k : { &tone, &attack, &release, &strum, &level })
+    int kx = lx - 4;
+    for (auto* k : { &tone, &attack, &release, &strum, &forest, &wildlife, &level })
     {
-        k->setBounds (kx, 528, 74, 86);
-        kx += 74;
+        k->setBounds (kx, 532, 56, 78);
+        kx += 52;
     }
 
     // Magic Lab
@@ -209,16 +246,27 @@ void Surface::resized()
         inner[i]->setBounds (mx - 4 + i * innerW, 530, innerW, 66);
 
     // Header
+    gardenButton.setBounds (24, 28, 112, 36);
     output.setBounds (designWidth - 24 - 56, 18, 56, 60);
     mutate.setBounds (designWidth - 24 - 56 - 116, 30, 108, 34);
+    magicSwitch.setBounds (mutate.getX() - 128, 30, 120, 34);
 
     keyboard.setBounds (keysArea);
     garden.setBounds (gardenArea);
+    meadow.setBounds (getLocalBounds());
     keyboard.setKeyWidth ((float) keysArea.getWidth() / 42.0f);
 
     soundPanel = soundArea.toFloat();
     magicPanel = magicArea.toFloat();
     spellLineArea = { mx, 224, mw, 28 };
+
+    for (auto* c : magicComponents())
+    {
+        c->setAlpha (magicShown);
+        c->setVisible (magicShown > 0.02f);
+    }
+    for (int i = 0; i < spells.size(); ++i)
+        spells[i]->setVisible (magicShown > 0.02f && i < (int) visibleSpells.size());
     renderBackground();
 }
 
@@ -274,10 +322,31 @@ void Surface::syncSelections()
     const int spell = processor.getCurrentSpell();
     for (int i = 0; i < spells.size(); ++i)
         spells[i]->setSelected (i < (int) visibleSpells.size() && visibleSpells[(size_t) i] == spell);
+
+    magicSwitch.setSelected (param (ids::magic) > 0.5f);
+    magicSwitch.setText (param (ids::magic) > 0.5f ? "magic lab on" : "magic lab off");
 }
 
 void Surface::frame (float dt)
 {
+    meadow.tick (dt);
+    if (meadow.isOpen() && meadow.getAlpha() > 0.99f)
+        return;   // the meadow covers everything
+
+    // Fold the Magic Lab away (or back) when its switch changes.
+    const float magicTarget = param (ids::magic) > 0.5f ? 1.0f : 0.0f;
+    if (std::abs (magicTarget - magicShown) > 0.001f)
+    {
+        magicShown += (magicTarget - magicShown) * (1.0f - std::exp (-dt / 0.12f));
+        if (std::abs (magicTarget - magicShown) < 0.01f)
+            magicShown = magicTarget;
+        resized();
+        for (auto* item : { &gardenButton, &magicSwitch, &mutate })
+            item->animate();
+        repaint();
+        return;
+    }
+
     // Parameter changes that alter painted text redraw everything once.
     const int instrument = (int) param (ids::instrument), octave = (int) param (ids::octave);
     const int spell = processor.getCurrentSpell();
@@ -296,19 +365,16 @@ void Surface::frame (float dt)
     }
 
     syncSelections();
-    aura.tick (dt);
-    const bool gardenWasAlive = garden.isAlive();
+    if (magicShown > 0.0f)
+        aura.tick (dt);
     garden.tick (dt);
-
-    const float target = std::min (1.0f, processor.outputMeter.load() * 1.6f);
-    heartLevel += (target - heartLevel) * (target > heartLevel ? 0.5f : 0.08f);
 
     if (fullRepaint)
     {
         for (auto* group : { &instruments, &chords, &voicings, &categories, &spells })
             for (auto* item : *group)
                 item->animate();
-        for (auto* item : { &octaveDown, &octaveUp, &mutate })
+        for (auto* item : { &octaveDown, &octaveUp, &mutate, &gardenButton, &magicSwitch })
             item->animate();
         repaint();
         return;
@@ -318,21 +384,22 @@ void Surface::frame (float dt)
         for (auto* item : *group)
             if (item->animate())
                 item->repaint();
-    for (auto* item : { &octaveDown, &octaveUp, &mutate })
+    for (auto* item : { &octaveDown, &octaveUp, &mutate, &gardenButton, &magicSwitch })
         if (item->animate())
             item->repaint();
-    for (auto* knob : { &tone, &attack, &release, &strum, &level, &mix, &space, &life, &output })
+    for (auto* knob : { &tone, &attack, &release, &strum, &forest, &wildlife, &level, &mix, &space, &life, &output })
         knob->refreshIfTouched();
     for (auto* knob : inner)
         knob->refreshIfTouched();
 
-    aura.repaint();
-    freeze.repaint();
-    if (garden.isAlive() || gardenWasAlive)
-        garden.repaint();
-    repaint (heartArea);
-    repaint (spellLineArea.withWidth (30));
-    repaint (mutate.getBounds());
+    if (magicShown > 0.0f)
+    {
+        aura.repaint();
+        freeze.repaint();
+        repaint (spellLineArea.withWidth (30));
+        repaint (mutate.getBounds());
+    }
+    garden.repaint();
 }
 
 int Surface::pixelScale() const
@@ -441,8 +508,13 @@ void Surface::renderBackground()
 
     g.addTransform (juce::AffineTransform::scale ((float) scale));
     paintPanel (g, soundPanel, colours::coral);
-    paintPanel (g, magicPanel, colours::violet);
-    aura.paintBackdrop (g);
+    if (magicShown > 0.02f)
+    {
+        g.beginTransparencyLayer (magicShown);
+        paintPanel (g, magicPanel, colours::violet);
+        aura.paintBackdrop (g);
+        g.endTransparencyLayer();
+    }
 
     // Glass behind the keys.
     {
@@ -517,26 +589,9 @@ void Surface::paint (juce::Graphics& g)
         text (str.toUpperCase(), Fonts::sansMedium (9.5f, 0.2f), ink.withAlpha (0.42f), { x, y, 300, 14 });
     };
 
-    // --- Header: a heart that beats with the sound, and the name.
     const float t = (float) clock();
-    if (g.clipRegionIntersects (heartArea))
-    {
-        const juce::Point<float> heart (44.0f, 47.0f);
-        // A little sun.
-        const auto heartColour = coral.interpolatedWith (butter, 0.5f + 0.5f * std::sin (t * 0.4f));
-        drawGlow (g, heart, 22.0f + 34.0f * heartLevel, heartColour.withAlpha (0.6f + 0.3f * heartLevel));
-        const auto core = juce::Rectangle<float> (9.0f + 3.0f * heartLevel, 9.0f + 3.0f * heartLevel).withCentre (heart);
-        g.setColour (frost);
-        g.fillEllipse (core);
-        g.setColour (heartColour.darker (0.1f));
-        g.drawEllipse (core, 1.4f);
-    }
-
-    const auto wordmark = Fonts::serif (40.0f);
-    text ("bouquet", wordmark, ink, { 66, 22, 200, 48 });
-    const int subtitleX = 66 + (int) juce::GlyphArrangement::getStringWidth (wordmark, "bouquet") + 16;
-    text (processor.isEffect ? "a granular effect in bloom" : "a granular instrument in bloom",
-          Fonts::serifItalic (17.0f), ink.withAlpha (0.45f), { subtitleX, 35, 360, 30 });
+    const auto soundArea = this->soundArea();
+    const auto magicArea = this->magicArea();
 
     // --- Sound Lab
     const int lx = soundArea.getX() + pad, lw = soundArea.getWidth() - 2 * pad;
@@ -559,8 +614,10 @@ void Surface::paint (juce::Graphics& g)
     label ("shape", lx, 516);
 
     // --- Magic Lab
+    if (magicShown <= 0.02f)
+        return;
     const int mx = magicArea.getX() + pad, mw = magicArea.getWidth() - 2 * pad;
-    text ("magic lab", Fonts::serifItalic (30.0f), ink, { mx, 98, 200, 38 });
+    text ("magic lab", Fonts::serifItalic (30.0f), ink.withAlpha (magicShown), { mx, 98, 200, 38 });
 
     // The spell's line of poetry.
     const int spell = processor.getCurrentSpell();

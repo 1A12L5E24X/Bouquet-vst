@@ -2,9 +2,12 @@
 // path, freeze, state, and a rough CPU measurement.
 #include "PluginProcessor.h"
 #include "ui/Garden.h"
+#include "ui/PluginEditor.h"
+#include "ui/Botany.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <iostream>
+#include <set>
 
 using namespace bouquet;
 
@@ -59,7 +62,7 @@ static void chordOn (juce::MidiBuffer& m, int root) { for (int k : { 0, 7 }) m.a
 static void chordOff (juce::MidiBuffer& m, int root) { for (int k : { 0, 7 }) m.addEvent (juce::MidiMessage::noteOff (1, root + k), 0); }
 
 // Renders the editor with a chord playing and writes it to a PNG.
-static int snapshot (const juce::File& file, bool effect, int spell, int instrument, bool rotting, float zoom)
+static int snapshot (const juce::File& file, bool effect, int spell, int instrument, const juce::String& mode, float zoom)
 {
     BouquetProcessor p (effect);
     p.setPlayConfigDetails (effect ? 2 : 0, 2, sr, block);
@@ -70,6 +73,10 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
     set (p, ids::auraX, 0.62f);
     set (p, ids::auraY, 0.7f);
 
+    const bool rotting = mode == "rot";
+    if (mode == "nomagic")
+        set (p, ids::magic, 0.0f);
+    set (p, ids::wildlife, 0.6f);
     std::unique_ptr<juce::AudioProcessorEditor> editor (p.createEditor());
     if (zoom > 1.0f) // exercises the high-density (Retina) background path
         editor->setSize (juce::roundToInt ((float) editor->getWidth() * zoom), juce::roundToInt ((float) editor->getHeight() * zoom));
@@ -110,6 +117,7 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
     partial.add ({ 466, 146, 162, 38 });    // a glowing spell
     partial.add ({ 46, 162, 180, 34 });     // a glowing instrument
     partial.add ({ 46, 388, 51, 32 });      // a glowing chord
+    partial.add ({ 24, 640, 1112, 142 });   // the garden and its grass
     const double full = timePaint (juce::RectangleList<int> (editor->getLocalBounds()));
     const double frame = timePaint (partial);
     std::cout << "Editor paint: full " << full << " ms, animation frame " << frame << " ms\n";
@@ -140,6 +148,12 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
     }
     if (rotting)
         play (2.2f);
+    if (mode == "meadow")
+    {
+        if (auto* bouquetEditor = dynamic_cast<BouquetEditor*> (editor.get()))
+            bouquetEditor->showPresetGarden (17);
+        play (2.0f);
+    }
 
     const auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);
     file.deleteFile();
@@ -149,15 +163,22 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
 }
 
 // Renders a short chord progression through a spell into a WAV file.
-static int renderDemo (const juce::File& file, int spell, int instrument)
+static int renderDemo (const juce::File& file, int spell, int instrument, const juce::String& presetName = {})
 {
     BouquetProcessor p (false);
     p.setPlayConfigDetails (0, 2, sr, block);
     p.prepareToPlay (sr, block);
-    p.castSpell (spell, 0.0);
-    set (p, ids::instrument, (float) instrument);
-    set (p, ids::voicing, 1.0f);
-    set (p, ids::strum, 40.0f);
+    if (auto* preset = p.presets.find (presetName))
+    {
+        p.applyPreset (*preset, 0.0);
+    }
+    else
+    {
+        p.castSpell (spell, 0.0);
+        set (p, ids::instrument, (float) instrument);
+        set (p, ids::voicing, 1.0f);
+        set (p, ids::strum, 40.0f);
+    }
 
     // Am7 - Fmaj7 - Cadd9 - Gsus4, one finger per chord.
     struct Bar { int root; int chord; };
@@ -178,7 +199,8 @@ static int renderDemo (const juce::File& file, int spell, int instrument)
             bar = nowBar;
             if (bar < 4)
             {
-                set (p, ids::chord, (float) bars[bar].chord);
+                if (presetName.isEmpty())
+                    set (p, ids::chord, (float) bars[bar].chord);
                 midi.addEvent (juce::MidiMessage::noteOn (1, bars[bar].root, 0.75f), 0);
             }
         }
@@ -200,6 +222,36 @@ int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;
 
+    if (argc >= 3 && juce::String (argv[1]) == "--species")
+    {
+        // Debug aid: every species, fresh and rotting, on one sheet.
+        using namespace bouquet::ui::botany;
+        juce::Image img (juce::Image::RGB, 900, 360, true);
+        juce::Graphics g (img);
+        g.fillAll (juce::Colour (0xfffbf7f0));
+        for (int s = 0; s < (int) Species::count; ++s)
+            for (int row = 0; row < 2; ++row)
+            {
+                const auto genome = makeGenome ((Species) s, juce::Colour (0xffe4789b), 16.0f, 99u + (uint32_t) s);
+                Pose pose;
+                const float x = 75.0f + 150.0f * (float) s, y = 170.0f + 180.0f * (float) row;
+                pose.base = { x, y };
+                pose.c1 = { x, y - 40.0f };
+                pose.c2 = { x + 10.0f, y - 90.0f };
+                pose.head = { x + 15.0f, y - 130.0f };
+                pose.rot = row == 0 ? 0.0f : 0.5f;
+                pose.time = 1.0f;
+                paintPlant (g, genome, pose);
+            }
+        const juce::File file { juce::String (argv[2]) };
+        file.deleteFile();
+        juce::FileOutputStream out { file };
+        return juce::PNGImageFormat().writeImageToStream (img, out) ? 0 : 1;
+    }
+
+    if (argc >= 4 && juce::String (argv[1]) == "--demo-preset")
+        return renderDemo (juce::File (argv[2]), 0, 1, argv[3]);
+
     if (argc >= 5 && juce::String (argv[1]) == "--demo")
         return renderDemo (juce::File (argv[2]), juce::String (argv[3]).getIntValue(), juce::String (argv[4]).getIntValue());
 
@@ -207,7 +259,7 @@ int main (int argc, char** argv)
         return snapshot (juce::File (argv[2]), argc > 3 && juce::String (argv[3]) == "fx",
                          argc > 4 ? juce::String (argv[4]).getIntValue() : 0,
                          argc > 5 ? juce::String (argv[5]).getIntValue() : 1,
-                         argc > 6 && juce::String (argv[6]) == "rot",
+                         argc > 6 ? juce::String (argv[6]) : juce::String(),
                          argc > 7 ? juce::String (argv[7]).getFloatValue() : 1.0f);
 
     const auto names = instrumentNames();
@@ -329,7 +381,63 @@ int main (int argc, char** argv)
         check (am7 != Garden::seedFor ({ 53, 57, 60, 64 }, 5, 1, 0.8f), "a different chord grows a different bouquet");
     }
 
-    // 5. State round trip.
+    // 5. Presets: the whole instrument, factory and planted.
+    {
+        BouquetProcessor p (false);
+        const auto temp = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("bouquet-test-presets");
+        temp.deleteRecursively();
+        p.presets.setUserFolder (temp);
+
+        const auto& factory = PresetLibrary::factory();
+        check (factory.size() >= 20, "at least twenty factory presets");
+        std::set<uint32_t> seeds;
+        for (auto& f : factory)
+            seeds.insert (f.seed());
+        check (seeds.size() == factory.size(), "every factory preset grows a different flower");
+
+        const auto& nocturne = *p.presets.find ("nocturne");
+        p.applyPreset (nocturne, 0.0);
+        check (std::abs (p.apvts.getRawParameterValue (ids::instrument)->load() - nocturne.get (ids::instrument)) < 0.5f, "preset sets the voice");
+        check (std::abs (p.apvts.getRawParameterValue (ids::decay)->load() - nocturne.get (ids::decay)) < 0.01f, "preset sets the Magic Lab");
+        check (p.getCurrentPresetName() == "nocturne", "preset name remembered");
+
+        set (p, ids::labTone, 0.91f);
+        const auto planted = p.plantPreset ("test bloom");
+        check (p.presets.user().size() == 1 && temp.getChildFile ("test bloom.bouquet").existsAsFile(), "planting saves a preset file");
+        check (planted.seed() != nocturne.seed(), "a planted preset grows its own flower");
+
+        set (p, ids::labTone, 0.1f);
+        p.applyPreset (*p.presets.find ("test bloom"), 0.0);
+        check (std::abs (p.apvts.getRawParameterValue (ids::labTone)->load() - 0.91f) < 0.01f, "planted preset loads back");
+
+        p.presets.remove (*p.presets.find ("test bloom"));
+        check (p.presets.user().empty(), "uprooting deletes it");
+        temp.deleteRecursively();
+    }
+
+    // 6. Magic Lab off: the engine is bypassed entirely; the forest still sings and then falls quiet.
+    {
+        BouquetProcessor p (false);
+        p.setPlayConfigDetails (0, 2, sr, block);
+        p.prepareToPlay (sr, block);
+        set (p, ids::magic, 0.0f);
+        set (p, ids::instrument, (float) Instrument::violin);
+        set (p, ids::forest, 1.0f);
+        set (p, ids::wildlife, 1.0f);
+        set (p, ids::release, 0.3f);
+        juce::MidiBuffer midi;
+        chordOn (midi, 60);
+        const auto on = render (p, midi, 2.0f);
+        check (on.finite && on.peak > 0.02f && on.peak < 1.0f, "forest instrument audible with the Magic Lab off");
+        check (p.engine.activeGrains.load() == 0, "no grains while the Magic Lab is off");
+        chordOff (midi, 60);
+        render (p, midi, 12.0f);
+        const auto after = render (p, midi, 1.0f);
+        std::cout << "Forest settles after playing: rms " << after.rms() << "\n";
+        check (after.rms() < 0.002f, "the forest ambience fades once you stop playing");
+    }
+
+    // 7. State round trip.
     {
         BouquetProcessor p (false);
         p.castSpell (24, 0.0);
@@ -343,7 +451,7 @@ int main (int argc, char** argv)
         check (std::abs (q.apvts.getRawParameterValue (ids::feedback)->load() - book[24].values.feedback) < 1e-3f, "feedback restored");
     }
 
-    // 6. CPU: dense spell, four-note chords on the choir with chord mode on.
+    // 8. CPU: dense spell, four-note chords on the choir with chord mode on.
     {
         BouquetProcessor p (false);
         p.setPlayConfigDetails (0, 2, sr, block);

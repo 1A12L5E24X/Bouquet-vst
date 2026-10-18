@@ -28,18 +28,49 @@ passes Apple's `auval` validator for both Audio Units.
 
 ![Bouquet](docs/bouquet.jpg)
 
-*a granular instrument in bloom.*
-
 ### The garden
 
 Every chord you play grows its own **bouquet** along the bottom of the window, rising out of the keys
-you played. It's unique to that chord: the notes, chord shape, instrument and how hard you play decide
-which flowers grow (daisies, tulips, poppies, cosmos, bellflowers, wild roses), how many, their
-colours (bright warm colours for major chords, lilac and blue for minor, mint for suspended, plum for
-diminished) and how they're tied. Each chord tone becomes one flower, and higher notes grow taller.
-The bouquet blooms while you hold the chord and sways with the sound. When you let go it slowly rots:
-it browns, bows over, drops its petals and fades. A loud granular tail keeps it alive a little
-longer. On live input, a swell after silence plants a bouquet too.
+you played through a strip of real-looking grass. It's unique to that chord: the notes, chord shape,
+instrument and how hard you play decide which flowers grow (daisies, tulips, poppies, cosmos,
+bellflowers, roses), how many, their colours (warm for major, lilac and blue for minor, rose for
+suspended, plum for diminished) and the ribbon tying them. Flowers are drawn with shaded, veined
+petals, seed discs, sepals, veined leaves and tapered stems.
+
+The whole meadow **breathes in** when you play: the grass rises and straightens, the wind holds its
+breath, and every chord sends a ripple through the blades. It breathes out when you stop.
+
+When you let go, the bouquet **rots**, and it isn't pretty: petals bleed crimson and turn black, go
+wet and glossy, shrivel and tear loose; blood runs down the stems into a pool; mould spreads over
+the heads, leaves curl and blacken, stems collapse, and flies arrive. A long granular tail keeps
+the bouquet alive a little longer.
+
+### Presets: the meadow
+
+![Preset meadow](docs/meadow.jpg)
+
+Presets set the whole instrument at once: voice, chord, forest, and the Magic Lab (or its absence).
+Click **garden** at the top left to walk into a sunny meadow where every preset is a flower. Names
+appear only when you hover over a flower. Click one to load it (everything glides into place). To
+save the sound you've made, name it (or keep the suggested name) and click **plant this sound**: a
+new flower grows for it, unique to its settings. Right-click your own flowers to uproot them.
+
+24 factory presets are included, and they are also the host's program list. Your own presets live
+in `~/Library/Application Support/Bouquet/Presets` on a Mac.
+
+### Recorded in a forest
+
+The Sound Lab instruments sound as if recorded live in a forest clearing with a spaced pair of
+microphones: sparse early reflections off tree trunks, a soft open-air tail, high frequencies
+fading with distance, and a living ambience of wind in the leaves, rustles, distant birds and
+insects. The ambience breathes in when you play and settles a few seconds after you stop, so
+the plugin is silent when idle. **forest** sets how deep among the trees you are; **wildlife**
+sets how much of the forest you hear around you. The Magic Lab granulates this field recording.
+
+### The Magic Lab switch
+
+**magic lab on/off** at the top bypasses the granular engine completely (it costs no CPU when off),
+and the panel folds away so the Sound Lab and garden take the stage.
 
 ### Sound Lab: choose a voice
 
@@ -60,7 +91,7 @@ Nine instruments, all synthesised from scratch (no sample libraries), plus live 
 **One-finger chords**, in the spirit of chord instruments like the Orchid: pick a chord
 shape (maj, min, sus2, sus4, maj7, min7, 7, add9, maj9, min9, 6/9, dim, fifths), a
 voicing (close / open / wide) and a strum, and every key plays the whole chord.
-Plus tone, attack, release, octave and level. Sustain pedal and pitch bend are supported.
+Plus tone, attack, release, forest, wildlife, octave and level. Sustain pedal and pitch bend are supported.
 
 ### Magic Lab: cast a spell
 
@@ -90,12 +121,12 @@ Then play with it:
 - **Inner workings**: all 14 engine controls (density, size, reach, spray, pitch, chord
   amount, detune, reverse, chaos, edge, width, echo, colour, decay).
 
-Spells are also exposed to the host as programs, and every control is automatable.
+Every control is automatable; the host's program list is the factory presets.
 
 ### Design
 
-A bright day: serif type (Newsreader) and small tracked sans labels (Inter) in warm charcoal on
-sunlit paper. Warm light (butter, peach, rose) drifts behind the Sound Lab and sky light (blue,
+A bright day, with no title bar: serif type (Newsreader) and small tracked sans labels (Inter) in
+warm charcoal on sunlit paper. Warm light (butter, peach, rose) drifts behind the Sound Lab and sky light (blue,
 lilac, mint) behind the Magic Lab; both brighten with the sound. Frosted glass panels, arcs of
 colour for knobs, a small sun beside the name that pulses with the output, and hand-drawn flowers.
 The window can be resized (with the aspect ratio locked) and renders at full Retina sharpness.

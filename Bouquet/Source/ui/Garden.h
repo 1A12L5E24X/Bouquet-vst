@@ -2,6 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../dsp/SoundLab.h"
+#include "Botany.h"
 
 class BouquetProcessor;
 
@@ -20,27 +21,20 @@ public:
     bool isAlive() const { return ! bouquets.empty(); }
 
     void paint (juce::Graphics&) override;
+    void resized() override;
+
+    // 0 resting .. 1 drawn in: the garden inhales while you play.
+    float getBreath() const { return breath; }
 
     // The same chord (notes, shape, instrument, touch) always grows the same bouquet;
     // a different one grows a different bouquet.
     static uint32_t seedFor (std::vector<int> notes, int chordShape, int instrument, float velocity);
 
 private:
-    enum class Species { daisy, tulip, poppy, cosmos, bell, rose, count };
-
-    struct Petal
-    {
-        float angle, length, width, fallAt, drift, spin;
-    };
-
     struct Flower
     {
-        float note;
-        Species species;
-        juce::Colour petal, petalDeep, centre;
-        float height, spread, size, phase, leafAt, leafSide;
-        std::vector<Petal> petals;
-        bool bud;
+        botany::Genome genome;
+        float note, height, spread;
     };
 
     struct Bunch
@@ -66,7 +60,6 @@ private:
     void releaseBunch (Bunch&);
 
     void paintBunch (juce::Graphics&, const Bunch&, float time, float sway) const;
-    void paintHead (juce::Graphics&, const Flower&, juce::Point<float> at, float tilt, float bloom, float rot) const;
 
     BouquetProcessor& processor;
     std::function<float (float)> noteToX;
@@ -75,6 +68,10 @@ private:
 
     // Live input: a swell after a quiet moment plants a bouquet.
     float quietFor = 10.0f, loudFor = 0.0f;
+
+    botany::Grass grass;
+    std::vector<botany::Ripple> ripples;
+    float breath = 0.0f;
     juce::Random random;
 };
 } // namespace bouquet::ui

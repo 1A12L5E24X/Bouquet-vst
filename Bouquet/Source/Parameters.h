@@ -16,6 +16,8 @@ inline const juce::String attack      = "attack";
 inline const juce::String release     = "release";
 inline const juce::String octave      = "octave";
 inline const juce::String sourceLevel = "sourceLevel";
+inline const juce::String forest      = "forest";      // how much of the forest you hear around the instrument
+inline const juce::String wildlife    = "wildlife";    // wind, leaves, birds, insects
 
 // Magic Lab
 inline const juce::String density   = "density";
@@ -40,6 +42,7 @@ inline const juce::String mix       = "mix";
 inline const juce::String auraX     = "auraX";
 inline const juce::String auraY     = "auraY";
 inline const juce::String output    = "output";
+inline const juce::String magic     = "magic";        // the Magic Lab on/off
 } // namespace bouquet::ids
 
 namespace bouquet

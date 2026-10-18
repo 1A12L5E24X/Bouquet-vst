@@ -15,12 +15,15 @@ set(BOUQUET_SOURCES
     Source/PluginProcessor.cpp
     Source/Parameters.cpp
     Source/Spells.cpp
+    Source/Presets.cpp
     Source/dsp/SoundLab.cpp
     Source/dsp/GranularEngine.cpp
     Source/ui/BouquetLookAndFeel.cpp
     Source/ui/Widgets.cpp
     Source/ui/AuraPad.cpp
+    Source/ui/Botany.cpp
     Source/ui/Garden.cpp
+    Source/ui/Meadow.cpp
     Source/ui/PluginEditor.cpp)
 
 set(BOUQUET_DEFINITIONS

@@ -6,6 +6,7 @@
 #include "Widgets.h"
 #include "AuraPad.h"
 #include "Garden.h"
+#include "Meadow.h"
 
 namespace bouquet::ui
 {
@@ -21,6 +22,7 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void frame (float dt);
+    void showPresetGarden (int highlight = -1) { meadow.open(); meadow.highlight (highlight); }
 
 private:
     void renderBackground();
@@ -31,6 +33,9 @@ private:
     float param (const juce::String& id) const;
     void showCategory (int category);
     void syncSelections();
+    juce::Rectangle<int> soundArea() const;
+    juce::Rectangle<int> magicArea() const;
+    std::vector<juce::Component*> magicComponents();
 
     BouquetProcessor& processor;
     juce::AudioProcessorValueTreeState& state;
@@ -39,7 +44,7 @@ private:
     juce::OwnedArray<GlowItem> instruments, chords, voicings;
     GlowItem octaveDown { "-", GlowItem::Style::pill, colours::coral, colours::peach };
     GlowItem octaveUp   { "+", GlowItem::Style::pill, colours::coral, colours::peach };
-    GlowKnob tone, attack, release, strum, level;
+    GlowKnob tone, attack, release, strum, forest, wildlife, level;
 
     // Magic Lab
     juce::OwnedArray<GlowItem> categories, spells;
@@ -53,11 +58,14 @@ private:
     juce::OwnedArray<GlowKnob> inner;
 
     // Header
+    GlowItem gardenButton { "garden", GlowItem::Style::pill, colours::mint, colours::butter };
+    GlowItem magicSwitch  { "magic lab", GlowItem::Style::pill, colours::violet, colours::sky };
     GlowItem mutate { "mutate", GlowItem::Style::pill, colours::violet, colours::aqua };
     GlowKnob output;
 
     GlowKeyboard keyboard;
     Garden garden;
+    Meadow meadow;
 
     juce::Image aurora, background;
     std::array<juce::int8, 256 * 256> grainNoise {};
@@ -66,10 +74,9 @@ private:
     int backgroundScale = 1;
     double backgroundTime = -1.0;
     juce::Rectangle<float> soundPanel, magicPanel;
-    float heartLevel = 0.0f;
     int shownInstrument = -1, shownOctave = 99, shownSpell = -1;
-    const juce::Rectangle<int> heartArea { 0, 0, 66, 94 };
     juce::Rectangle<int> spellLineArea;
+    float magicShown = 1.0f;   // eases towards the Magic Lab switch: 1 open, 0 folded away
 };
 } // namespace bouquet::ui
 
@@ -81,6 +88,9 @@ public:
     ~BouquetEditor() override;
 
     void resized() override;
+
+    // Opens the preset meadow (optionally with one flower highlighted, as if hovered).
+    void showPresetGarden (int highlight = -1) { surface.showPresetGarden (highlight); }
 
 private:
     void timerCallback() override;

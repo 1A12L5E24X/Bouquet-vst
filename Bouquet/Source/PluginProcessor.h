@@ -4,6 +4,8 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "Parameters.h"
 #include "Spells.h"
+#include "Presets.h"
+#include "dsp/Forest.h"
 
 class BouquetProcessor : public juce::AudioProcessor,
                         private juce::Timer,
@@ -44,6 +46,12 @@ public:
     void mutate();
     int getCurrentSpell() const;
 
+    // Presets: the whole instrument (Sound Lab, forest and Magic Lab). Message thread.
+    void applyPreset (const bouquet::Preset&, double glideSeconds = 1.2);
+    bouquet::Preset plantPreset (const juce::String& name);   // saves the current sound as a user preset
+    juce::String getCurrentPresetName() const { return apvts.state.getProperty ("preset", "").toString(); }
+    bouquet::PresetLibrary presets;
+
     // UI thread: notes started and let go since the last call (for the garden).
     int popNoteEvents (bouquet::NoteEvent* dest, int maxEvents) { return soundLab.popNoteEvents (dest, maxEvents); }
 
@@ -68,6 +76,8 @@ private:
     };
 
     bouquet::SoundLab soundLab;
+    bouquet::Forest forest;
+    bouquet::Ramp magicGain;
     juce::AudioBuffer<float> scratch;
     juce::SmoothedValue<float> sourceGain, outputGain;
     float sourceEnv = 0.0f, outputEnv = 0.0f;
@@ -76,7 +86,8 @@ private:
     double morphStartMs = 0.0, morphLengthMs = 1.0;
     juce::Random random;
     std::atomic<int> pendingProgram { -1 };
-    std::atomic<int> currentSpell { 0 };   // mirrors the "spell" state property for any thread
+    std::atomic<int> currentSpell { 0 };
+    std::atomic<int> currentFactory { -1 };   // factory preset index, -1 for a user preset   // mirrors the "spell" state property for any thread
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BouquetProcessor)
 };

@@ -57,7 +57,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout (bool 
     layout.add (std::make_unique<Float> (ParameterID { ids::attack, 1 }, "Attack", range (0.0f, 4.0f, 0.3f), 0.0f, attrs ("s")));
     layout.add (std::make_unique<Float> (ParameterID { ids::release, 1 }, "Release", range (0.02f, 10.0f, 1.0f), 0.8f, attrs ("s")));
     layout.add (std::make_unique<AudioParameterInt> (ParameterID { ids::octave, 1 }, "Octave", -2, 2, 0));
-    layout.add (std::make_unique<Float> (ParameterID { ids::sourceLevel, 1 }, "Source Level", NormalisableRange<float> (-36.0f, 6.0f), 0.0f, attrs ("dB")));
+    layout.add (std::make_unique<Float> (ParameterID { ids::sourceLevel, 1 }, "Source Level", NormalisableRange<float> (-36.0f, 12.0f), 0.0f, attrs ("dB")));
+    layout.add (std::make_unique<Float> (ParameterID { ids::forest, 1 }, "Forest", NormalisableRange<float> (0.0f, 1.0f), 0.5f, pct));
+    layout.add (std::make_unique<Float> (ParameterID { ids::wildlife, 1 }, "Wildlife", NormalisableRange<float> (0.0f, 1.0f), 0.3f, pct));
 
     // --- Magic Lab
     StringArray harmonyNames;
@@ -86,6 +88,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout (bool 
     layout.add (std::make_unique<Float> (ParameterID { ids::auraX, 1 }, "Aura X", NormalisableRange<float> (0.0f, 1.0f), 0.5f));
     layout.add (std::make_unique<Float> (ParameterID { ids::auraY, 1 }, "Aura Y", NormalisableRange<float> (0.0f, 1.0f), 0.5f));
     layout.add (std::make_unique<Float> (ParameterID { ids::output, 1 }, "Output", NormalisableRange<float> (-24.0f, 6.0f), 0.0f, attrs ("dB")));
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { ids::magic, 1 }, "Magic Lab", true));
 
     return layout;
 }
