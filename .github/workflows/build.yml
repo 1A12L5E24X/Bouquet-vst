@@ -53,4 +53,8 @@ jobs:
             build/Bouquet/Bouquet_artefacts/Release/AU
             build/Bouquet/BouquetFX_artefacts/Release/VST3
             build/Bouquet/BouquetFX_artefacts/Release/AU
+            build/Bouquet/BouquetReal_artefacts/Release/VST3
+            build/Bouquet/BouquetReal_artefacts/Release/AU
+            build/Bouquet/BouquetRealFX_artefacts/Release/VST3
+            build/Bouquet/BouquetRealFX_artefacts/Release/AU
             build/SimpleSynth/SimpleSynth_artefacts/Release/VST3

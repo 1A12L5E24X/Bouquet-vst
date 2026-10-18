@@ -2,6 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "Botany.h"
+#include "RealFlowers.h"
 #include "Widgets.h"
 #include "../Presets.h"
 
@@ -47,6 +48,7 @@ private:
     botany::Pose poseOf (const Plant&, float time) const;
 
     BouquetProcessor& processor;
+    juce::SharedResourcePointer<real::FlowerSprites> sprites;
     std::vector<Plant> plants;
     std::array<botany::Grass, 3> rowGrass;
     std::array<float, 3> rowGround { 430.0f, 590.0f, 760.0f };

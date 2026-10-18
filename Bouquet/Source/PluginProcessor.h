@@ -52,6 +52,12 @@ public:
     juce::String getCurrentPresetName() const { return apvts.state.getProperty ("preset", "").toString(); }
     bouquet::PresetLibrary presets;
 
+   #ifndef BOUQUET_REAL_FLOWERS
+    #define BOUQUET_REAL_FLOWERS 0
+   #endif
+    // "Bouquet Real" draws pre-rendered photoreal flowers instead of illustrated ones.
+    bool realFlowers = BOUQUET_REAL_FLOWERS != 0;
+
     // UI thread: notes started and let go since the last call (for the garden).
     int popNoteEvents (bouquet::NoteEvent* dest, int maxEvents) { return soundLab.popNoteEvents (dest, maxEvents); }
 

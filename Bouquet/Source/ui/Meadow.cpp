@@ -289,7 +289,15 @@ void Meadow::paint (juce::Graphics& g)
         const juce::Point<float> ground (0.0f, rowGround[(size_t) row] + 2.0f);
         rowGrass[(size_t) row].paint (g, ground, time, breath, none, false);
         for (size_t i = (size_t) row; i < plants.size(); i += 3)
-            paintPlant (g, plants[i].genome, poseOf (plants[i], time));
+        {
+            const auto pose = poseOf (plants[i], time);
+            if (processor.realFlowers && sprites->available())
+                real::paintFlower (g, *sprites, plants[i].genome.species, real::FlowerSprites::nearestColour (plants[i].genome.petal),
+                                   pose.base, plants[i].height * 1.15f, (pose.head.x - pose.base.x) / plants[i].height * 0.6f,
+                                   pose.grow, pose.bloom, 0.0f, time, pose.glow);
+            else
+                paintPlant (g, plants[i].genome, pose);
+        }
         rowGrass[(size_t) row].paint (g, ground, time, breath, none, true);
     }
 

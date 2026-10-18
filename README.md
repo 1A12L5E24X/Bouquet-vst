@@ -6,6 +6,7 @@ Plugins built with [JUCE](https://juce.com) 8, sharing one CMake project. **macO
 | --- | --- | --- |
 | **Bouquet** | A granular instrument: synthesised live instruments on the left, a cloud of granular "spells" on the right, and a garden that grows a bouquet for every chord | AU + VST3 instrument, standalone app |
 | **Bouquet FX** | The same engine as an audio effect that granulates whatever track it sits on | AU (music effect) + VST3 effect |
+| **Bouquet Real** / **Bouquet Real FX** | The same instrument and effect, with photoreal 3D-rendered flowers | AU + VST3 (+ standalone app) |
 | **Simple Synth** | A small polyphonic subtractive synth | AU, VST3, standalone |
 
 ## Download
@@ -53,6 +54,26 @@ When you let go, the bouquet **rots**, and it isn't pretty: petals bleed crimson
 wet and glossy, shrivel and tear loose; blood runs down the stems into a pool; mould spreads over
 the heads, leaves curl and blacken, stems collapse, and flies arrive. A long granular tail keeps
 the bouquet alive a little longer.
+
+### Bouquet Real: photoreal flowers
+
+**Bouquet Real** (and **Bouquet Real FX**) sound exactly like Bouquet but grow photoreal flowers. Every
+species (daisy, tulip, poppy, cosmos, bellflower, rose) is modelled in 3D and rendered with Blender's
+Cycles path tracer, lit by a photographed sky: petals let light through, have veins and thickness,
+and poppies have their ribbed seed pod and ring of stamens. Each species is rendered in eight
+colourways as a sequence from bud to full bloom, and on through a visceral rot. Petals soak with
+blood and turn black and wet, mould spreads, blood runs down the stem into a pool, and the head
+collapses. Flies and fresh drops of blood are added live on top.
+
+The renders ship inside the plugin bundles (`Contents/Resources/Flowers`, about 22 MB). To change or
+re-render them:
+
+```sh
+python3.13 -m venv .venv && .venv/bin/pip install bpy        # Blender as a Python module
+.venv/bin/python tools/flowers/render_flowers.py --out Bouquet/assets/flowers   # ~40 min on 4 cores
+```
+
+The sky is a CC0 HDRI from Poly Haven (`tools/flowers/hdri`).
 
 ### Presets: the meadow
 

@@ -302,7 +302,17 @@ void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sw
         pose.rot = rot;
         pose.time = time;
         pose.stemWidth = 2.4f;
-        paintPlant (g, f.genome, pose);
+        if (processor.realFlowers && sprites->available())
+        {
+            // Rendered flowers carry their own droop; we only fan them out and sway them.
+            const float fan = f.spread * 0.011f + breeze * 0.008f;
+            real::paintFlower (g, *sprites, f.genome.species, real::FlowerSprites::nearestColour (f.genome.petal),
+                               pose.base, f.height * 0.9f, fan, grow, pose.bloom, rot, time, 0.0f);
+        }
+        else
+        {
+            paintPlant (g, f.genome, pose);
+        }
     }
 
     // Twine and a ribbon holding the stems together.

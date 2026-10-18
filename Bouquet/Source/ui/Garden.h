@@ -3,6 +3,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../dsp/SoundLab.h"
 #include "Botany.h"
+#include "RealFlowers.h"
 
 class BouquetProcessor;
 
@@ -69,6 +70,7 @@ private:
     // Live input: a swell after a quiet moment plants a bouquet.
     float quietFor = 10.0f, loudFor = 0.0f;
 
+    juce::SharedResourcePointer<real::FlowerSprites> sprites;
     botany::Grass grass;
     std::vector<botany::Ripple> ripples;
     float breath = 0.0f;

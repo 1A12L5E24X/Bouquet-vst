@@ -4,6 +4,7 @@
 #include "ui/Garden.h"
 #include "ui/PluginEditor.h"
 #include "ui/Botany.h"
+#include "ui/RealFlowers.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <iostream>
@@ -73,7 +74,8 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
     set (p, ids::auraX, 0.62f);
     set (p, ids::auraY, 0.7f);
 
-    const bool rotting = mode == "rot";
+    const bool rotting = mode == "rot" || mode == "realrot";
+    p.realFlowers = mode.startsWith ("real");
     if (mode == "nomagic")
         set (p, ids::magic, 0.0f);
     set (p, ids::wildlife, 0.6f);
@@ -148,7 +150,7 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
     }
     if (rotting)
         play (2.2f);
-    if (mode == "meadow")
+    if (mode == "meadow" || mode == "realmeadow")
     {
         if (auto* bouquetEditor = dynamic_cast<BouquetEditor*> (editor.get()))
             bouquetEditor->showPresetGarden (17);
@@ -437,7 +439,33 @@ int main (int argc, char** argv)
         check (after.rms() < 0.002f, "the forest ambience fades once you stop playing");
     }
 
-    // 7. State round trip.
+    // 7. Bouquet Real: the rendered flowers are found and every frame is there.
+    {
+        bouquet::ui::real::FlowerSprites sprites;
+        const auto folder = bouquet::ui::real::FlowerSprites::findFolder();
+        const char* speciesNames[] = { "daisy", "tulip", "poppy", "cosmos", "bell", "rose" };
+        const char* colourNames[] = { "white", "butter", "apricot", "coral", "crimson", "pink", "lilac", "blue" };
+        if (! sprites.available())
+            std::cout << "Rendered flowers not present; skipping Bouquet Real checks\n";
+        else
+        {
+            const int frames = sprites.bloomFrames() + sprites.rotFrames();
+            for (int s = 0; s < (int) bouquet::ui::botany::Species::count; ++s)
+                for (int c = 0; c < 8; ++c)
+                {
+                    // Check every atlas that has been rendered.
+                    if (! folder.getChildFile (juce::String (speciesNames[s]) + "_" + colourNames[c] + ".png").existsAsFile())
+                        continue;
+                    auto first = sprites.get ((bouquet::ui::botany::Species) s, c, 0);
+                    auto last = sprites.get ((bouquet::ui::botany::Species) s, c, frames - 1);
+                    check (first.image.isValid() && last.image.isValid() && ! last.stem.empty(),
+                           "rendered frames for species " + juce::String (s) + " colour " + juce::String (c));
+                }
+            check (sprites.frameFor (0.0f, 0.0f) == 0 && sprites.frameFor (1.0f, 1.0f) == frames - 1, "frame mapping covers bud to rot");
+        }
+    }
+
+    // 8. State round trip.
     {
         BouquetProcessor p (false);
         p.castSpell (24, 0.0);
@@ -451,7 +479,7 @@ int main (int argc, char** argv)
         check (std::abs (q.apvts.getRawParameterValue (ids::feedback)->load() - book[24].values.feedback) < 1e-3f, "feedback restored");
     }
 
-    // 8. CPU: dense spell, four-note chords on the choir with chord mode on.
+    // 9. CPU: dense spell, four-note chords on the choir with chord mode on.
     {
         BouquetProcessor p (false);
         p.setPlayConfigDetails (0, 2, sr, block);
