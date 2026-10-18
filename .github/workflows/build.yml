@@ -32,5 +32,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SimpleSynth-VST3-${{ runner.os }}
-          path: build/SimpleSynth_artefacts/Release/VST3
+          name: Plugins-VST3-${{ runner.os }}
+          path: |
+            build/Murmur/Murmur_artefacts/Release/VST3
+            build/Murmur/MurmurFX_artefacts/Release/VST3
+            build/SimpleSynth/SimpleSynth_artefacts/Release/VST3
