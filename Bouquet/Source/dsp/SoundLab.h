@@ -7,8 +7,11 @@
 
 namespace bouquet
 {
-// The voices of the Sound Lab. Every instrument is synthesised (modal, physical or
-// formant models), so the plugin ships no sample libraries.
+struct SampledInstrument;
+
+// The voices of the Sound Lab. Piano, rhodes, marimba, harp, violin, cello and flute
+// play recordings of real instruments (SampleBank) and fall back to synthesised models
+// until those are loaded; glass and choir are always synthesised.
 enum class Instrument
 {
     liveInput = 0,
@@ -48,7 +51,8 @@ class InstrumentVoice
 {
 public:
     void prepare (float sampleRate);
-    void start (Instrument model, float note, float velocity, const SoundLabSettings&, uint32_t seed);
+    void start (Instrument model, float note, float velocity, const SoundLabSettings&, uint32_t seed,
+                const SampledInstrument* sampled = nullptr);
     void release();
     void kill() { active = false; }
 
@@ -107,6 +111,7 @@ private:
     float renderBowed (float hz);
     float renderFlute (float hz);
     float renderChoir (float hz);
+    void renderSampled (float* left, float* right, int numSamples, float bendRatio, float& peak);
 
     Instrument model = Instrument::piano;
     float sr = 48000.0f;
@@ -148,6 +153,11 @@ private:
     int lineMask = 0, writePos = 0;
     float loopGain = 0.99f, loopBlend = 0.5f, apCoeff = 0.0f, apX1 = 0.0f, apY1 = 0.0f, prevRead = 0.0f;
     int delayInt = 100;
+
+    // Sample playback
+    const void* region = nullptr;          // SampledInstrument::Region
+    double samplePos = 0.0, sampleStep = 1.0;
+    float sampleGain = 1.0f;
 };
 
 // A voice starting or being let go, for the UI (the garden grows bouquets from these).
@@ -168,6 +178,9 @@ public:
     void prepare (double sampleRate);
     void reset();
     void setSettings (const SoundLabSettings& s) { settings = s; }
+
+    // Recordings for the current instrument (nullptr plays the synthesised model).
+    void setSamples (const SampledInstrument* s) { samples = s; }
 
     // Renders the voices into left/right (overwrites) using MIDI from the block.
     void process (const juce::MidiBuffer& midi, float* left, float* right, int numSamples);
@@ -191,6 +204,7 @@ private:
     struct PendingNote { int key; float note; float velocity; int samplesLeft; };
 
     SoundLabSettings settings;
+    const SampledInstrument* samples = nullptr;
     std::array<InstrumentVoice, numVoices> voices;
     std::array<PendingNote, 64> pending {};
     int numPending = 0;

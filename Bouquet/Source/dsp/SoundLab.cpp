@@ -1,4 +1,5 @@
 #include "SoundLab.h"
+#include "SampleBank.h"
 
 namespace bouquet
 {
@@ -64,7 +65,8 @@ void InstrumentVoice::addPartial (float hz, float a, float t60)
     partials[(size_t) numPartials++] = { std::cos (ph), std::sin (ph), std::cos (w), std::sin (w), a, t60ToMul (t60, sr) };
 }
 
-void InstrumentVoice::start (Instrument m, float midiNote, float vel, const SoundLabSettings& s, uint32_t seed)
+void InstrumentVoice::start (Instrument m, float midiNote, float vel, const SoundLabSettings& s, uint32_t seed,
+                             const SampledInstrument* sampled)
 {
     model = m;
     note = midiNote;
@@ -94,6 +96,24 @@ void InstrumentVoice::start (Instrument m, float midiNote, float vel, const Soun
     toneFilter.reset();
     toneFilter.setCutoff (sr, 1500.0f * std::exp2 (tone * 3.0f));
     drift.prepare (sr, 0.7f, seed ^ 0xA5A5A5u);
+
+    region = nullptr;
+    if (sampled != nullptr && model != Instrument::liveInput)
+    {
+        if (auto* r = sampled->find (midiNote, vel); r != nullptr && r->length > 0)
+        {
+            region = r;
+            samplePos = 0.0;
+            sampleStep = std::exp2 ((midiNote - (float) r->key) / 12.0f) * sampled->sampleRate / sr;
+            // Velocity shapes loudness within a layer; the recordings carry the timbre.
+            sampleGain = 0.55f * (0.3f + 0.7f * vel);
+            percussive = ! sampled->sustained;
+            // Tone opens up to the full recording.
+            toneFilter.setCutoff (sr, std::min (sr * 0.45f, 2000.0f * std::exp2 (tone * 3.5f)));
+            env.start (sr, 0.002f + std::max (0.0f, s.attack));
+            return;
+        }
+    }
 
     switch (model)
     {
@@ -450,6 +470,45 @@ float InstrumentVoice::renderChoir (float hz)
     return out * amp;
 }
 
+void InstrumentVoice::renderSampled (float* left, float* right, int numSamples, float bendRatio, float& peak)
+{
+    const auto& r = *static_cast<const SampledInstrument::Region*> (region);
+    const int16_t* data = r.data.data();
+    const int ch = r.channels;
+    const bool loops = r.loopEnd > r.loopStart && r.loopStart >= 0;
+    const double end = loops ? (double) r.loopEnd : (double) (r.length - 2);
+    const double step = sampleStep * bendRatio;
+    constexpr float scale = 1.0f / 32767.0f;
+
+    auto at = [&] (int i, int c) { return (float) data[(size_t) (i * ch + c)] * scale; };
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        if (samplePos >= end)
+        {
+            if (! loops) { env.stage = Envelope::Stage::idle; break; }
+            samplePos -= (double) (r.loopEnd - r.loopStart);
+        }
+        const int i0 = (int) samplePos;
+        const float t = (float) (samplePos - (double) i0);
+        const int i1 = loops && i0 + 1 >= r.loopEnd ? r.loopStart : std::min (i0 + 1, r.length - 1);
+        const float e = env.next() * sampleGain;
+        const float l = at (i0, 0) + (at (i1, 0) - at (i0, 0)) * t;
+        const float rr = ch > 1 ? at (i0, 1) + (at (i1, 1) - at (i0, 1)) * t : l;
+        // One tone filter on the mid signal keeps stereo recordings' width.
+        const float mid = 0.5f * (l + rr);
+        const float side = 0.5f * (l - rr);
+        const float m = toneFilter.lp (mid) * e;
+        const float sL = m + side * e * 0.8f, sR = m - side * e * 0.8f;
+        left[i] += ch > 1 ? sL : m * gainL;
+        right[i] += ch > 1 ? sR : m * gainR;
+        peak = std::max (peak, std::abs (m));
+        samplePos += step;
+        if (env.stage == Envelope::Stage::idle)
+            break;
+    }
+}
+
 void InstrumentVoice::render (float* left, float* right, int numSamples, float pitchBendSemis)
 {
     if (! active)
@@ -457,6 +516,16 @@ void InstrumentVoice::render (float* left, float* right, int numSamples, float p
 
     const float hz = freq * semitonesToRatio (pitchBendSemis);
     float peak = 0.0f;
+
+    if (region != nullptr)
+    {
+        renderSampled (left, right, numSamples, semitonesToRatio (pitchBendSemis), peak);
+        samplesPlayed += numSamples;
+        const bool decayedAway = percussive && samplesPlayed > (int) (sr * 0.05f) && peak < 3.0e-5f;
+        if (env.stage == Envelope::Stage::idle || decayedAway)
+            active = false;
+        return;
+    }
 
     auto run = [&] (auto&& generate)
     {
@@ -720,7 +789,7 @@ void SoundLab::startVoice (int key, float note, float velocity)
     pushNoteEvent (note, velocity, true);
 
     seedCounter = seedCounter * 1664525u + 1013904223u;
-    chosen->start (settings.instrument, note, velocity, settings, seedCounter);
+    chosen->start (settings.instrument, note, velocity, settings, seedCounter, samples);
     chosen->sourceKey = key;
     chosen->startedAt = ++voiceCounter;
 }

@@ -95,6 +95,20 @@ void Garden::tick (float dt)
     const float target = sounding ? 1.0f : 0.0f;
     breath += (target - breath) * (1.0f - std::exp (-dt / (sounding ? 0.7f : 1.8f)));
 
+    // Grass under held chords stays up; everywhere else it slowly recedes.
+    for (auto& b : bouquets)
+        if (! b.released)
+            for (int held : b.notes)
+                growGrass (held, 1.0f);
+    for (auto& p : patches)
+    {
+        p.target = std::max (0.0f, p.target - dt / 16.0f);
+        const float speed = p.target > p.level ? 1.4f : 0.25f;   // springs up, withers slowly
+        p.level += (p.target - p.level) * (1.0f - std::exp (-dt * speed * 2.0f));
+    }
+    patches.erase (std::remove_if (patches.begin(), patches.end(),
+                                   [] (const Patch& p) { return p.target <= 0.0f && p.level < 0.01f; }), patches.end());
+
     for (auto& r : ripples)
         r.age += dt;
     ripples.erase (std::remove_if (ripples.begin(), ripples.end(), [] (const Ripple& r) { return r.age > 4.0f; }), ripples.end());
@@ -102,7 +116,81 @@ void Garden::tick (float dt)
 
 void Garden::resized()
 {
-    grass.generate ((float) getWidth(), 54.0f, 0x6a55u, 1.7f);
+    grass.generate ((float) getWidth(), 58.0f, 0x6a55u, 2.6f);
+}
+
+float Garden::keyWidth() const
+{
+    return std::max (6.0f, std::abs (noteToX (61.0f) - noteToX (60.0f)) * 1.4f);
+}
+
+void Garden::growGrass (int note, float strength)
+{
+    // The key itself and its neighbours, less and less.
+    for (int k = -2; k <= 2; ++k)
+    {
+        const float x = noteToX ((float) (note + k));
+        const float s = strength * (k == 0 ? 1.0f : (std::abs (k) == 1 ? 0.7f : 0.4f));
+        auto it = std::find_if (patches.begin(), patches.end(), [&] (const Patch& p) { return std::abs (p.x - x) < keyWidth() * 0.45f; });
+        if (it == patches.end())
+            patches.push_back ({ x, 0.0f, s, (uint32_t) (note + k) * 2654435761u });
+        else
+            it->target = std::max (it->target, s);
+    }
+}
+
+float Garden::grassCoverage (float x) const
+{
+    const float w = keyWidth() * 0.9f;
+    float c = 0.0f;
+    for (auto& p : patches)
+    {
+        const float d = (x - p.x) / w;
+        c = std::max (c, p.level * std::exp (-d * d));
+    }
+    return c;
+}
+
+void Garden::paintRealGrass (juce::Graphics& g, float time, bool front) const
+{
+    const int tufts = sprites->grassCount();
+    if (tufts == 0)
+        return;
+    const float baseY = (float) getHeight() - 1.0f;
+    const float wind = 0.6f + 0.4f * std::sin (time * 0.37f) * std::sin (time * 0.23f + 1.0f);
+    g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+
+    for (auto& p : patches)
+    {
+        if (p.level < 0.02f)
+            continue;
+        juce::Random r ((juce::int64) p.seed);
+        for (int i = 0; i < 3; ++i)
+        {
+            const bool inFront = i == 1;
+            const float x = p.x + (r.nextFloat() - 0.5f) * keyWidth() * 1.2f;
+            const float height = (inFront ? 30.0f : 44.0f) * (0.8f + 0.4f * r.nextFloat()) * p.level * (1.0f + 0.15f * breath);
+            const auto image = sprites->grass (r.nextInt (tufts));
+            if (inFront != front || ! image.isValid())
+                continue;
+
+            // Wind and the ripples of each new chord shear the tuft.
+            float sway = std::sin (time * 1.6f + x * 0.015f + (float) i) * 0.12f * wind * (1.0f - 0.5f * breath);
+            for (const auto& rp : ripples)
+            {
+                const float dist = std::abs (x - rp.x);
+                sway += rp.strength * std::exp (-rp.age * 1.3f) * std::sin (dist * 0.045f - rp.age * 7.0f) * std::exp (-dist / 260.0f) * 0.3f;
+            }
+            const float scale = height / (sprites->grassGround() * 0.85f);
+            const float groundY = sprites->grassGround();
+            g.setOpacity (juce::jlimit (0.0f, 1.0f, p.level * 2.0f));
+            g.drawImageTransformed (image, juce::AffineTransform::translation (-(float) image.getWidth() * 0.5f, -groundY)
+                                               .sheared (-sway, 0.0f)
+                                               .scaled (scale)
+                                               .translated (x, baseY));
+            g.setOpacity (1.0f);
+        }
+    }
 }
 
 void Garden::noteOn (const NoteEvent& e)
@@ -119,6 +207,7 @@ void Garden::noteOn (const NoteEvent& e)
         {
             if (std::find (last.notes.begin(), last.notes.end(), note) == last.notes.end())
                 last.notes.push_back (note);
+            growGrass (note, 0.6f + 0.4f * e.velocity);
             last.held.push_back (note);
             last.velocity = std::max (last.velocity, e.velocity);
             arrange (last);
@@ -134,6 +223,7 @@ void Garden::noteOn (const NoteEvent& e)
     b.velocity = e.velocity;
     arrange (b);
     ripples.push_back ({ b.x, 0.0f, 0.6f + 0.6f * b.velocity });
+    growGrass (note, 0.6f + 0.4f * e.velocity);
     bouquets.push_back (std::move (b));
 
     // Keep the garden from overgrowing.
@@ -263,10 +353,14 @@ void Garden::paint (juce::Graphics& g)
     g.setGradientFill (soil);
     g.fillRect (0.0f, ground.y - 18.0f, (float) getWidth(), 19.0f);
 
-    grass.paint (g, ground, time, breath, ripples, false);
+    const bool photoreal = processor.photorealFlowers() && sprites->available() && sprites->grassCount() > 0;
+    const auto coverage = [this] (float x) { return grassCoverage (x); };
+    if (photoreal) paintRealGrass (g, time, false);
+    else           grass.paint (g, ground, time, breath, ripples, false, coverage);
     for (const auto& b : bouquets)
         paintBunch (g, b, time, sway);
-    grass.paint (g, ground, time, breath, ripples, true);
+    if (photoreal) paintRealGrass (g, time, true);
+    else           grass.paint (g, ground, time, breath, ripples, true, coverage);
 }
 
 void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sway) const
@@ -302,11 +396,12 @@ void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sw
         pose.rot = rot;
         pose.time = time;
         pose.stemWidth = 2.4f;
-        if (processor.realFlowers && sprites->available())
+        if (processor.photorealFlowers() && sprites->available())
         {
             // Rendered flowers carry their own droop; we only fan them out and sway them.
             const float fan = f.spread * 0.011f + breeze * 0.008f;
-            real::paintFlower (g, *sprites, f.genome.species, real::FlowerSprites::nearestColour (f.genome.petal),
+            real::paintFlower (g, *sprites, f.genome.species, (int) (f.genome.seed % real::FlowerSprites::numVariants),
+                               real::FlowerSprites::nearestColour (f.genome.petal),
                                pose.base, f.height * 0.9f, fan, grow, pose.bloom, rot, time, 0.0f);
         }
         else

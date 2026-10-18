@@ -6,6 +6,7 @@
 #include "Spells.h"
 #include "Presets.h"
 #include "dsp/Forest.h"
+#include "dsp/SampleBank.h"
 
 class BouquetProcessor : public juce::AudioProcessor,
                         private juce::Timer,
@@ -52,11 +53,10 @@ public:
     juce::String getCurrentPresetName() const { return apvts.state.getProperty ("preset", "").toString(); }
     bouquet::PresetLibrary presets;
 
-   #ifndef BOUQUET_REAL_FLOWERS
-    #define BOUQUET_REAL_FLOWERS 0
-   #endif
-    // "Bouquet Real" draws pre-rendered photoreal flowers instead of illustrated ones.
-    bool realFlowers = BOUQUET_REAL_FLOWERS != 0;
+    // The garden's flowers: photoreal renders (default) or hand-drawn. Saved with the
+    // plugin's state. Message thread.
+    bool photorealFlowers() const { return (bool) apvts.state.getProperty ("photoreal", true); }
+    void setPhotorealFlowers (bool on) { apvts.state.setProperty ("photoreal", on, nullptr); }
 
     // UI thread: notes started and let go since the last call (for the garden).
     int popNoteEvents (bouquet::NoteEvent* dest, int maxEvents) { return soundLab.popNoteEvents (dest, maxEvents); }
@@ -82,6 +82,7 @@ private:
     };
 
     bouquet::SoundLab soundLab;
+    juce::SharedResourcePointer<bouquet::SampleBank> sampleBank;
     bouquet::Forest forest;
     bouquet::Ramp magicGain;
     juce::AudioBuffer<float> scratch;

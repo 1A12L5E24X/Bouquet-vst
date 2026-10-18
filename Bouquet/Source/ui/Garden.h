@@ -62,6 +62,17 @@ private:
 
     void paintBunch (juce::Graphics&, const Bunch&, float time, float sway) const;
 
+    // Grass grows only where keys are played (and a little around them), then recedes.
+    struct Patch
+    {
+        float x, level = 0.0f, target = 0.0f;
+        uint32_t seed;
+    };
+    void growGrass (int note, float strength);
+    float grassCoverage (float x) const;
+    float keyWidth() const;
+    void paintRealGrass (juce::Graphics&, float time, bool front) const;
+
     BouquetProcessor& processor;
     std::function<float (float)> noteToX;
     std::vector<Bunch> bouquets;
@@ -72,6 +83,7 @@ private:
 
     juce::SharedResourcePointer<real::FlowerSprites> sprites;
     botany::Grass grass;
+    std::vector<Patch> patches;
     std::vector<botany::Ripple> ripples;
     float breath = 0.0f;
     juce::Random random;

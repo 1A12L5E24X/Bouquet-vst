@@ -1,0 +1,1588 @@
+{
+ "version": 1,
+ "sampleRate": 44100,
+ "instruments": {
+  "piano": {
+   "sustained": false,
+   "channels": 2,
+   "regions": [
+    {
+     "file": "piano/021_000.ogg",
+     "key": 21,
+     "lo": 21,
+     "hi": 22,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/025_000.ogg",
+     "key": 25,
+     "lo": 23,
+     "hi": 26,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/029_000.ogg",
+     "key": 29,
+     "lo": 27,
+     "hi": 30,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/033_000.ogg",
+     "key": 33,
+     "lo": 31,
+     "hi": 34,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/037_000.ogg",
+     "key": 37,
+     "lo": 35,
+     "hi": 38,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/041_000.ogg",
+     "key": 41,
+     "lo": 39,
+     "hi": 42,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/045_000.ogg",
+     "key": 45,
+     "lo": 43,
+     "hi": 46,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/049_000.ogg",
+     "key": 49,
+     "lo": 47,
+     "hi": 50,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/053_000.ogg",
+     "key": 53,
+     "lo": 51,
+     "hi": 54,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/057_000.ogg",
+     "key": 57,
+     "lo": 55,
+     "hi": 58,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/061_000.ogg",
+     "key": 61,
+     "lo": 59,
+     "hi": 62,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/065_000.ogg",
+     "key": 65,
+     "lo": 63,
+     "hi": 66,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/069_000.ogg",
+     "key": 69,
+     "lo": 67,
+     "hi": 70,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/073_000.ogg",
+     "key": 73,
+     "lo": 71,
+     "hi": 74,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/077_000.ogg",
+     "key": 77,
+     "lo": 75,
+     "hi": 78,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/081_000.ogg",
+     "key": 81,
+     "lo": 79,
+     "hi": 82,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/085_000.ogg",
+     "key": 85,
+     "lo": 83,
+     "hi": 86,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/089_000.ogg",
+     "key": 89,
+     "lo": 87,
+     "hi": 90,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/093_000.ogg",
+     "key": 93,
+     "lo": 91,
+     "hi": 94,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/097_000.ogg",
+     "key": 97,
+     "lo": 95,
+     "hi": 98,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/101_000.ogg",
+     "key": 101,
+     "lo": 99,
+     "hi": 102,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/105_000.ogg",
+     "key": 105,
+     "lo": 103,
+     "hi": 106,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/108_000.ogg",
+     "key": 108,
+     "lo": 107,
+     "hi": 108,
+     "lovel": 0,
+     "hivel": 60
+    },
+    {
+     "file": "piano/021_061.ogg",
+     "key": 21,
+     "lo": 21,
+     "hi": 22,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/025_061.ogg",
+     "key": 25,
+     "lo": 23,
+     "hi": 26,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/029_061.ogg",
+     "key": 29,
+     "lo": 27,
+     "hi": 30,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/033_061.ogg",
+     "key": 33,
+     "lo": 31,
+     "hi": 34,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/037_061.ogg",
+     "key": 37,
+     "lo": 35,
+     "hi": 38,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/041_061.ogg",
+     "key": 41,
+     "lo": 39,
+     "hi": 42,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/045_061.ogg",
+     "key": 45,
+     "lo": 43,
+     "hi": 46,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/049_061.ogg",
+     "key": 49,
+     "lo": 47,
+     "hi": 50,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/053_061.ogg",
+     "key": 53,
+     "lo": 51,
+     "hi": 54,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/057_061.ogg",
+     "key": 57,
+     "lo": 55,
+     "hi": 58,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/061_061.ogg",
+     "key": 61,
+     "lo": 59,
+     "hi": 62,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/065_061.ogg",
+     "key": 65,
+     "lo": 63,
+     "hi": 66,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/069_061.ogg",
+     "key": 69,
+     "lo": 67,
+     "hi": 70,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/073_061.ogg",
+     "key": 73,
+     "lo": 71,
+     "hi": 74,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/077_061.ogg",
+     "key": 77,
+     "lo": 75,
+     "hi": 78,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/081_061.ogg",
+     "key": 81,
+     "lo": 79,
+     "hi": 82,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/085_061.ogg",
+     "key": 85,
+     "lo": 83,
+     "hi": 86,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/089_061.ogg",
+     "key": 89,
+     "lo": 87,
+     "hi": 90,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/093_061.ogg",
+     "key": 93,
+     "lo": 91,
+     "hi": 94,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/097_061.ogg",
+     "key": 97,
+     "lo": 95,
+     "hi": 98,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/101_061.ogg",
+     "key": 101,
+     "lo": 99,
+     "hi": 102,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/105_061.ogg",
+     "key": 105,
+     "lo": 103,
+     "hi": 106,
+     "lovel": 61,
+     "hivel": 127
+    },
+    {
+     "file": "piano/108_061.ogg",
+     "key": 108,
+     "lo": 107,
+     "hi": 108,
+     "lovel": 61,
+     "hivel": 127
+    }
+   ]
+  },
+  "violin": {
+   "sustained": true,
+   "channels": 1,
+   "regions": [
+    {
+     "file": "violin/057_000.ogg",
+     "key": 57,
+     "lo": 56,
+     "hi": 58,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 123056,
+     "loopEnd": 158326
+    },
+    {
+     "file": "violin/069_000.ogg",
+     "key": 69,
+     "lo": 68,
+     "hi": 70,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 112060,
+     "loopEnd": 160568
+    },
+    {
+     "file": "violin/081_000.ogg",
+     "key": 81,
+     "lo": 80,
+     "hi": 82,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 116018,
+     "loopEnd": 164521
+    },
+    {
+     "file": "violin/093_000.ogg",
+     "key": 93,
+     "lo": 92,
+     "hi": 94,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 115996,
+     "loopEnd": 162290
+    },
+    {
+     "file": "violin/060_000.ogg",
+     "key": 60,
+     "lo": 59,
+     "hi": 61,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 131458,
+     "loopEnd": 168919
+    },
+    {
+     "file": "violin/072_000.ogg",
+     "key": 72,
+     "lo": 71,
+     "hi": 73,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 88239,
+     "loopEnd": 156598
+    },
+    {
+     "file": "violin/084_000.ogg",
+     "key": 84,
+     "lo": 83,
+     "hi": 85,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 99666,
+     "loopEnd": 168061
+    },
+    {
+     "file": "violin/096_000.ogg",
+     "key": 96,
+     "lo": 95,
+     "hi": 96,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 120845,
+     "loopEnd": 158328
+    },
+    {
+     "file": "violin/064_000.ogg",
+     "key": 64,
+     "lo": 62,
+     "hi": 65,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 122166,
+     "loopEnd": 157448
+    },
+    {
+     "file": "violin/076_000.ogg",
+     "key": 76,
+     "lo": 74,
+     "hi": 77,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 124865,
+     "loopEnd": 157941
+    },
+    {
+     "file": "violin/088_000.ogg",
+     "key": 88,
+     "lo": 86,
+     "hi": 89,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 118650,
+     "loopEnd": 164954
+    },
+    {
+     "file": "violin/055_000.ogg",
+     "key": 55,
+     "lo": 55,
+     "hi": 55,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 94861,
+     "loopEnd": 158814
+    },
+    {
+     "file": "violin/067_000.ogg",
+     "key": 67,
+     "lo": 66,
+     "hi": 67,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 117764,
+     "loopEnd": 168480
+    },
+    {
+     "file": "violin/079_000.ogg",
+     "key": 79,
+     "lo": 78,
+     "hi": 79,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 127894,
+     "loopEnd": 163174
+    },
+    {
+     "file": "violin/091_000.ogg",
+     "key": 91,
+     "lo": 90,
+     "hi": 91,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 90850,
+     "loopEnd": 159203
+    },
+    {
+     "file": "violin/057_063.ogg",
+     "key": 57,
+     "lo": 56,
+     "hi": 58,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 110253,
+     "loopEnd": 167604
+    },
+    {
+     "file": "violin/069_063.ogg",
+     "key": 69,
+     "lo": 68,
+     "hi": 70,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 102320,
+     "loopEnd": 157444
+    },
+    {
+     "file": "violin/081_063.ogg",
+     "key": 81,
+     "lo": 80,
+     "hi": 82,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 103642,
+     "loopEnd": 160977
+    },
+    {
+     "file": "violin/093_063.ogg",
+     "key": 93,
+     "lo": 92,
+     "hi": 94,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 100997,
+     "loopEnd": 160533
+    },
+    {
+     "file": "violin/060_063.ogg",
+     "key": 60,
+     "lo": 59,
+     "hi": 61,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 117762,
+     "loopEnd": 157491
+    },
+    {
+     "file": "violin/072_063.ogg",
+     "key": 72,
+     "lo": 71,
+     "hi": 73,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 128342,
+     "loopEnd": 159214
+    },
+    {
+     "file": "violin/084_063.ogg",
+     "key": 84,
+     "lo": 83,
+     "hi": 85,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 111612,
+     "loopEnd": 164494
+    },
+    {
+     "file": "violin/096_063.ogg",
+     "key": 96,
+     "lo": 95,
+     "hi": 96,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 110708,
+     "loopEnd": 163623
+    },
+    {
+     "file": "violin/064_063.ogg",
+     "key": 64,
+     "lo": 62,
+     "hi": 65,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 96581,
+     "loopEnd": 158325
+    },
+    {
+     "file": "violin/076_063.ogg",
+     "key": 76,
+     "lo": 74,
+     "hi": 77,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 104527,
+     "loopEnd": 161857
+    },
+    {
+     "file": "violin/088_063.ogg",
+     "key": 88,
+     "lo": 86,
+     "hi": 89,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 124374,
+     "loopEnd": 157448
+    },
+    {
+     "file": "violin/055_063.ogg",
+     "key": 55,
+     "lo": 55,
+     "hi": 55,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 115121,
+     "loopEnd": 157017
+    },
+    {
+     "file": "violin/067_063.ogg",
+     "key": 67,
+     "lo": 66,
+     "hi": 67,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 111143,
+     "loopEnd": 157446
+    },
+    {
+     "file": "violin/079_063.ogg",
+     "key": 79,
+     "lo": 78,
+     "hi": 79,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 109809,
+     "loopEnd": 164936
+    },
+    {
+     "file": "violin/091_063.ogg",
+     "key": 91,
+     "lo": 90,
+     "hi": 91,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 111574,
+     "loopEnd": 166702
+    }
+   ]
+  },
+  "cello": {
+   "sustained": true,
+   "channels": 1,
+   "regions": [
+    {
+     "file": "cello/057_000.ogg",
+     "key": 57,
+     "lo": 55,
+     "hi": 58,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 88257,
+     "loopEnd": 156600
+    },
+    {
+     "file": "cello/047_000.ogg",
+     "key": 47,
+     "lo": 45,
+     "hi": 48,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 111648,
+     "loopEnd": 168956
+    },
+    {
+     "file": "cello/071_000.ogg",
+     "key": 71,
+     "lo": 69,
+     "hi": 72,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 125713,
+     "loopEnd": 160998
+    },
+    {
+     "file": "cello/036_000.ogg",
+     "key": 36,
+     "lo": 36,
+     "hi": 37,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 127009,
+     "loopEnd": 164537
+    },
+    {
+     "file": "cello/060_000.ogg",
+     "key": 60,
+     "lo": 59,
+     "hi": 61,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 120006,
+     "loopEnd": 164090
+    },
+    {
+     "file": "cello/050_000.ogg",
+     "key": 50,
+     "lo": 49,
+     "hi": 51,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 124453,
+     "loopEnd": 157472
+    },
+    {
+     "file": "cello/074_000.ogg",
+     "key": 74,
+     "lo": 73,
+     "hi": 75,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 134989,
+     "loopEnd": 168066
+    },
+    {
+     "file": "cello/040_000.ogg",
+     "key": 40,
+     "lo": 38,
+     "hi": 41,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 104958,
+     "loopEnd": 157880
+    },
+    {
+     "file": "cello/040_042.ogg",
+     "key": 40,
+     "lo": 38,
+     "hi": 41,
+     "lovel": 42,
+     "hivel": 62,
+     "loopStart": 101120,
+     "loopEnd": 158329
+    },
+    {
+     "file": "cello/064_000.ogg",
+     "key": 64,
+     "lo": 62,
+     "hi": 65,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 135872,
+     "loopEnd": 168942
+    },
+    {
+     "file": "cello/053_000.ogg",
+     "key": 53,
+     "lo": 52,
+     "hi": 54,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 117392,
+     "loopEnd": 161420
+    },
+    {
+     "file": "cello/077_000.ogg",
+     "key": 77,
+     "lo": 76,
+     "hi": 77,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 112934,
+     "loopEnd": 163646
+    },
+    {
+     "file": "cello/043_000.ogg",
+     "key": 43,
+     "lo": 42,
+     "hi": 44,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 94521,
+     "loopEnd": 160615
+    },
+    {
+     "file": "cello/067_000.ogg",
+     "key": 67,
+     "lo": 66,
+     "hi": 68,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 118641,
+     "loopEnd": 169356
+    },
+    {
+     "file": "cello/057_063.ogg",
+     "key": 57,
+     "lo": 55,
+     "hi": 58,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 102487,
+     "loopEnd": 168471
+    },
+    {
+     "file": "cello/047_063.ogg",
+     "key": 47,
+     "lo": 45,
+     "hi": 48,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 118661,
+     "loopEnd": 164985
+    },
+    {
+     "file": "cello/071_063.ogg",
+     "key": 71,
+     "lo": 69,
+     "hi": 72,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 119079,
+     "loopEnd": 156561
+    },
+    {
+     "file": "cello/036_063.ogg",
+     "key": 36,
+     "lo": 36,
+     "hi": 37,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 108588,
+     "loopEnd": 157128
+    },
+    {
+     "file": "cello/060_063.ogg",
+     "key": 60,
+     "lo": 59,
+     "hi": 61,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 112125,
+     "loopEnd": 160637
+    },
+    {
+     "file": "cello/050_063.ogg",
+     "key": 50,
+     "lo": 49,
+     "hi": 51,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 133214,
+     "loopEnd": 168466
+    },
+    {
+     "file": "cello/074_063.ogg",
+     "key": 74,
+     "lo": 73,
+     "hi": 75,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 135411,
+     "loopEnd": 168489
+    },
+    {
+     "file": "cello/040_063.ogg",
+     "key": 40,
+     "lo": 38,
+     "hi": 41,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 107652,
+     "loopEnd": 167350
+    },
+    {
+     "file": "cello/064_063.ogg",
+     "key": 64,
+     "lo": 62,
+     "hi": 65,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 124368,
+     "loopEnd": 166287
+    },
+    {
+     "file": "cello/053_063.ogg",
+     "key": 53,
+     "lo": 52,
+     "hi": 54,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 103317,
+     "loopEnd": 158322
+    },
+    {
+     "file": "cello/077_063.ogg",
+     "key": 77,
+     "lo": 76,
+     "hi": 77,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 90412,
+     "loopEnd": 158806
+    },
+    {
+     "file": "cello/043_063.ogg",
+     "key": 43,
+     "lo": 42,
+     "hi": 44,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 126798,
+     "loopEnd": 166450
+    },
+    {
+     "file": "cello/067_063.ogg",
+     "key": 67,
+     "lo": 66,
+     "hi": 68,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 134587,
+     "loopEnd": 165397
+    }
+   ]
+  },
+  "flute": {
+   "sustained": true,
+   "channels": 1,
+   "regions": [
+    {
+     "file": "flute/069_000.ogg",
+     "key": 69,
+     "lo": 67,
+     "hi": 70,
+     "lovel": 0,
+     "hivel": 127,
+     "loopStart": 129691,
+     "loopEnd": 164973
+    },
+    {
+     "file": "flute/081_000.ogg",
+     "key": 81,
+     "lo": 79,
+     "hi": 82,
+     "lovel": 0,
+     "hivel": 127,
+     "loopStart": 113788,
+     "loopEnd": 162299
+    },
+    {
+     "file": "flute/093_000.ogg",
+     "key": 93,
+     "lo": 91,
+     "hi": 94,
+     "lovel": 0,
+     "hivel": 127,
+     "loopStart": 110699,
+     "loopEnd": 168030
+    },
+    {
+     "file": "flute/060_000.ogg",
+     "key": 60,
+     "lo": 60,
+     "hi": 61,
+     "lovel": 0,
+     "hivel": 127,
+     "loopStart": 133628,
+     "loopEnd": 166700
+    },
+    {
+     "file": "flute/072_000.ogg",
+     "key": 72,
+     "lo": 71,
+     "hi": 73,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 115984,
+     "loopEnd": 164494
+    },
+    {
+     "file": "flute/072_063.ogg",
+     "key": 72,
+     "lo": 71,
+     "hi": 73,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 97036,
+     "loopEnd": 163193
+    },
+    {
+     "file": "flute/084_000.ogg",
+     "key": 84,
+     "lo": 83,
+     "hi": 85,
+     "lovel": 0,
+     "hivel": 127,
+     "loopStart": 115115,
+     "loopEnd": 168037
+    },
+    {
+     "file": "flute/096_000.ogg",
+     "key": 96,
+     "lo": 95,
+     "hi": 96,
+     "lovel": 0,
+     "hivel": 127,
+     "loopStart": 105844,
+     "loopEnd": 163175
+    },
+    {
+     "file": "flute/064_000.ogg",
+     "key": 64,
+     "lo": 62,
+     "hi": 66,
+     "lovel": 0,
+     "hivel": 127,
+     "loopStart": 102780,
+     "loopEnd": 168931
+    },
+    {
+     "file": "flute/076_000.ogg",
+     "key": 76,
+     "lo": 74,
+     "hi": 78,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 119982,
+     "loopEnd": 159674
+    },
+    {
+     "file": "flute/076_063.ogg",
+     "key": 76,
+     "lo": 74,
+     "hi": 78,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 120852,
+     "loopEnd": 169363
+    },
+    {
+     "file": "flute/088_000.ogg",
+     "key": 88,
+     "lo": 86,
+     "hi": 90,
+     "lovel": 0,
+     "hivel": 62,
+     "loopStart": 133206,
+     "loopEnd": 168485
+    },
+    {
+     "file": "flute/088_063.ogg",
+     "key": 88,
+     "lo": 86,
+     "hi": 90,
+     "lovel": 63,
+     "hivel": 127,
+     "loopStart": 126145,
+     "loopEnd": 157014
+    }
+   ]
+  },
+  "harp": {
+   "sustained": false,
+   "channels": 1,
+   "regions": [
+    {
+     "file": "harp/031_000.ogg",
+     "key": 31,
+     "lo": 30,
+     "hi": 32,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/045_000.ogg",
+     "key": 45,
+     "lo": 43,
+     "hi": 46,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/069_000.ogg",
+     "key": 69,
+     "lo": 67,
+     "hi": 70,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/093_000.ogg",
+     "key": 93,
+     "lo": 91,
+     "hi": 93,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/035_000.ogg",
+     "key": 35,
+     "lo": 33,
+     "hi": 36,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/059_000.ogg",
+     "key": 59,
+     "lo": 57,
+     "hi": 60,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/083_000.ogg",
+     "key": 83,
+     "lo": 81,
+     "hi": 84,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/095_000.ogg",
+     "key": 95,
+     "lo": 94,
+     "hi": 96,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/048_000.ogg",
+     "key": 48,
+     "lo": 47,
+     "hi": 49,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/072_000.ogg",
+     "key": 72,
+     "lo": 71,
+     "hi": 73,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/038_000.ogg",
+     "key": 38,
+     "lo": 37,
+     "hi": 39,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/062_000.ogg",
+     "key": 62,
+     "lo": 61,
+     "hi": 63,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/086_000.ogg",
+     "key": 86,
+     "lo": 85,
+     "hi": 87,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/052_000.ogg",
+     "key": 52,
+     "lo": 50,
+     "hi": 53,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/076_000.ogg",
+     "key": 76,
+     "lo": 74,
+     "hi": 77,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/041_000.ogg",
+     "key": 41,
+     "lo": 40,
+     "hi": 42,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/065_000.ogg",
+     "key": 65,
+     "lo": 64,
+     "hi": 66,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/089_000.ogg",
+     "key": 89,
+     "lo": 88,
+     "hi": 90,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/055_000.ogg",
+     "key": 55,
+     "lo": 54,
+     "hi": 56,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/079_000.ogg",
+     "key": 79,
+     "lo": 78,
+     "hi": 80,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/098_000.ogg",
+     "key": 98,
+     "lo": 97,
+     "hi": 99,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/028_000.ogg",
+     "key": 28,
+     "lo": 28,
+     "hi": 29,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "harp/101_000.ogg",
+     "key": 101,
+     "lo": 100,
+     "hi": 101,
+     "lovel": 0,
+     "hivel": 127
+    }
+   ]
+  },
+  "marimba": {
+   "sustained": false,
+   "channels": 1,
+   "regions": [
+    {
+     "file": "marimba/059_000.ogg",
+     "key": 59,
+     "lo": 57,
+     "hi": 61,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "marimba/083_000.ogg",
+     "key": 83,
+     "lo": 81,
+     "hi": 85,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "marimba/048_000.ogg",
+     "key": 48,
+     "lo": 45,
+     "hi": 51,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "marimba/072_000.ogg",
+     "key": 72,
+     "lo": 69,
+     "hi": 75,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "marimba/096_000.ogg",
+     "key": 96,
+     "lo": 93,
+     "hi": 96,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "marimba/041_000.ogg",
+     "key": 41,
+     "lo": 41,
+     "hi": 44,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "marimba/065_000.ogg",
+     "key": 65,
+     "lo": 62,
+     "hi": 68,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "marimba/089_000.ogg",
+     "key": 89,
+     "lo": 86,
+     "hi": 92,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "marimba/055_000.ogg",
+     "key": 55,
+     "lo": 52,
+     "hi": 56,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "marimba/079_000.ogg",
+     "key": 79,
+     "lo": 76,
+     "hi": 80,
+     "lovel": 0,
+     "hivel": 127
+    }
+   ]
+  },
+  "rhodes": {
+   "sustained": false,
+   "channels": 1,
+   "regions": [
+    {
+     "file": "rhodes/028_000.ogg",
+     "key": 28,
+     "lo": 0,
+     "hi": 29,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/031_000.ogg",
+     "key": 31,
+     "lo": 30,
+     "hi": 32,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/034_000.ogg",
+     "key": 34,
+     "lo": 33,
+     "hi": 35,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/037_000.ogg",
+     "key": 37,
+     "lo": 36,
+     "hi": 38,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/040_000.ogg",
+     "key": 40,
+     "lo": 39,
+     "hi": 41,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/043_000.ogg",
+     "key": 43,
+     "lo": 42,
+     "hi": 44,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/046_000.ogg",
+     "key": 46,
+     "lo": 45,
+     "hi": 47,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/049_000.ogg",
+     "key": 49,
+     "lo": 48,
+     "hi": 50,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/052_000.ogg",
+     "key": 52,
+     "lo": 51,
+     "hi": 53,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/055_000.ogg",
+     "key": 55,
+     "lo": 54,
+     "hi": 56,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/058_000.ogg",
+     "key": 58,
+     "lo": 57,
+     "hi": 59,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/061_000.ogg",
+     "key": 61,
+     "lo": 60,
+     "hi": 62,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/064_000.ogg",
+     "key": 64,
+     "lo": 63,
+     "hi": 65,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/067_000.ogg",
+     "key": 67,
+     "lo": 66,
+     "hi": 68,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/070_000.ogg",
+     "key": 70,
+     "lo": 69,
+     "hi": 71,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/073_000.ogg",
+     "key": 73,
+     "lo": 72,
+     "hi": 74,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/076_000.ogg",
+     "key": 76,
+     "lo": 75,
+     "hi": 77,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/079_000.ogg",
+     "key": 79,
+     "lo": 78,
+     "hi": 80,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/082_000.ogg",
+     "key": 82,
+     "lo": 81,
+     "hi": 83,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/085_000.ogg",
+     "key": 85,
+     "lo": 84,
+     "hi": 86,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/088_000.ogg",
+     "key": 88,
+     "lo": 87,
+     "hi": 89,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/091_000.ogg",
+     "key": 91,
+     "lo": 90,
+     "hi": 92,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/094_000.ogg",
+     "key": 94,
+     "lo": 93,
+     "hi": 95,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/097_000.ogg",
+     "key": 97,
+     "lo": 96,
+     "hi": 98,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/100_000.ogg",
+     "key": 100,
+     "lo": 99,
+     "hi": 101,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "rhodes/103_000.ogg",
+     "key": 103,
+     "lo": 102,
+     "hi": 127,
+     "lovel": 0,
+     "hivel": 127
+    }
+   ]
+  }
+ }
+}

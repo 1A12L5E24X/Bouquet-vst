@@ -629,6 +629,108 @@ void paintPlant (juce::Graphics& g, const Genome& gen, const Pose& pose)
 }
 
 //==============================================================================
+void paintFromAbove (juce::Graphics& g, const Genome& gen, juce::Point<float> c, float radius,
+                     float angle, float open, float glow, float alpha)
+{
+    if (alpha <= 0.01f || radius <= 0.5f)
+        return;
+    const float r = radius;
+    const auto leafColour = juce::Colour (0xff4f7d2c);
+
+    if (glow > 0.01f)
+        drawGlow (g, c, r * 2.2f, gen.petal.withAlpha (0.4f * glow * alpha));
+
+    // A few leaves of the plant peeking out underneath.
+    juce::Random lr ((juce::int64) gen.seed);
+    for (int k = 0; k < 3; ++k)
+    {
+        const float a = angle + (float) k * 2.1f + lr.nextFloat() * 0.6f;
+        juce::Path leaf;
+        leaf.addEllipse (-r * 0.22f, -r * 1.35f, r * 0.44f, r * 1.1f);
+        leaf.applyTransform (juce::AffineTransform::rotation (a).translated (c));
+        g.setGradientFill (juce::ColourGradient (leafColour.darker (0.3f).withAlpha (alpha), c.x, c.y,
+                                                 leafColour.brighter (0.2f).withAlpha (alpha),
+                                                 c.x + std::sin (a) * r * 1.3f, c.y - std::cos (a) * r * 1.3f, false));
+        g.fillPath (leaf);
+    }
+
+    // A soft shadow under the head.
+    g.setColour (juce::Colours::black.withAlpha (0.18f * alpha));
+    g.fillEllipse (juce::Rectangle<float> (r * 1.9f, r * 1.9f).withCentre (c + juce::Point<float> (r * 0.12f, r * 0.18f)));
+
+    const auto petal = gen.petal, deep = gen.petalDeep;
+    auto ring = [&] (int count, float length, float width, float offset, juce::Colour base, juce::Colour tip, Species shape)
+    {
+        for (int i = 0; i < count; ++i)
+        {
+            const float a = angle + offset + (float) i * twoPi / (float) count;
+            const auto path = petalPath (shape, length * (0.4f + 0.6f * open), width, 0.0f, (float) i);
+            fillPetal (g, path, juce::AffineTransform::rotation (a).translated (c), length, width, { base, tip, alpha, 0.0f, true });
+        }
+    };
+
+    switch (gen.species)
+    {
+        case Species::daisy:
+        case Species::cosmos:
+        case Species::poppy:
+        {
+            for (const auto& pg : gen.petals)
+            {
+                const auto path = petalPath (gen.species, r * pg.length * (0.4f + 0.6f * open) * 0.55f, r * pg.width * 0.55f, 0.0f, pg.phase);
+                fillPetal (g, path, juce::AffineTransform::rotation (angle + pg.angle).translated (c),
+                           r * pg.length * 0.55f, r * pg.width * 0.55f, { deep, petal, alpha, 0.0f, true });
+            }
+            if (gen.species == Species::poppy)
+            {
+                g.setColour (necrotic.withAlpha (0.75f * alpha));
+                g.fillEllipse (juce::Rectangle<float> (r * 0.6f, r * 0.6f).withCentre (c));
+                paintDisc (g, c, r * 0.2f, gen.centre, 0.0f, alpha, gen.seed);
+            }
+            else
+            {
+                paintDisc (g, c, r * (gen.species == Species::daisy ? 0.26f : 0.2f), gen.centre, 0.0f, alpha, gen.seed);
+            }
+            break;
+        }
+        case Species::rose:
+        {
+            ring (6, r * 0.95f, r * 0.85f, 0.0f, deep, petal, Species::rose);
+            ring (5, r * 0.7f, r * 0.7f, 0.5f, deep.darker (0.1f), petal, Species::rose);
+            for (int k = 0; k < 4; ++k)
+            {
+                const float rr = r * (0.42f - 0.09f * (float) k);
+                g.setColour (deep.darker (0.12f * (float) k).withMultipliedAlpha (alpha));
+                g.fillEllipse (juce::Rectangle<float> (rr * 2.0f, rr * 1.8f).withCentre (c));
+                g.setColour (deep.darker (0.6f).withAlpha (0.35f * alpha));
+                juce::Path curl;
+                curl.addCentredArc (c.x, c.y, rr, rr * 0.9f, angle + (float) k, 0.3f, 3.8f, true);
+                g.strokePath (curl, juce::PathStrokeType (0.8f));
+            }
+            break;
+        }
+        case Species::tulip:
+        case Species::bell:
+        {
+            // A cup seen from above: lobes around a deep, shadowed throat.
+            const int lobes = gen.species == Species::tulip ? 6 : 5;
+            ring (lobes, r * 0.85f, r * 0.75f, 0.0f, deep, petal.brighter (0.1f), Species::tulip);
+            juce::ColourGradient throat (deep.darker (0.6f).withAlpha (alpha), c.x, c.y,
+                                         deep.withAlpha (0.0f), c.x + r * 0.55f, c.y, true);
+            g.setGradientFill (throat);
+            g.fillEllipse (juce::Rectangle<float> (r * 1.1f, r * 1.1f).withCentre (c));
+            g.setColour (juce::Colour (0xffe8d27a).withAlpha (0.8f * alpha));
+            for (int k = 0; k < 3; ++k)
+                g.fillEllipse (juce::Rectangle<float> (r * 0.08f, r * 0.08f)
+                                   .withCentre (c + juce::Point<float> (std::cos (angle + (float) k * 2.1f), std::sin (angle + (float) k * 2.1f)) * r * 0.1f));
+            break;
+        }
+        case Species::count:
+            break;
+    }
+}
+
+//==============================================================================
 void Grass::generate (float width, float maxHeight, uint32_t seed, float density)
 {
     blades.clear();
@@ -658,16 +760,19 @@ void Grass::generate (float width, float maxHeight, uint32_t seed, float density
 }
 
 void Grass::paint (juce::Graphics& g, juce::Point<float> origin, float time, float breath,
-                   const std::vector<Ripple>& ripples, bool front) const
+                   const std::vector<Ripple>& ripples, bool front, const std::function<float (float)>& coverage) const
 {
     const float wind = 0.6f + 0.4f * std::sin (time * 0.37f) * std::sin (time * 0.23f + 1.0f);
     for (const auto& b : blades)
     {
         if (b.front != front)
             continue;
+        const float grown = coverage ? coverage (b.x) : 1.0f;
+        if (grown < 0.03f)
+            continue;
 
         // Breathing in: blades rise and straighten; the wind holds still for a moment.
-        const float h = b.height * (1.0f + 0.2f * breath);
+        const float h = b.height * (1.0f + 0.2f * breath) * grown;
         float dx = std::sin (time * 1.6f + b.x * 0.015f + b.phase) * h * 0.12f * wind * (1.0f - 0.5f * breath);
         for (const auto& rp : ripples)
         {
@@ -684,8 +789,18 @@ void Grass::paint (juce::Graphics& g, juce::Point<float> origin, float time, flo
         blade.quadraticTo (x + dx * 0.25f + lean * h * 0.15f - b.width * 0.3f, y - h * 0.55f, tip.x, tip.y);
         blade.quadraticTo (x + dx * 0.25f + lean * h * 0.15f + b.width * 0.3f, y - h * 0.5f, x + b.width * 0.5f, y);
         blade.closeSubPath();
-        g.setColour (b.colour.brighter (0.15f * breath));
+        // Shaded from the dark, damp base to a sunlit tip, with a pale midrib.
+        const auto colour = b.colour.brighter (0.15f * breath);
+        g.setGradientFill (juce::ColourGradient (colour.darker (0.55f), x, y, colour.brighter (0.25f), tip.x, tip.y, false));
         g.fillPath (blade);
+        if (b.width > 2.2f)
+        {
+            juce::Path rib;
+            rib.startNewSubPath (x, y);
+            rib.quadraticTo (x + dx * 0.25f + lean * h * 0.15f, y - h * 0.52f, tip.x, tip.y);
+            g.setColour (colour.brighter (0.5f).withAlpha (0.35f));
+            g.strokePath (rib, juce::PathStrokeType (0.5f));
+        }
 
         if (b.seedHead)
         {

@@ -7,13 +7,16 @@ then rendered as a sprite sequence: a bud opening to full bloom, then a visceral
 collapses). Each species is rendered in several colourways. The plugin plays these
 frames back, tinting nothing: what you see is the render.
 
-Output (per species and colour): an atlas PNG of all frames plus a JSON file with,
-for every frame, where the stem is in the sprite (so the plugin can run drips down it
-and attach flies to the head).
+Every species comes in several shape variants (height, head size, petal count, lean).
+Output (per species, variant and colour): an atlas of all frames as a JPEG plus a
+greyscale PNG alpha mask (far smaller than an RGBA PNG), and per species and variant a
+JSON file with, for every frame, where the stem is in the sprite (so the plugin can
+attach flies to the head). `--extras` renders the fly and blood-drop sprites.
 
 Usage (Blender's Python module, `pip install bpy`):
     python render_flowers.py --out ../../Bouquet/assets/flowers [--species daisy] [--colour pink]
-                             [--frames all|bloom|rot|N] [--size 144x216] [--samples 32]
+                             [--frames all|bloom|rot|N] [--size 288x432] [--samples 24]
+                             [--variants 3] [--extras]
 """
 
 import argparse
@@ -26,6 +29,8 @@ import time
 
 import bpy
 import bmesh
+import numpy as np
+from PIL import Image
 from mathutils import Matrix, Vector
 from bpy_extras.object_utils import world_to_camera_view
 
@@ -47,6 +52,24 @@ ROT_FRAMES = 14
 STEM_HEIGHT = 0.17
 ORTHO = 0.27
 HEAD = 1.7          # head scale relative to life size: sprites are small, faces must read
+
+# Shape variant being built: set per variant in main() (see variant_settings).
+VAR = {"petals": 1.0, "open": 0.0, "lean": 0.0, "leaves": (0.28, 0.48), "arch": 1.0}
+
+
+def variant_settings(species, v):
+    """Variant 0 is the classic plant; the others are shorter/fuller and taller/sparser."""
+    rng = random.Random(7919 * (v + 1) + 31 * SPECIES.index(species))
+    shape = [(1.0, 1.0, 1.0), (0.88, 1.1, 1.2), (1.07, 0.92, 0.82)][v % 3]
+    return {
+        "height": shape[0] * rng.uniform(0.97, 1.03),
+        "head": shape[1] * rng.uniform(0.97, 1.03),
+        "petals": shape[2],
+        "open": rng.uniform(-6.0, 6.0),
+        "lean": rng.uniform(-0.12, 0.12) * (1 if v else 0),
+        "leaves": (rng.uniform(0.2, 0.34), rng.uniform(0.42, 0.56)),
+        "arch": rng.uniform(0.85, 1.1) if v else 1.0,
+    }
 
 BLOOD = (0.30, 0.008, 0.012)
 NECROTIC = (0.03, 0.008, 0.006)
@@ -134,6 +157,7 @@ def add_lights():
 
 
 CLOSEUP = None   # (x, z, scale) to frame only the flower head, for inspecting detail
+TOP_VIEW = False  # build heads facing up, for the view from above
 
 
 def add_camera():
@@ -466,11 +490,11 @@ def lathe(name, profile_pts, segments, material, transform, lobes=0, lobe_depth=
 def stem_points(rot, species, seed):
     """The stem as a polyline from the ground up; bends over as the plant rots."""
     rng = random.Random(seed * 7 + 3)
-    lean = (rng.random() - 0.5) * 0.25
+    lean = (rng.random() - 0.5) * 0.25 + VAR["lean"]
     pts = []
     n = 18
     droop = math.radians(78.0) * (rot ** 1.25)
-    arch = math.radians(115.0) if species == "bell" else 0.0
+    arch = math.radians(115.0) * VAR["arch"] if species == "bell" and not TOP_VIEW else 0.0
     # Start left of centre so arching or collapsing heads stay inside the frame.
     x, z, ang = (-0.045 if species == "bell" else -0.022), 0.0, 0.0
     seg = STEM_HEIGHT / n
@@ -489,7 +513,9 @@ def build_plant(species, colour_name, bloom, rot, seed):
     pts = stem_points(rot, species, seed)
     top = pts[-1]
     axis = (pts[-1] - pts[-3]).normalized()
-    if species in ("daisy", "cosmos", "poppy", "rose"):
+    if TOP_VIEW and species != "bell":
+        axis = Vector((0.0, 0.0, 1.0))      # seen from above: faces turn to the sky
+    elif species in ("daisy", "cosmos", "poppy", "rose"):
         # Open faces turn towards the viewer (and the sun), less so as the plant collapses.
         axis = (axis + Vector((0.0, -1.0, 0.15)) * (0.9 * (1.0 - smooth(rot * 1.3)))).normalized()
 
@@ -501,7 +527,7 @@ def build_plant(species, colour_name, bloom, rot, seed):
     # Leaves: lance-shaped, folded along the midrib, curling and blackening with rot.
     leaf_colour = mix(mix(LEAF_GREEN, (0.20, 0.13, 0.03), smooth(rot / 0.5)), (0.03, 0.02, 0.01), smooth((rot - 0.5) / 0.4))
     leaf_mat = simple_material("leaf", leaf_colour, roughness=0.38, subsurface=0.3, coat=0.4 * smooth((rot - 0.2) / 0.3), texture=0.3, veins=True)
-    for k, (at, az) in enumerate(((0.28, 0.6), (0.48, 3.6))):
+    for k, (at, az) in enumerate(((VAR["leaves"][0], 0.6), (VAR["leaves"][1], 3.6))):
         idx = int(at * (len(pts) - 1))
         origin = pts[idx]
         length = 0.062 - 0.012 * k
@@ -544,6 +570,9 @@ def build_plant(species, colour_name, bloom, rot, seed):
             n, length, width = 4, 0.034 * HEAD, 0.040 * HEAD
             prof = lambda u: max(0.0, math.sin(math.pi * (0.05 + 0.9 * u))) ** 0.4 * (0.8 + 0.3 * u)
             elev_closed, elev_open, cup = 86.0, 26.0, 0.6
+        if species != "poppy":
+            n = max(5, round(n * VAR["petals"]))
+        elev_open += VAR["open"]
         for i in range(n):
             f = fallen(i, n)
             if f >= 1.0:
@@ -604,7 +633,7 @@ def build_plant(species, colour_name, bloom, rot, seed):
 
     elif species == "rose":
         sepals(5, 0.016)
-        n = 26
+        n = round(26 * VAR["petals"])
         for i in range(n):
             f = fallen(i, n) if i > n * 0.4 else 0.0
             if f >= 1.0:
@@ -645,7 +674,7 @@ def build_plant(species, colour_name, bloom, rot, seed):
             r = (0.0035 + 0.0125 * (s ** 1.6) * flare * shrivel) * HEAD
             prof.append((r, -0.032 * HEAD * s * (0.75 + 0.25 * open_)))
         # Bells hang mouth-down from the arch, swinging out a little with the stem.
-        down = (axis * 0.35 + Vector((0.0, 0.0, -1.0))).normalized()
+        down = (axis * 0.35 + Vector((0.0, 0.0, -1.0))).normalized() if not TOP_VIEW else Vector((0.0, 0.0, 1.0))
         rot_m = down.to_track_quat("-Z", "Y").to_matrix().to_4x4()
         transform = Matrix.Translation(top) @ rot_m
         lathe("bell", prof, 30, pmat, transform, lobes=5, lobe_depth=0.12 * open_)
@@ -718,37 +747,314 @@ def render_species(out_dir, species, colour, frames, width, height, samples, see
     return paths, info
 
 
-def build_atlas(paths, out_path, width, height, cols=6):
+def build_atlas(paths, out_base, width, height, cols=6):
+    """Writes <out_base>.jpg (colour) and <out_base>.alpha.png (coverage)."""
     rows = (len(paths) + cols - 1) // cols
-    atlas = bpy.data.images.new("atlas", width * cols, height * rows, alpha=True)
-    pixels = [0.0] * (width * cols * height * rows * 4)
-    W = width * cols
+    rgba = np.zeros((height * rows, width * cols, 4), np.float32)
     for n, p in enumerate(paths):
-        img = bpy.data.images.load(p)
-        src = list(img.pixels)
-        cx, cy = n % cols, rows - 1 - n // cols    # Blender images start at the bottom row
-        for y in range(height):
-            row = (cy * height + y) * W + cx * width
-            pixels[row * 4:(row + width) * 4] = src[y * width * 4:(y + 1) * width * 4]
-        bpy.data.images.remove(img)
-    atlas.pixels = pixels
-    atlas.filepath_raw = out_path
-    atlas.file_format = "PNG"
-    atlas.save()
-    bpy.data.images.remove(atlas)
+        img = np.asarray(Image.open(p).convert("RGBA"), np.float32) / 255.0
+        y, x = (n // cols) * height, (n % cols) * width
+        rgba[y:y + height, x:x + width] = img
+    colour, alpha = rgba[..., :3], rgba[..., 3:]
+    # Bleed colour out past the edges so JPEG ringing never pulls in black fringes.
+    weight = (alpha > 0.02).astype(np.float32)
+    acc, w = colour * weight, weight.copy()
+    for _ in range(6):
+        blur_a = sum(np.roll(np.roll(acc, dy, 0), dx, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1))
+        blur_w = sum(np.roll(np.roll(w, dy, 0), dx, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1))
+        fill = (w == 0) & (blur_w > 0)
+        acc = np.where(fill, blur_a / np.maximum(blur_w, 1e-6), acc)
+        w = np.where(fill, 1.0, w)
+    colour = np.where(w > 0, acc, 0.8)
+    Image.fromarray((np.clip(colour, 0, 1) * 255 + 0.5).astype(np.uint8), "RGB").save(out_base + ".jpg", quality=90, subsampling=0)
+    Image.fromarray((np.clip(alpha[..., 0], 0, 1) * 255 + 0.5).astype(np.uint8), "L").save(out_base + ".alpha.png", optimize=True)
     for p in paths:
         os.remove(p)
 
 
+# --------------------------------------------------------------------------- extras
+
+def render_extras(out_dir, samples):
+    """Sprites drawn live over the flowers: a fly (4 wing beats) and a drop of blood."""
+    scene = bpy.context.scene
+    size, cols = 64, 5
+    scene.render.resolution_x = size
+    scene.render.resolution_y = size
+    paths = []
+    for i in range(cols):
+        clear_scene()
+        add_lights()
+        cam = bpy.data.cameras.new("cam")
+        cam.type = "ORTHO"
+        cam.ortho_scale = 0.024
+        ob = bpy.data.objects.new("cam", cam)
+        scene.collection.objects.link(ob)
+        ob.location = (0.0, -0.08, 0.06)
+        ob.rotation_euler = (math.radians(53.0), 0.0, 0.0)
+        scene.camera = ob
+        if i < 4:
+            # A blowfly: metallic green-black body, smoky veined wings mid-beat.
+            body = simple_material("fly", (0.02, 0.05, 0.03), roughness=0.18, coat=0.9, texture=0.3)
+            eyes = simple_material("eyes", (0.25, 0.02, 0.01), roughness=0.3, coat=0.6, texture=0.4)
+            spheres("abdomen", [(Vector((0.0, -0.0028, 0.0)), 0.0026)], 0.0026, body, subdivisions=3,
+                    squash=Matrix.Diagonal((1.0, 1.25, 0.8, 1.0)))
+            spheres("thorax", [(Vector((0.0, 0.0012, 0.0004)), 0.0019)], 0.0019, body, subdivisions=3)
+            spheres("head", [(Vector((0.0, 0.0034, 0.0003)), 0.0014)], 0.0014, body, subdivisions=3)
+            spheres("eyes", [(Vector((s * 0.0009, 0.0039, 0.0006)), 0.0009) for s in (-1, 1)], 0.0009, eyes, subdivisions=2)
+            wing = principled("wing")
+            wing[1].inputs["Base Color"].default_value = (0.75, 0.78, 0.8, 1.0)
+            wing[1].inputs["Roughness"].default_value = 0.08
+            wing[1].inputs["Alpha"].default_value = 0.35
+            wing[1].inputs["Coat Weight"].default_value = 1.0
+            beat = math.radians([-25.0, 10.0, 45.0, 75.0][i])
+            for side in (-1, 1):
+                def fn(u, v, side=side):
+                    w = 0.0022 * math.sin(math.pi * min(1.0, u * 1.05)) ** 0.7
+                    p = Vector((side * u * 0.0085, -0.0015 * u + v * w, 0.0))
+                    return Matrix.Rotation(side * beat, 3, "Y") @ p + Vector((side * 0.0012, 0.0012, 0.0016))
+                grid_surface(f"wing{side}", 10, 4, fn, wing[0], subdivide=1)
+            legs = simple_material("legs", (0.01, 0.01, 0.01), roughness=0.4)
+            for side in (-1, 1):
+                for k in range(3):
+                    a = Vector((side * 0.0012, 0.0016 - k * 0.0012, -0.0008))
+                    tube_along(f"leg{side}{k}", [a, a + Vector((side * 0.0028, 0.0008 - k * 0.0012, -0.0016))],
+                               [0.00018, 0.0001], legs, sides=5)
+        else:
+            bmat = blood_material()
+            spheres("drop", [(Vector((0.0, 0.0, -0.002)), 0.0034)], 0.0034, bmat, subdivisions=4,
+                    squash=Matrix.Diagonal((0.85, 0.85, 1.25, 1.0)))
+        path = os.path.join(out_dir, f"_extra_{i}.png")
+        scene.render.filepath = path
+        bpy.ops.render.render(write_still=True)
+        paths.append(path)
+    sheet = Image.new("RGBA", (size * cols, size))
+    for i, p in enumerate(paths):
+        sheet.paste(Image.open(p).convert("RGBA"), (i * size, 0))
+        os.remove(p)
+    sheet.save(os.path.join(out_dir, "extras.png"), optimize=True)
+    with open(os.path.join(out_dir, "extras.json"), "w") as f:
+        json.dump({"size": size, "fly": [0, 1, 2, 3], "drop": 4}, f)
+
+
+
+def top_camera(target, scale):
+    cam = bpy.data.cameras.new("cam")
+    cam.type = "ORTHO"
+    cam.ortho_scale = scale
+    ob = bpy.data.objects.new("cam", cam)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.location = (target.x, target.y, target.z + 1.0)
+    ob.rotation_euler = (0.0, 0.0, 0.0)
+    bpy.context.scene.camera = ob
+    return ob
+
+
+def render_tops(out_dir, variants, samples, size=256):
+    """Every species, variant and colour in full bloom, seen from straight above."""
+    global TOP_VIEW, STEM_HEIGHT, HEAD, VAR
+    scene = bpy.context.scene
+    scene.render.resolution_x = scene.render.resolution_y = size
+    TOP_VIEW = True
+    base_height, base_head = STEM_HEIGHT, HEAD
+    for variant in variants:
+        for species in SPECIES:
+            out = os.path.join(out_dir, f"{species}{variant}_top")
+            if os.path.exists(out + ".jpg"):
+                continue
+            settings = variant_settings(species, variant)
+            STEM_HEIGHT, HEAD, VAR = base_height * settings["height"], base_head * settings["head"], settings
+            paths = []
+            for colour in COLOURS:
+                clear_scene()
+                add_lights()
+                pts = build_plant(species, colour, 1.0, 0.0, 1000 + SPECIES.index(species) * 97 + variant * 5003)
+                top = pts[-1]
+                scale = {"tulip": 0.12, "bell": 0.12}.get(species, 0.16)
+                top_camera(Vector((top.x, top.y, top.z + 0.05)), scale * settings["head"])
+                path = os.path.join(out_dir, f"_top_{species}_{colour}.png")
+                scene.render.filepath = path
+                bpy.ops.render.render(write_still=True)
+                paths.append(path)
+            build_atlas(paths, out, size, size, cols=len(COLOURS))
+            print(f"top {species}{variant}", flush=True)
+    TOP_VIEW = False
+    STEM_HEIGHT, HEAD = base_height, base_head
+
+
+def blade(verts, faces, root, direction, length, width, bend, twist, segments=4):
+    """A grass blade: a tapered strip curving over under its own weight."""
+    base = len(verts)
+    side = Vector((-direction.y, direction.x, 0.0)).normalized() if direction.xy.length > 1e-4 else Vector((1, 0, 0))
+    side = Matrix.Rotation(twist, 3, direction) @ side if direction.length > 0 else side
+    p = root.copy()
+    d = direction.normalized()
+    for i in range(segments + 1):
+        t = i / segments
+        w = width * (1.0 - t) ** 0.8 + 0.00004
+        verts.append(p - side * w)
+        verts.append(p + side * w)
+        d = (d + Vector((d.x, d.y, 0.0)).normalized() * bend * 0.6 / segments - Vector((0, 0, bend / segments))).normalized() \
+            if Vector((d.x, d.y, 0.0)).length > 1e-4 else d
+        p = p + d * (length / segments)
+    for i in range(segments):
+        a = base + 2 * i
+        faces.append((a, a + 1, a + 3, a + 2))
+
+
+def grass_material(name, seed):
+    mat, bsdf, nt = principled(name)
+    noise = nt.nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 40.0
+    noise.inputs["Detail"].default_value = 4.0
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.elements[0].color = (0.08, 0.22, 0.04, 1.0)
+    ramp.color_ramp.elements[1].color = (0.42, 0.52, 0.16, 1.0)
+    ramp.color_ramp.elements.new(0.55).color = (0.20, 0.38, 0.08, 1.0)
+    obinfo = nt.nodes.new("ShaderNodeObjectInfo")
+    mixv = nt.nodes.new("ShaderNodeMath")
+    mixv.operation = "ADD"
+    nt.links.new(noise.outputs["Fac"], mixv.inputs[0])
+    attr = nt.nodes.new("ShaderNodeAttribute")
+    attr.attribute_name = "tone"
+    nt.links.new(attr.outputs["Fac"], mixv.inputs[1])
+    clamp = nt.nodes.new("ShaderNodeMath")
+    clamp.operation = "MULTIPLY"
+    clamp.inputs[1].default_value = 0.6
+    nt.links.new(mixv.outputs[0], clamp.inputs[0])
+    nt.links.new(clamp.outputs[0], ramp.inputs[0])
+    nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 0.42
+    bsdf.inputs["Subsurface Weight"].default_value = 0.25
+    bsdf.inputs["Subsurface Radius"].default_value = (0.004, 0.01, 0.002)
+    bsdf.inputs["Transmission Weight"].default_value = 0.2
+    bsdf.inputs["Sheen Weight"].default_value = 0.2
+    return mat
+
+
+def grass_object(name, blades, material):
+    """blades: list of (root, direction, length, width, bend, twist, tone)."""
+    verts, faces, tones = [], [], []
+    for root, direction, length, width, bend, twist, tone in blades:
+        n0 = len(verts)
+        blade(verts, faces, root, direction, length, width, bend, twist)
+        tones += [tone] * (len(verts) - n0)
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    attr = mesh.attributes.new("tone", "FLOAT", "POINT")
+    for i, t in enumerate(tones):
+        attr.data[i].value = t
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    ob = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.data.materials.append(material)
+    return ob
+
+
+def tuft_blades(rng, count, spread, height):
+    out = []
+    for _ in range(count):
+        a = rng.uniform(0, 2 * math.pi)
+        r = spread * math.sqrt(rng.random())
+        root = Vector((math.cos(a) * r, math.sin(a) * r * 0.5, 0.0))
+        lean = rng.uniform(0.05, 0.55)
+        d = Vector((math.cos(a) * lean, math.sin(a) * lean * 0.6, 1.0))
+        out.append((root, d, height * rng.uniform(0.45, 1.0), rng.uniform(0.0007, 0.0014), rng.uniform(0.15, 0.9),
+                    rng.uniform(-0.6, 0.6), rng.random()))
+    return out
+
+
+def render_grass(out_dir, samples, count=8, w=192, h=128):
+    """Side-view grass tufts that grow where the keys are played."""
+    scene = bpy.context.scene
+    scene.render.resolution_x, scene.render.resolution_y = w, h
+    paths = []
+    for i in range(count):
+        clear_scene()
+        add_lights()
+        rng = random.Random(500 + i)
+        mat = grass_material("grass", i)
+        blades = tuft_blades(rng, rng.randint(70, 120), rng.uniform(0.01, 0.018), rng.uniform(0.035, 0.055))
+        grass_object("tuft", blades, mat)
+        if i % 3 == 1:
+            # A few seed heads poking out of the tuft.
+            seedmat = simple_material("seed", (0.55, 0.48, 0.25), roughness=0.6, texture=0.4)
+            for k in range(rng.randint(2, 4)):
+                x = rng.uniform(-0.01, 0.01)
+                top = Vector((x + rng.uniform(-0.006, 0.006), 0.0, rng.uniform(0.036, 0.046)))
+                tube_along(f"culm{k}", [Vector((x, 0, 0)), top], [0.0004, 0.0003], seedmat, sides=5)
+                spheres(f"head{k}", [(top + Vector((0, 0, 0.003 + j * 0.0016)), 0.0011) for j in range(5)], 0.0011, seedmat,
+                        squash=Matrix.Diagonal((0.7, 0.7, 1.3, 1.0)))
+        cam = bpy.data.cameras.new("cam")
+        cam.type = "ORTHO"
+        cam.ortho_scale = 0.09
+        ob = bpy.data.objects.new("cam", cam)
+        scene.collection.objects.link(ob)
+        tilt = math.radians(18.0)
+        ob.location = (0.0, -math.cos(tilt), 0.028 + math.sin(tilt))
+        ob.rotation_euler = (math.radians(90.0) - tilt, 0.0, 0.0)
+        scene.camera = ob
+        path = os.path.join(out_dir, f"_grass_{i}.png")
+        scene.render.filepath = path
+        bpy.ops.render.render(write_still=True)
+        paths.append(path)
+    sheet = Image.new("RGBA", (w * count, h))
+    for i, p in enumerate(paths):
+        sheet.paste(Image.open(p).convert("RGBA"), (i * w, 0))
+        os.remove(p)
+    sheet.save(os.path.join(out_dir, "grass.png"), optimize=True)
+    with open(os.path.join(out_dir, "grass.json"), "w") as f:
+        # Where the ground line sits in each tuft, in pixels from the top.
+        json.dump({"width": w, "height": h, "count": count, "ground": round(h * 0.86)}, f)
+
+
+def render_ground(out_dir, samples, w=1740, h=1290):
+    """The preset meadow seen from above: a lawn of grass over soil, lit by the sun."""
+    scene = bpy.context.scene
+    scene.render.resolution_x, scene.render.resolution_y = w, h
+    scene.render.film_transparent = False
+    clear_scene()
+    add_lights()
+    soil = simple_material("soil", (0.16, 0.11, 0.06), roughness=0.9, texture=0.6)
+    bpy.ops.mesh.primitive_plane_add(size=1.0)
+    plane = bpy.context.active_object
+    plane.scale = (1.4, 1.1, 1.0)
+    plane.data.materials.append(soil)
+    rng = random.Random(77)
+    width, depth = 1.16, 0.86
+    blades = []
+    for _ in range(26000):
+        x, y = rng.uniform(-width / 2 - 0.02, width / 2 + 0.02), rng.uniform(-depth / 2 - 0.02, depth / 2 + 0.02)
+        a = rng.uniform(0, 2 * math.pi)
+        lean = rng.uniform(0.3, 1.4)
+        blades.append((Vector((x, y, 0.0)), Vector((math.cos(a) * lean, math.sin(a) * lean, 1.0)),
+                       rng.uniform(0.03, 0.06), rng.uniform(0.0016, 0.0028), rng.uniform(0.2, 1.0), rng.uniform(-0.5, 0.5),
+                       rng.random()))
+    grass_object("lawn", blades, grass_material("grass", 0))
+    top_camera(Vector((0.0, 0.0, 0.0)), width)
+    path = os.path.join(out_dir, "_ground.png")
+    scene.render.filepath = path
+    bpy.ops.render.render(write_still=True)
+    Image.open(path).convert("RGB").save(os.path.join(out_dir, "ground.jpg"), quality=86)
+    os.remove(path)
+    scene.render.film_transparent = True
+
+
 def main():
+    global STEM_HEIGHT, HEAD, VAR
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--species", default="all")
     ap.add_argument("--colour", default="all")
     ap.add_argument("--frames", default="all")
-    ap.add_argument("--size", default="144x216")
-    ap.add_argument("--samples", type=int, default=32)
+    ap.add_argument("--size", default="288x432")
+    ap.add_argument("--samples", type=int, default=24)
+    ap.add_argument("--variants", default="3", help="how many shape variants, or a list like 0,2")
+    ap.add_argument("--extras", action="store_true", help="render the fly and blood-drop sprites only")
+    ap.add_argument("--tops", action="store_true", help="render the flowers seen from above only")
+    ap.add_argument("--grass", action="store_true", help="render the grass tufts only")
+    ap.add_argument("--ground", action="store_true", help="render the meadow ground seen from above only")
     ap.add_argument("--keep", action="store_true", help="keep individual frames, skip the atlas")
     ap.add_argument("--closeup", action="store_true", help="frame only the head (inspection)")
     args = ap.parse_args(argv)
@@ -770,22 +1076,44 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     bpy.ops.wm.read_factory_settings(use_empty=True)
     setup_render(width, height, args.samples)
+    if args.extras:
+        render_extras(args.out, args.samples)
+        return
+    if args.grass:
+        render_grass(args.out, args.samples)
+        return
+    if args.ground:
+        render_ground(args.out, args.samples)
+        return
 
     species_list = SPECIES if args.species == "all" else args.species.split(",")
     colour_list = list(COLOURS) if args.colour == "all" else args.colour.split(",")
-    for si, species in enumerate(species_list):
-        for colour in colour_list:
-            seed = 1000 + SPECIES.index(species) * 97
-            atlas = os.path.join(args.out, f"{species}_{colour}.png")
-            if not args.keep and os.path.exists(atlas) and os.path.exists(os.path.join(args.out, f"{species}.json")):
-                print(f"skip {species} {colour} (done)", flush=True)
-                continue
-            paths, info = render_species(args.out, species, colour, frames, width, height, args.samples, seed)
-            if args.keep:
-                continue
-            build_atlas(paths, atlas, width, height)
-            with open(os.path.join(args.out, f"{species}.json"), "w") as f:
-                json.dump(info, f, separators=(",", ":"))
+    variants = list(range(int(args.variants))) if "," not in args.variants and len(args.variants) == 1 \
+        else [int(v) for v in args.variants.split(",")]
+    if args.tops:
+        render_tops(args.out, variants, args.samples)
+        return
+    base_height, base_head = STEM_HEIGHT, HEAD
+    for variant in variants:
+        for species in species_list:
+            settings = variant_settings(species, variant)
+            STEM_HEIGHT = base_height * settings["height"]
+            HEAD = base_head * settings["head"]
+            VAR = settings
+            name = f"{species}{variant}"
+            for colour in colour_list:
+                seed = 1000 + SPECIES.index(species) * 97 + variant * 5003
+                atlas = os.path.join(args.out, f"{name}_{colour}")
+                if not args.keep and os.path.exists(atlas + ".jpg") and os.path.exists(os.path.join(args.out, f"{name}.json")):
+                    print(f"skip {name} {colour} (done)", flush=True)
+                    continue
+                paths, info = render_species(args.out, species, colour, frames, width, height, args.samples, seed)
+                if args.keep:
+                    continue
+                build_atlas(paths, atlas, width, height)
+                info["variant"] = variant
+                with open(os.path.join(args.out, f"{name}.json"), "w") as f:
+                    json.dump(info, f, separators=(",", ":"))
 
 
 if __name__ == "__main__":

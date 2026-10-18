@@ -102,6 +102,9 @@ void BouquetProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
 
     const auto lab = readSoundLab (apvts);
     soundLab.setSettings (lab);
+    // Recordings load in the background the first time an instrument is chosen; a bounce
+    // waits for them so it never renders the stand-in.
+    soundLab.setSamples (isNonRealtime() ? sampleBank->load (lab.instrument) : sampleBank->get (lab.instrument));
     soundLab.process (midi, srcL, srcR, n);
     soundingVoices.store (soundLab.activeVoiceCount());
 

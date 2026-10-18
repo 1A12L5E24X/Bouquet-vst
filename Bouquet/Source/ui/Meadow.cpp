@@ -6,10 +6,6 @@ using namespace bouquet::ui::botany;
 
 namespace bouquet::ui
 {
-namespace
-{
-    constexpr float rowScale[] = { 0.7f, 0.85f, 1.0f };
-}
 
 Meadow::Meadow (BouquetProcessor& p) : processor (p)
 {
@@ -38,9 +34,7 @@ Meadow::Meadow (BouquetProcessor& p) : processor (p)
 
 void Meadow::resized()
 {
-    for (size_t row = 0; row < rowGrass.size(); ++row)
-        rowGrass[row].generate ((float) getWidth(), 34.0f * rowScale[row] + 10.0f, 0xa11u + (uint32_t) row * 31u, 1.3f);
-
+    drawnGround = {};
     const int bottom = getHeight() - 52;
     nameField.setBounds (24, bottom, 260, 36);
     plantButton.setBounds (292, bottom - 1, 168, 38);
@@ -81,22 +75,26 @@ void Meadow::rebuild()
     std::vector<Plant> previous;
     previous.swap (plants);
 
+    // Scatter the flowers over the lawn: a jittered grid, so they never crowd.
     const int count = (int) all.size();
-    const int perRow = std::max (1, (count + 2) / 3);
-    const float margin = 70.0f, usable = (float) getWidth() - 2.0f * margin;
+    const auto area = getLocalBounds().toFloat().withTrimmedBottom (80.0f).reduced (60.0f, 50.0f);
+    const int cols = std::max (1, (int) std::ceil (std::sqrt ((float) count * area.getWidth() / std::max (1.0f, area.getHeight()))));
+    const int rows = std::max (1, (count + cols - 1) / cols);
+    const float cw = area.getWidth() / (float) cols, ch = area.getHeight() / (float) rows;
     for (int i = 0; i < count; ++i)
     {
         Plant pl;
         pl.preset = all[(size_t) i];
         pl.genome = genomeForPreset (pl.preset);
-        const int row = i % 3, col = i / 3;
         juce::Random r ((juce::int64) pl.genome.seed);
-        pl.scale = rowScale[row] * (0.92f + 0.16f * r.nextFloat());
-        pl.base = { margin + ((float) col + 0.5f + (row == 1 ? 0.33f : row == 2 ? -0.2f : 0.0f)) * usable / (float) perRow
-                        + (r.nextFloat() - 0.5f) * 20.0f,
-                    rowGround[(size_t) row] };
-        pl.base.x = juce::jlimit (40.0f, (float) getWidth() - 40.0f, pl.base.x);
-        pl.height = (95.0f + 70.0f * r.nextFloat()) * pl.scale;
+        const int row = i / cols, col = i % cols;
+        const float stagger = (row % 2) ? 0.25f : -0.25f;
+        pl.centre = { area.getX() + ((float) col + 0.5f + stagger + (r.nextFloat() - 0.5f) * 0.4f) * cw,
+                      area.getY() + ((float) row + 0.5f + (r.nextFloat() - 0.5f) * 0.35f) * ch };
+        pl.centre.x = juce::jlimit (area.getX(), area.getRight(), pl.centre.x);
+        pl.radius = std::min (cw, ch) * (0.3f + 0.08f * r.nextFloat());
+        pl.angle = r.nextFloat() * juce::MathConstants<float>::twoPi;
+        pl.variant = (int) (pl.genome.seed % real::FlowerSprites::numVariants);
         pl.appear = 1.0f;
 
         // Keep the growth state of plants that were already there.
@@ -156,28 +154,12 @@ void Meadow::tick (float dt)
     repaint();
 }
 
-Pose Meadow::poseOf (const Plant& p, float time) const
+float Meadow::radiusOf (const Plant& p) const
 {
-    const float sway = std::sin (time * 0.8f + p.genome.phase) * 4.0f * p.scale + p.hover * std::sin (time * 3.0f) * 2.0f;
-    const float lean = std::sin (p.genome.phase * 3.0f) * 14.0f * p.scale;
-    Pose pose;
-    pose.base = p.base;
-    pose.head = { p.base.x + lean + sway, p.base.y - p.height * (1.0f + 0.06f * p.hover) };
-    pose.c1 = { p.base.x, p.base.y - p.height * 0.3f };
-    pose.c2 = { p.base.x + lean * 0.6f + sway * 0.5f, p.base.y - p.height * 0.7f };
+    // Grows in with a little overshoot; a hovered flower lifts towards you.
     const float g = p.appear;
-    pose.grow = 1.0f - (1.0f - g) * (1.0f - g) * (1.0f - g);
-    pose.bloom = juce::jlimit (0.0f, 1.0f, (g - 0.55f) / 0.45f) * (0.85f + 0.15f * p.hover);
-    pose.time = time;
-    pose.stemWidth = 2.8f * p.scale;
-    const bool current = p.preset.name == processor.getCurrentPresetName();
-    pose.glow = std::max (p.hover, current ? 0.55f : 0.0f);
-    return pose;
-}
-
-juce::Point<float> Meadow::headOf (const Plant& p) const
-{
-    return poseOf (p, (float) clock()).head;
+    const float grow = g <= 0.0f ? 0.0f : 1.0f - std::pow (1.0f - g, 3.0f) + 0.08f * std::sin (g * juce::MathConstants<float>::pi);
+    return p.radius * grow * (1.0f + 0.12f * p.hover);
 }
 
 int Meadow::plantAt (juce::Point<float> pos) const
@@ -187,13 +169,10 @@ int Meadow::plantAt (juce::Point<float> pos) const
     for (size_t i = 0; i < plants.size(); ++i)
     {
         const auto& p = plants[i];
-        const float d = headOf (p).getDistanceFrom (pos);
-        const float reach = p.genome.size * p.scale * 2.4f;
-        // Front rows win over back rows when they overlap.
-        const float score = d - (float) (i % 3) * 4.0f;
-        if (d < reach && score < bestDistance)
+        const float d = p.centre.getDistanceFrom (pos);
+        if (d < p.radius * 1.1f && d < bestDistance)
         {
-            bestDistance = score;
+            bestDistance = d;
             best = (int) i;
         }
     }
@@ -255,62 +234,107 @@ bool Meadow::keyPressed (const juce::KeyPress& key)
 }
 
 //==============================================================================
+void Meadow::paintGround (juce::Graphics& g)
+{
+    const auto bounds = getLocalBounds().toFloat();
+    const bool photoreal = processor.photorealFlowers() && sprites->available();
+    if (photoreal)
+    {
+        const auto lawn = sprites->ground();
+        if (lawn.isValid())
+        {
+            g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+            g.setOpacity (1.0f);
+            g.drawImage (lawn, bounds, juce::RectanglePlacement::fillDestination);
+            // Bright midday: a warm wash of sunlight and soft light falling off at the edges.
+            g.setColour (juce::Colour (0xfffff6dc).withAlpha (0.16f));
+            g.fillAll();
+            drawGlow (g, { bounds.getWidth() * 0.78f, bounds.getHeight() * 0.2f }, bounds.getWidth() * 0.6f,
+                      juce::Colour (0xfffff2c4).withAlpha (0.28f));
+            return;
+        }
+    }
+
+    // The illustrated lawn: thousands of short strokes of grass seen from above.
+    if (! drawnGround.isValid() || drawnGround.getWidth() != getWidth() || drawnGround.getHeight() != getHeight())
+    {
+        drawnGround = juce::Image (juce::Image::RGB, std::max (1, getWidth()), std::max (1, getHeight()), true);
+        juce::Graphics lg (drawnGround);
+        lg.setGradientFill (juce::ColourGradient (juce::Colour (0xffa9cf86), 0.0f, 0.0f, juce::Colour (0xff86b565),
+                                                  bounds.getWidth(), bounds.getHeight(), false));
+        lg.fillAll();
+        juce::Random r (0xa11);
+        const int blades = (int) (bounds.getWidth() * bounds.getHeight() / 26.0f);
+        for (int i = 0; i < blades; ++i)
+        {
+            const juce::Point<float> p (r.nextFloat() * bounds.getWidth(), r.nextFloat() * bounds.getHeight());
+            const float a = r.nextFloat() * juce::MathConstants<float>::twoPi;
+            const float len = 4.0f + 7.0f * r.nextFloat();
+            const auto colour = juce::Colour::fromHSV (0.24f + 0.07f * r.nextFloat(), 0.45f + 0.25f * r.nextFloat(),
+                                                       0.45f + 0.35f * r.nextFloat(), 0.8f);
+            lg.setColour (colour);
+            lg.drawLine (p.x, p.y, p.x + std::cos (a) * len, p.y + std::sin (a) * len, 1.0f + r.nextFloat());
+        }
+    }
+    g.drawImageAt (drawnGround, 0, 0);
+}
+
 void Meadow::paint (juce::Graphics& g)
 {
-    const float w = (float) getWidth(), h = (float) getHeight();
     const float time = (float) clock();
+    paintGround (g);
 
-    // A bright sky over rolling hills.
-    juce::ColourGradient sky (juce::Colour (0xffd6e8fb), 0.0f, 0.0f, colours::paper, 0.0f, 420.0f, false);
-    g.setGradientFill (sky);
-    g.fillAll();
-    drawGlow (g, { w * 0.82f, 90.0f }, 260.0f, colours::butter.withAlpha (0.35f));
-
-    auto hill = [&] (float y, float amp, float phase, juce::Colour top, juce::Colour bottom)
+    const bool photoreal = processor.photorealFlowers() && sprites->available();
+    const auto current = processor.getCurrentPresetName();
+    for (size_t i = 0; i < plants.size(); ++i)
     {
-        juce::Path p;
-        p.startNewSubPath (0.0f, h);
-        for (float x = 0.0f; x <= w; x += 20.0f)
-            p.lineTo (x, y - amp * std::sin (x / w * 3.4f + phase) - amp * 0.4f * std::sin (x / w * 7.1f + phase * 2.0f));
-        p.lineTo (w, h);
-        p.closeSubPath();
-        g.setGradientFill (juce::ColourGradient (top, 0.0f, y - amp, bottom, 0.0f, h, false));
-        g.fillPath (p);
-    };
-    hill (360.0f, 26.0f, 0.4f, juce::Colour (0xffcfe1b8), juce::Colour (0xffb7d39b));
-    hill (420.0f, 18.0f, 2.1f, juce::Colour (0xffb5d394), juce::Colour (0xff9cc27a));
-    hill (570.0f, 14.0f, 4.0f, juce::Colour (0xffa6cb86), juce::Colour (0xff8fb96e));
-    hill (735.0f, 10.0f, 5.3f, juce::Colour (0xff97c07a), juce::Colour (0xff7fa860));
+        const auto& p = plants[i];
+        const float radius = radiusOf (p);
+        if (radius <= 0.5f)
+            continue;
+        // Nodding in the breeze, turning a little.
+        const float angle = p.angle + std::sin (time * 0.6f + p.genome.phase) * 0.06f + p.hover * 0.15f;
+        const auto centre = p.centre + juce::Point<float> (std::sin (time * 0.8f + p.genome.phase), std::cos (time * 0.7f + p.genome.phase))
+                                           * (radius * 0.03f);
+        const float glow = std::max (p.hover, p.preset.name == current ? 0.55f : 0.0f);
 
-    const float breath = 0.0f;
-    const std::vector<Ripple> none;
-    for (int row = 0; row < 3; ++row)
-    {
-        const juce::Point<float> ground (0.0f, rowGround[(size_t) row] + 2.0f);
-        rowGrass[(size_t) row].paint (g, ground, time, breath, none, false);
-        for (size_t i = (size_t) row; i < plants.size(); i += 3)
+        const auto image = photoreal ? sprites->top (p.genome.species, p.variant, real::FlowerSprites::nearestColour (p.genome.petal))
+                                     : juce::Image();
+        if (image.isValid())
         {
-            const auto pose = poseOf (plants[i], time);
-            if (processor.realFlowers && sprites->available())
-                real::paintFlower (g, *sprites, plants[i].genome.species, real::FlowerSprites::nearestColour (plants[i].genome.petal),
-                                   pose.base, plants[i].height * 1.15f, (pose.head.x - pose.base.x) / plants[i].height * 0.6f,
-                                   pose.grow, pose.bloom, 0.0f, time, pose.glow);
-            else
-                paintPlant (g, plants[i].genome, pose);
+            if (glow > 0.01f)
+                drawGlow (g, centre, radius * 2.0f, p.genome.petal.withAlpha (0.45f * glow));
+            // The sprite's flower spans about 80% of its frame.
+            const float scale = radius * 2.0f / ((float) image.getWidth() * 0.8f);
+            // Shadow cast by the high sun.
+            g.setColour (juce::Colours::black.withAlpha (0.22f));
+            g.fillEllipse (juce::Rectangle<float> (radius * 1.7f, radius * 1.7f).withCentre (centre + juce::Point<float> (radius * 0.14f, radius * 0.2f)));
+            g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+            g.setOpacity (1.0f);   // images take the current colour's opacity
+            g.drawImageTransformed (image, juce::AffineTransform::translation (-(float) image.getWidth() * 0.5f, -(float) image.getHeight() * 0.5f)
+                                               .rotated (angle)
+                                               .scaled (scale)
+                                               .translated (centre));
         }
-        rowGrass[(size_t) row].paint (g, ground, time, breath, none, true);
+        else
+        {
+            paintFromAbove (g, p.genome, centre, radius, angle, juce::jlimit (0.0f, 1.0f, p.appear * 1.4f - 0.2f), glow);
+        }
     }
+
+    // A frosted strip for planting and leaving.
+    g.setColour (colours::frost.withAlpha (0.72f));
+    g.fillRect (getLocalBounds().removeFromBottom (72));
 
     // The name of the flower under the mouse, and only that one.
     if (juce::isPositiveAndBelow (hovered, (int) plants.size()))
     {
         const auto& p = plants[(size_t) hovered];
-        const auto head = headOf (p);
         const auto font = Fonts::serifItalic (20.0f);
         const float tw = juce::GlyphArrangement::getStringWidth (font, p.preset.name) + 28.0f;
-        auto label = juce::Rectangle<float> (tw, 32.0f).withCentre ({ head.x, head.y - p.genome.size * p.scale * 2.0f - 22.0f });
+        auto label = juce::Rectangle<float> (tw, 32.0f).withCentre ({ p.centre.x, p.centre.y - radiusOf (p) - 26.0f });
         label = label.constrainedWithin (getLocalBounds().toFloat().reduced (8.0f));
-        g.setColour (colours::frost.withAlpha (0.82f * p.hover));
+        g.setColour (colours::frost.withAlpha (0.88f * p.hover));
         g.fillRoundedRectangle (label, 16.0f);
         g.setColour (colours::ink.withAlpha (0.1f * p.hover));
         g.drawRoundedRectangle (label, 16.0f, 1.0f);

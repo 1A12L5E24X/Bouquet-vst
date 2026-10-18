@@ -12,6 +12,8 @@ jobs:
         # macOS first: it's the main platform (universal binary, AU, installer).
         os: [macos-latest, windows-latest, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
+    env:
+      HAS_DEVELOPER_ID: ${{ secrets.MACOS_CERTIFICATES_P12 != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -33,9 +35,31 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
 
-      # macOS: ad-hoc sign, run Apple's auval on both Audio Units, build the installer.
+      # Optional: with an Apple Developer ID in the repository secrets, the installer is
+      # signed and notarized (no Gatekeeper warning). Without them it is signed ad hoc.
+      - name: Import Developer ID certificates
+        if: runner.os == 'macOS' && env.HAS_DEVELOPER_ID == 'true'
+        env:
+          MACOS_CERTIFICATES_P12: ${{ secrets.MACOS_CERTIFICATES_P12 }}
+          MACOS_CERTIFICATES_PASSWORD: ${{ secrets.MACOS_CERTIFICATES_PASSWORD }}
+        run: |
+          echo "$MACOS_CERTIFICATES_P12" | base64 --decode > certs.p12
+          security create-keychain -p ci build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security import certs.p12 -k build.keychain -P "$MACOS_CERTIFICATES_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          rm certs.p12
+
+      # macOS: sign, run Apple's auval on both Audio Units, build the installer.
       - name: Sign, validate and package
         if: runner.os == 'macOS'
+        env:
+          DEVELOPER_ID_APP: ${{ secrets.DEVELOPER_ID_APP }}
+          DEVELOPER_ID_INSTALLER: ${{ secrets.DEVELOPER_ID_INSTALLER }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
         run: scripts/package-macos.sh build
 
       - name: Upload macOS installer
@@ -51,9 +75,48 @@ jobs:
           path: |
             build/Bouquet/Bouquet_artefacts/Release/VST3
             build/Bouquet/Bouquet_artefacts/Release/AU
+            build/Bouquet/Bouquet_artefacts/Release/Standalone
             build/Bouquet/BouquetFX_artefacts/Release/VST3
             build/Bouquet/BouquetFX_artefacts/Release/AU
-            build/Bouquet/BouquetReal_artefacts/Release/VST3
-            build/Bouquet/BouquetReal_artefacts/Release/AU
-            build/Bouquet/BouquetRealFX_artefacts/Release/VST3
-            build/Bouquet/BouquetRealFX_artefacts/Release/AU
+
+  # Every green build of main is published as a release, tagged with the VERSION file.
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Zip the plugins
+        run: |
+          cd artifacts
+          for os in Windows Linux; do
+            (cd "Plugins-$os" && zip -qr "../../Bouquet-$os.zip" .)
+          done
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Bouquet ${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          body: |
+            **Mac:** download **Bouquet-macOS.pkg** below and open it. If macOS says it can't check it
+            for malicious software, open **System Settings → Privacy & Security** and click
+            **Open Anyway**. Then rescan plug-ins in your DAW.
+
+            Windows and Linux: unzip and copy the `.vst3` bundles to your VST3 folder.
+          files: |
+            artifacts/Bouquet-macOS-installer/Bouquet-macOS.pkg
+            Bouquet-Windows.zip
+            Bouquet-Linux.zip

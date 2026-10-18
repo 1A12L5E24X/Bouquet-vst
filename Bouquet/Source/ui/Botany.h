@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <functional>
 #include <vector>
 
 namespace bouquet { struct Preset; }
@@ -50,6 +51,10 @@ struct Pose
 
 void paintPlant (juce::Graphics&, const Genome&, const Pose&);
 
+// The same flower seen from straight above, `radius` across its petals.
+void paintFromAbove (juce::Graphics&, const Genome&, juce::Point<float> centre, float radius,
+                     float angle, float open, float glow, float alpha = 1.0f);
+
 // Ripples of wind sent through the grass when a chord is played.
 struct Ripple
 {
@@ -63,8 +68,10 @@ public:
     void generate (float width, float maxHeight, uint32_t seed, float density = 1.0f);
 
     // breath: 0 resting .. 1 fully drawn in.  front: the layer in front of the flowers.
+    // coverage (optional): how grown the grass is at an x, 0 bare .. 1 full.
     void paint (juce::Graphics&, juce::Point<float> origin, float time, float breath,
-                const std::vector<Ripple>&, bool front) const;
+                const std::vector<Ripple>&, bool front,
+                const std::function<float (float x)>& coverage = {}) const;
 
 private:
     struct Blade

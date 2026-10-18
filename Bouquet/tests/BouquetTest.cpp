@@ -5,6 +5,8 @@
 #include "ui/PluginEditor.h"
 #include "ui/Botany.h"
 #include "ui/RealFlowers.h"
+#include "Assets.h"
+#include "dsp/SampleBank.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <iostream>
@@ -75,7 +77,7 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
     set (p, ids::auraY, 0.7f);
 
     const bool rotting = mode == "rot" || mode == "realrot";
-    p.realFlowers = mode.startsWith ("real");
+    p.setPhotorealFlowers (mode.startsWith ("real"));
     if (mode == "nomagic")
         set (p, ids::magic, 0.0f);
     set (p, ids::wildlife, 0.6f);
@@ -168,6 +170,7 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
 static int renderDemo (const juce::File& file, int spell, int instrument, const juce::String& presetName = {})
 {
     BouquetProcessor p (false);
+    p.setNonRealtime (true);
     p.setPlayConfigDetails (0, 2, sr, block);
     p.prepareToPlay (sr, block);
     if (auto* preset = p.presets.find (presetName))
@@ -251,6 +254,31 @@ int main (int argc, char** argv)
         return juce::PNGImageFormat().writeImageToStream (img, out) ? 0 : 1;
     }
 
+    if (argc >= 3 && juce::String (argv[1]) == "--sprites")
+    {
+        // Writes a few decoded sprites (top view, a frame, a cross-fade) for inspection.
+        juce::ScopedJuceInitialiser_GUI gui;
+        bouquet::ui::real::FlowerSprites sprites;
+        sprites.waitForLoads = true;
+        juce::Image sheet (juce::Image::ARGB, 1100, 450, true);
+        juce::Graphics g (sheet);
+        g.fillAll (juce::Colour (0xff6e8c46));
+        g.drawImageAt (sprites.top (bouquet::ui::botany::Species::rose, 0, 5), 0, 0);
+        g.drawImageAt (sprites.top (bouquet::ui::botany::Species::daisy, 0, 1), 256, 0);
+        g.drawImageAt (sprites.get (bouquet::ui::botany::Species::daisy, 0, 1, 9.0f).image, 520, 0);
+        g.drawImageAt (sprites.get (bouquet::ui::botany::Species::daisy, 0, 1, 15.5f).image, 810, 0);
+        const auto top = sprites.top (bouquet::ui::botany::Species::rose, 0, 5);
+        g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+        g.drawImageTransformed (top, juce::AffineTransform::translation (-128.0f, -128.0f).rotated (0.7f).scaled (0.35f).translated (60.0f, 380.0f));
+        g.setImageResamplingQuality (juce::Graphics::mediumResamplingQuality);
+        g.drawImageTransformed (top, juce::AffineTransform::translation (-128.0f, -128.0f).rotated (0.7f).scaled (0.35f).translated (160.0f, 380.0f));
+        g.drawImageTransformed (top, juce::AffineTransform::translation (-128.0f, -128.0f).scaled (0.35f).translated (260.0f, 380.0f));
+        juce::FileOutputStream out (juce::File::getCurrentWorkingDirectory().getChildFile (argv[2]));
+        out.setPosition (0);
+        out.truncate();
+        juce::PNGImageFormat().writeImageToStream (sheet, out);
+        return 0;
+    }
     if (argc >= 4 && juce::String (argv[1]) == "--demo-preset")
         return renderDemo (juce::File (argv[2]), 0, 1, argv[3]);
 
@@ -270,6 +298,7 @@ int main (int argc, char** argv)
     // 1. Each instrument, dry, to check levels are sane and voices end.
     {
         BouquetProcessor p (false);
+        p.setNonRealtime (true);   // the recordings load before the first note
         p.setPlayConfigDetails (0, 2, sr, block);
         p.prepareToPlay (sr, block);
         set (p, ids::mix, 0.0f);
@@ -439,30 +468,79 @@ int main (int argc, char** argv)
         check (after.rms() < 0.002f, "the forest ambience fades once you stop playing");
     }
 
-    // 7. Bouquet Real: the rendered flowers are found and every frame is there.
+    // 7. Rendered flowers: found, and every atlas there has all its frames.
     {
         bouquet::ui::real::FlowerSprites sprites;
-        const auto folder = bouquet::ui::real::FlowerSprites::findFolder();
+        sprites.waitForLoads = true;
+        const auto folder = bouquet::assets::find ("Flowers", "daisy0.json");
         const char* speciesNames[] = { "daisy", "tulip", "poppy", "cosmos", "bell", "rose" };
         const char* colourNames[] = { "white", "butter", "apricot", "coral", "crimson", "pink", "lilac", "blue" };
         if (! sprites.available())
-            std::cout << "Rendered flowers not present; skipping Bouquet Real checks\n";
+            std::cout << "Rendered flowers not present; skipping photoreal checks\n";
         else
         {
-            const int frames = sprites.bloomFrames() + sprites.rotFrames();
+            const float last = (float) (sprites.bloomFrames() + sprites.rotFrames() - 1);
+            int atlases = 0;
             for (int s = 0; s < (int) bouquet::ui::botany::Species::count; ++s)
-                for (int c = 0; c < 8; ++c)
-                {
-                    // Check every atlas that has been rendered.
-                    if (! folder.getChildFile (juce::String (speciesNames[s]) + "_" + colourNames[c] + ".png").existsAsFile())
-                        continue;
-                    auto first = sprites.get ((bouquet::ui::botany::Species) s, c, 0);
-                    auto last = sprites.get ((bouquet::ui::botany::Species) s, c, frames - 1);
-                    check (first.image.isValid() && last.image.isValid() && ! last.stem.empty(),
-                           "rendered frames for species " + juce::String (s) + " colour " + juce::String (c));
-                }
-            check (sprites.frameFor (0.0f, 0.0f) == 0 && sprites.frameFor (1.0f, 1.0f) == frames - 1, "frame mapping covers bud to rot");
+                for (int v = 0; v < bouquet::ui::real::FlowerSprites::numVariants; ++v)
+                    for (int c = 0; c < 8; ++c)
+                    {
+                        const auto name = juce::String (speciesNames[s]) + juce::String (v) + "_" + colourNames[c];
+                        if (! folder.getChildFile (name + ".jpg").existsAsFile())
+                            continue;
+                        ++atlases;
+                        const auto species = (bouquet::ui::botany::Species) s;
+                        auto first = sprites.get (species, v, c, 0.0f);
+                        auto between = sprites.get (species, v, c, 3.5f);
+                        auto end = sprites.get (species, v, c, last);
+                        check (first.image.isValid() && between.image.isValid() && end.image.isValid() && ! end.stem.empty(),
+                               "rendered frames for " + name);
+                    }
+            std::cout << "Checked " << atlases << " flower atlases\n";
+            check (sprites.framePosition (0.0f, 0.0f) == 0.0f && sprites.framePosition (1.0f, 1.0f) == last, "frame positions cover bud to rot");
+            check (sprites.top (bouquet::ui::botany::Species::rose, 0, 5).isValid(), "flowers seen from above");
+            check (sprites.grassCount() > 0 && sprites.grass (0).isValid(), "grass tufts");
+            check (sprites.fly (0).isValid() && sprites.drop().isValid(), "fly and blood-drop sprites");
+            check (sprites.ground().isValid(), "the meadow ground");
         }
+    }
+
+    // 7b. Recordings: every sampled instrument loads and sounds, sustained ones loop.
+    {
+        juce::SharedResourcePointer<bouquet::SampleBank> bank;
+        if (! bank->available())
+            std::cout << "Instrument samples not present; skipping sample checks\n";
+        else
+            for (auto inst : { Instrument::piano, Instrument::rhodes, Instrument::marimba, Instrument::harp,
+                               Instrument::violin, Instrument::cello, Instrument::flute })
+            {
+                const auto* s = bank->load (inst);
+                check (s != nullptr && ! s->regions.empty(), "samples load for " + names[(int) inst]);
+                if (s == nullptr || s->regions.empty())
+                    continue;
+                check (s->find (60.0f, 0.8f) != nullptr, "a sample covers middle C on " + names[(int) inst]);
+
+                BouquetProcessor p (false);
+                p.setNonRealtime (true);
+                p.setPlayConfigDetails (0, 2, sr, block);
+                p.prepareToPlay (sr, block);
+                set (p, ids::magic, 0.0f);
+                set (p, ids::forest, 0.0f);
+                set (p, ids::wildlife, 0.0f);
+                set (p, ids::chord, 0.0f);
+                set (p, ids::instrument, (float) inst);
+                juce::MidiBuffer midi;
+                midi.addEvent (juce::MidiMessage::noteOn (1, 60, 0.8f), 0);
+                render (p, midi, 0.05f);
+                const auto held = render (p, midi, s->sustained ? 6.0f : 0.5f);
+                check (held.finite && held.peak > 0.02f && held.peak < 1.0f, "recorded " + names[(int) inst] + " sounds");
+                if (s->sustained)
+                {
+                    // Past the end of the recording, the loop keeps the note going.
+                    const auto later = render (p, midi, 0.5f);
+                    check (later.rms() > 0.005f, names[(int) inst] + " sustains through its loop");
+                }
+            }
     }
 
     // 8. State round trip.
