@@ -20,5 +20,4 @@ if(VST3TEST_BUILD_TESTS)
     enable_testing()
 endif()
 
-add_subdirectory(SimpleSynth)
 add_subdirectory(Bouquet)

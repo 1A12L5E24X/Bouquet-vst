@@ -7,15 +7,14 @@ Plugins built with [JUCE](https://juce.com) 8, sharing one CMake project. **macO
 | **Bouquet** | A granular instrument: synthesised live instruments on the left, a cloud of granular "spells" on the right, and a garden that grows a bouquet for every chord | AU + VST3 instrument, standalone app |
 | **Bouquet FX** | The same engine as an audio effect that granulates whatever track it sits on | AU (music effect) + VST3 effect |
 | **Bouquet Real** / **Bouquet Real FX** | The same instrument and effect, with photoreal 3D-rendered flowers | AU + VST3 (+ standalone app) |
-| **Simple Synth** | A small polyphonic subtractive synth | AU, VST3, standalone |
 
 ## Download
 
 **[Download the latest release →](https://github.com/1A12L5E24X/vst3-test/releases/latest)**
 
-The macOS installer there is **Bouquet-macOS.pkg**. It installs Bouquet and Bouquet FX as Audio Units and
-VST3, plus the standalone app. If there's no release yet, or you want the newest build, grab it from the
-Actions tab as described below.
+The macOS installer there is **Bouquet-macOS.pkg**. It installs Bouquet, Bouquet FX, Bouquet Real and
+Bouquet Real FX as Audio Units and VST3, plus the standalone apps. If there's no release yet, or you
+want the newest build, grab it from the Actions tab as described below.
 
 ## Install on a Mac
 
@@ -24,15 +23,16 @@ Actions tab as described below.
    download **Bouquet-macOS-installer** from its Artifacts, then unzip it.
 2. Open **Bouquet-macOS.pkg**. The installer isn't signed by a registered Apple developer,
    so the first time **right-click → Open** (or allow it in System Settings → Privacy & Security).
-3. It installs Bouquet and Bouquet FX as Audio Units (`/Library/Audio/Plug-Ins/Components`) and VST3
-   (`/Library/Audio/Plug-Ins/VST3`), plus the standalone app.
+3. It installs Bouquet, Bouquet FX, Bouquet Real and Bouquet Real FX as Audio Units
+   (`/Library/Audio/Plug-Ins/Components`) and VST3 (`/Library/Audio/Plug-Ins/VST3`), plus the standalone
+   apps. It also removes Murmur (Bouquet's old name) and Simple Synth if an earlier build installed them.
 4. Rescan plug-ins in your DAW:
    - **Logic Pro / GarageBand**: they appear under Audio Units → VST3Test.
    - **Ableton Live**: Settings → Plug-Ins → turn on "Use Audio Units" (and/or the VST3 system folder),
      then Rescan. Put **Bouquet** on a MIDI track; put **Bouquet FX** on an audio track to granulate it.
 
 The binaries are universal (Apple Silicon and Intel) and need macOS 11 or later. Every macOS CI run
-passes Apple's `auval` validator for both Audio Units.
+passes Apple's `auval` validator for all four Audio Units.
 
 ## Bouquet
 

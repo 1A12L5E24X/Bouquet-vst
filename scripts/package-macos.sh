@@ -65,9 +65,14 @@ build_component () {
         /usr/libexec/PlistBuddy -c "Set :$i:BundleIsRelocatable false" "$plist"
     done
     pkgbuild --root "$root" --component-plist "$plist" --identifier "com.vst3test.bouquet.$name" \
-             --version "$VERSION" --install-location "$location" "$STAGE/$name.pkg"
+             --version "$VERSION" --install-location "$location" ${4:+--scripts "$4"} "$STAGE/$name.pkg"
 }
-build_component vst3 "$STAGE/vst3" "/Library/Audio/Plug-Ins/VST3"
+# Clears out Murmur and Simple Synth from earlier builds before installing.
+SCRIPTS="$STAGE/scripts"
+mkdir -p "$SCRIPTS"
+cp "$(dirname "$0")/macos-preinstall.sh" "$SCRIPTS/preinstall"
+chmod +x "$SCRIPTS/preinstall"
+build_component vst3 "$STAGE/vst3" "/Library/Audio/Plug-Ins/VST3" "$SCRIPTS"
 build_component au   "$STAGE/au"   "/Library/Audio/Plug-Ins/Components"
 build_component app  "$STAGE/app"  "/Applications"
 
