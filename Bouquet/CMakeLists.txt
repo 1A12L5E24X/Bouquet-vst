@@ -91,12 +91,12 @@ bouquet_configure(BouquetFX)
 function(bouquet_ship_flowers target)
     foreach(format VST3 AU Standalone)
         if(TARGET ${target}_${format})
-            get_target_property(artefact ${target}_${format} JUCE_PLUGIN_ARTEFACT_FILE)
             if(APPLE OR NOT format STREQUAL "Standalone")
+                get_target_property(artefact ${target}_${format} JUCE_PLUGIN_ARTEFACT_FILE)
                 set(dest "${artefact}/Contents/Resources/Flowers")
             else()
-                get_filename_component(dir "${artefact}" DIRECTORY)
-                set(dest "${dir}/Flowers")
+                # A plain executable (Linux, Windows): the renders sit next to it.
+                set(dest "$<TARGET_FILE_DIR:${target}_${format}>/Flowers")
             endif()
             add_custom_command(TARGET ${target}_${format} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${dest}"
