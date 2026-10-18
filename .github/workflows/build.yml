@@ -21,11 +21,13 @@ jobs:
           sudo apt-get install -y libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
             libxcursor-dev libxext-dev libfreetype-dev libfontconfig1-dev
 
+      # On macOS this builds a universal binary (Apple Silicon + Intel); other platforms ignore it.
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
 
+      # Limited parallelism: the Linux runner runs out of memory compiling JUCE with unbounded jobs.
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --config Release --parallel 2
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
