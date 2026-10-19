@@ -337,6 +337,8 @@ void Garden::arrange (Bunch& b)
                                    c.getBrightness() * (0.95f + 0.05f * r.nextFloat()), 1.0f);
         const auto species = r.nextFloat() < 0.6f ? dominant : (Species) r.nextInt ((int) Species::count);
         f.genome = makeGenome (species, c, 10.5f + 6.0f * b.velocity + 3.5f * r.nextFloat(), b.seed + (uint32_t) i * 7919u);
+        if (processor.photorealFlowers())
+            sprites->prefetch (species, (int) (f.genome.seed % real::FlowerSprites::numVariants), real::FlowerSprites::nearestColour (c));
         b.flowers.push_back (std::move (f));
     }
 }

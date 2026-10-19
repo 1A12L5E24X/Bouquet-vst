@@ -14,7 +14,7 @@ namespace
     };
     constexpr int numColours = 8;
     constexpr int atlasColumns = 6;
-    constexpr size_t maxAtlases = 14;     // ~12 MB each decoded
+    constexpr size_t maxAtlases = 36;     // ~6 MB each decoded
     constexpr int blendSteps = 6;
 
     juce::Point<float> pointFrom (const juce::var& v)
@@ -62,7 +62,10 @@ public:
 
     JobStatus runJob() override
     {
-        auto image = FlowerSprites::loadWithAlpha (colour, alpha);
+        // Scaled while decoding, to a whole grid of equally sized frames.
+        const int rows = owner.frameRows;
+        auto image = FlowerSprites::loadWithAlpha (colour, alpha, FlowerSprites::scaled (owner.frameWidth) * atlasColumns,
+                                                   FlowerSprites::scaled (owner.frameHeight) * rows);
         const std::lock_guard<std::mutex> l (owner.lock);
         owner.requested.erase (key);
         if (image.isValid())
@@ -116,6 +119,9 @@ FlowerSprites::FlowerSprites() : folder (assets::find ("Flowers", "daisy0.json")
                     info.stems.push_back (std::move (stem));
                     info.heads.push_back (pointFrom (f["head"]));
                 }
+            frameWidth = info.width;
+            frameHeight = info.height;
+            frameRows = ((int) info.stems.size() + atlasColumns - 1) / atlasColumns;
             if (info.width > 0 && ! info.stems.empty())
                 infos[infoKey ((botany::Species) s, v)] = std::move (info);
         }
@@ -128,7 +134,7 @@ FlowerSprites::FlowerSprites() : folder (assets::find ("Flowers", "daisy0.json")
     extrasSheet = juce::ImageFileFormat::loadFrom (folder.getChildFile ("extras.png"));
     extrasSize = (int) juce::JSON::parse (folder.getChildFile ("extras.json")).getProperty ("size", 64);
 
-    pool = std::make_unique<juce::ThreadPool> (juce::ThreadPoolOptions().withThreadName ("Bouquet flowers").withNumberOfThreads (1));
+    pool = std::make_unique<juce::ThreadPool> (juce::ThreadPoolOptions().withThreadName ("Bouquet flowers").withNumberOfThreads (2));
 }
 
 FlowerSprites::~FlowerSprites()
@@ -137,25 +143,53 @@ FlowerSprites::~FlowerSprites()
         pool->removeAllJobs (true, 4000);
 }
 
-juce::Image FlowerSprites::loadWithAlpha (const juce::File& colourFile, const juce::File& alphaFile)
+juce::Image FlowerSprites::loadWithAlpha (const juce::File& colourFile, const juce::File& alphaFile, int width, int height)
 {
-    const auto colour = juce::ImageFileFormat::loadFrom (colourFile);
-    const auto alpha = juce::ImageFileFormat::loadFrom (alphaFile);
+    // Both decoded to ARGB so their bytes can be read directly (blue, green, red, alpha).
+    const auto colour = juce::ImageFileFormat::loadFrom (colourFile).convertedToFormat (juce::Image::ARGB);
+    auto alpha = juce::ImageFileFormat::loadFrom (alphaFile);
     if (! colour.isValid() || ! alpha.isValid() || colour.getBounds() != alpha.getBounds())
         return {};
+    const bool alphaInAlpha = alpha.getFormat() == juce::Image::SingleChannel;
+    alpha = alpha.convertedToFormat (juce::Image::ARGB);
 
-    juce::Image out (juce::Image::ARGB, colour.getWidth(), colour.getHeight(), false, juce::SoftwareImageType());
+    const int sw = colour.getWidth(), sh = colour.getHeight();
+    if (width <= 0 || height <= 0) { width = sw; height = sh; }
+
+    juce::Image out (juce::Image::ARGB, width, height, false, juce::SoftwareImageType());
     const juce::Image::BitmapData dc (colour, juce::Image::BitmapData::readOnly);
     const juce::Image::BitmapData da (alpha, juce::Image::BitmapData::readOnly);
     juce::Image::BitmapData dout (out, juce::Image::BitmapData::writeOnly);
-    for (int y = 0; y < out.getHeight(); ++y)
+    const int alphaByte = alphaInAlpha ? 3 : 2;   // a greyscale mask arrives as grey RGB
+    const float fx = (float) sw / (float) width, fy = (float) sh / (float) height;
+
+    // One pass: scale (bilinear, centre-aligned), attach the mask, premultiply.
+    for (int y = 0; y < height; ++y)
     {
-        for (int x = 0; x < out.getWidth(); ++x)
+        const float sy = juce::jlimit (0.0f, (float) (sh - 1), ((float) y + 0.5f) * fy - 0.5f);
+        const int y0 = (int) sy, y1 = std::min (y0 + 1, sh - 1);
+        const float ty = sy - (float) y0;
+        const juce::uint8* c0 = dc.getLinePointer (y0);
+        const juce::uint8* c1 = dc.getLinePointer (y1);
+        const juce::uint8* a0 = da.getLinePointer (y0);
+        const juce::uint8* a1 = da.getLinePointer (y1);
+        juce::uint8* o = dout.getLinePointer (y);
+        for (int x = 0; x < width; ++x)
         {
-            const auto c = dc.getPixelColour (x, y);
-            const auto a = da.getPixelColour (x, y);
-            const auto alphaByte = alpha.getFormat() == juce::Image::SingleChannel ? a.getAlpha() : a.getRed();
-            dout.setPixelColour (x, y, c.withAlpha (alphaByte));
+            const float sx = juce::jlimit (0.0f, (float) (sw - 1), ((float) x + 0.5f) * fx - 0.5f);
+            const int x0 = (int) sx, x1 = std::min (x0 + 1, sw - 1);
+            const float tx = sx - (float) x0;
+            auto lerp = [&] (const juce::uint8* r0, const juce::uint8* r1, int stride, int channel)
+            {
+                const float top = r0[x0 * stride + channel] + (r0[x1 * stride + channel] - r0[x0 * stride + channel]) * tx;
+                const float bottom = r1[x0 * stride + channel] + (r1[x1 * stride + channel] - r1[x0 * stride + channel]) * tx;
+                return top + (bottom - top) * ty;
+            };
+            const float a = lerp (a0, a1, da.pixelStride, alphaByte) / 255.0f;
+            auto* px = o + x * dout.pixelStride;
+            for (int ch = 0; ch < 3; ++ch)
+                px[ch] = (juce::uint8) juce::jlimit (0, 255, juce::roundToInt (lerp (c0, c1, dc.pixelStride, ch) * a));
+            px[3] = (juce::uint8) juce::roundToInt (a * 255.0f);
         }
     }
     return out;
@@ -216,7 +250,8 @@ juce::Image FlowerSprites::atlas (int key, const juce::String& baseName, bool wa
 
 juce::Image FlowerSprites::frameImage (int, const Info& info, const juce::Image& sheet, int frame) const
 {
-    return sheet.getClippedImage ({ (frame % atlasColumns) * info.width, (frame / atlasColumns) * info.height, info.width, info.height });
+    const int w = scaled (info.width), h = scaled (info.height);
+    return sheet.getClippedImage ({ (frame % atlasColumns) * w, (frame / atlasColumns) * h, w, h });
 }
 
 FlowerSprites::Frame FlowerSprites::get (botany::Species s, int variant, int colour, float position)
@@ -246,6 +281,7 @@ FlowerSprites::Frame FlowerSprites::get (botany::Species s, int variant, int col
     if (! sheet.isValid())
         return f;
 
+    f.imageScale = atlasScale;
     if (step == 0 || step >= blendSteps || a == b)
     {
         f.image = frameImage (key, info, sheet, nearest);
@@ -264,6 +300,14 @@ FlowerSprites::Frame FlowerSprites::get (botany::Species s, int variant, int col
     }
     f.image = blend.image;
     return f;
+}
+
+void FlowerSprites::prefetch (botany::Species s, int variant, int colour)
+{
+    variant = juce::jlimit (0, numVariants - 1, variant);
+    colour = juce::jlimit (0, numColours - 1, colour);
+    if (infos.count (infoKey (s, variant)) != 0)
+        atlas (atlasKey (s, variant, colour), juce::String (speciesNames[(int) s]) + juce::String (variant) + "_" + colourNames[colour], false);
 }
 
 juce::Image FlowerSprites::top (botany::Species s, int variant, int colour)
@@ -340,7 +384,8 @@ void paintFlower (juce::Graphics& g, FlowerSprites& sprites, botany::Species spe
     {
         const float visibleTop = frame.base.y - (frame.base.y + 4.0f) * grow;
         juce::Path reveal;
-        reveal.addRectangle (juce::Rectangle<float> (0.0f, visibleTop, (float) frame.image.getWidth(), (float) frame.image.getHeight() - visibleTop));
+        reveal.addRectangle (juce::Rectangle<float> (0.0f, visibleTop, (float) frame.image.getWidth() / frame.imageScale,
+                                                     (float) frame.image.getHeight() / frame.imageScale - visibleTop));
         reveal.applyTransform (t);
         g.reduceClipRegion (reveal);
     }
@@ -351,7 +396,7 @@ void paintFlower (juce::Graphics& g, FlowerSprites& sprites, botany::Species spe
 
     g.setOpacity (fade);
     g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
-    g.drawImageTransformed (frame.image, t);
+    g.drawImageTransformed (frame.image, juce::AffineTransform::scale (1.0f / frame.imageScale).followedBy (t));
     g.setOpacity (1.0f);
 
     if (rot <= 0.15f)

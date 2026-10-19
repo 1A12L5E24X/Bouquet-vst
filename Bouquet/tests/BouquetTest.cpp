@@ -152,6 +152,8 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
     }
     if (rotting)
         play (2.2f);
+    else
+        play (0.6f);   // the last bouquet opens fully
     if (mode == "meadow" || mode == "realmeadow")
     {
         if (auto* bouquetEditor = dynamic_cast<BouquetEditor*> (editor.get()))
@@ -273,6 +275,26 @@ int main (int argc, char** argv)
         g.setImageResamplingQuality (juce::Graphics::mediumResamplingQuality);
         g.drawImageTransformed (top, juce::AffineTransform::translation (-128.0f, -128.0f).rotated (0.7f).scaled (0.35f).translated (160.0f, 380.0f));
         g.drawImageTransformed (top, juce::AffineTransform::translation (-128.0f, -128.0f).scaled (0.35f).translated (260.0f, 380.0f));
+        {
+            const auto dir = bouquet::assets::find ("Flowers", "daisy0.json");
+            for (int i = 0; i < 3; ++i)
+            {
+                const auto t0 = juce::Time::getMillisecondCounterHiRes();
+                const auto c = juce::ImageFileFormat::loadFrom (dir.getChildFile ("rose1_pink.jpg"));
+                const auto t1 = juce::Time::getMillisecondCounterHiRes();
+                const auto a = juce::ImageFileFormat::loadFrom (dir.getChildFile ("rose1_pink.alpha.png"));
+                const auto t2 = juce::Time::getMillisecondCounterHiRes();
+                const auto img = bouquet::ui::real::FlowerSprites::loadWithAlpha (dir.getChildFile ("rose1_pink.jpg"), dir.getChildFile ("rose1_pink.alpha.png"), 1212, 1208);
+                const auto t3 = juce::Time::getMillisecondCounterHiRes();
+                std::cout << "jpeg " << (t1 - t0) << " ms, png " << (t2 - t1) << " ms, combined " << (t3 - t2) << " ms " << c.getFormat() << " " << a.getFormat() << "\n";
+            }
+        }
+        // Growing, blooming, rotting, through paintFlower.
+        const float blooms[] = { 0.0f, 0.3f, 0.6f, 1.0f, 1.0f, 1.0f };
+        const float rots[] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.3f, 0.7f };
+        for (int i = 0; i < 6; ++i)
+            bouquet::ui::real::paintFlower (g, sprites, bouquet::ui::botany::Species::tulip, 1, 3, { 380.0f + (float) i * 120.0f, 440.0f },
+                                            120.0f, 0.0f, 1.0f, blooms[i], rots[i], 1.0f, 0.0f);
         juce::FileOutputStream out (juce::File::getCurrentWorkingDirectory().getChildFile (argv[2]));
         out.setPosition (0);
         out.truncate();

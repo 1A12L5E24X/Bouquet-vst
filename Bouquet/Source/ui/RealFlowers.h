@@ -39,11 +39,16 @@ public:
     struct Frame
     {
         juce::Image image;                           // invalid while still loading
+        float imageScale = 1.0f;                     // image pixels per sprite pixel
         juce::Point<float> base, head;               // in sprite pixels
         std::vector<juce::Point<float>> stem;        // ground up
     };
     // The frame at a fractional position, cross-faded between its two neighbours.
     Frame get (botany::Species, int variant, int colour, float position);
+
+    // Starts decoding a flower's frames in the background, so they are ready by the time
+    // it has grown (call when it is planted).
+    void prefetch (botany::Species, int variant, int colour);
 
     // The flower in full bloom seen from straight above (centred), or invalid.
     juce::Image top (botany::Species, int variant, int colour);
@@ -72,16 +77,26 @@ private:
         juce::uint32 lastUsed = 0;
     };
     class Loader;
+    // Atlases are kept at this fraction of their rendered size: sharp at the garden's
+    // sizes on a Retina screen, and light enough to keep a whole garden in memory.
+    static constexpr float atlasScale = 0.7f;
+    static int scaled (int px) { return juce::roundToInt ((float) px * atlasScale); }
 
     static int infoKey (botany::Species s, int variant) { return (int) s * 4 + variant; }
     static int atlasKey (botany::Species s, int variant, int colour) { return infoKey (s, variant) * 16 + colour; }
     juce::Image atlas (int key, const juce::String& baseName, bool wait);
     juce::Image frameImage (int key, const Info&, const juce::Image& sheet, int frame) const;
-    static juce::Image loadWithAlpha (const juce::File& colour, const juce::File& alpha);
+public:
+    // Decodes a colour JPEG and its alpha mask into one premultiplied image, scaled to
+    // width x height on the way (0 keeps the file's size).
+    static juce::Image loadWithAlpha (const juce::File& colour, const juce::File& alpha, int width = 0, int height = 0);
+
+private:
 
     juce::File folder;
     std::map<int, Info> infos;
     int bloomCount = 10, rotCount = 14;
+    int frameWidth = 0, frameHeight = 0, frameRows = 4;
 
     std::mutex lock;                                  // guards atlases, requested
     std::map<int, Atlas> atlases;
