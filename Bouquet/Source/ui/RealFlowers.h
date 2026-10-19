@@ -64,6 +64,9 @@ public:
     // The preset meadow seen from above.
     juce::Image ground();
 
+    // A daylight sky with drifting cumulus, wider than the window (photoreal backdrop).
+    juce::Image sky();
+
 private:
     struct Info
     {
@@ -108,7 +111,7 @@ private:
     std::map<int, Blend> blends;                      // per atlas: the last cross-fade made
 
     std::map<int, juce::Image> tops;
-    juce::Image grassSheet, extrasSheet, groundImage;
+    juce::Image grassSheet, extrasSheet, groundImage, skyImage;
     int grassTufts = 0, extrasSize = 64;
     float grassGroundY = 0.0f;
 };

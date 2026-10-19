@@ -426,6 +426,45 @@ int Surface::pixelScale() const
 //==============================================================================
 // The background moves slowly, so it is rendered into a cached image a few times
 // a second (aurora, film grain and glass), and simply copied on every frame.
+bool Surface::paintSky (juce::Graphics& g, int pixelW, int pixelH, float t, float warm, float cool)
+{
+    if (! processor.photorealFlowers() || ! sprites->available())
+        return false;
+    const auto sky = sprites->sky();
+    if (! sky.isValid())
+        return false;
+
+    // Scaled once to the window's pixel height, then only ever blitted.
+    if (skyScaled.getHeight() != pixelH)
+    {
+        const int w = std::max (pixelW, juce::roundToInt ((float) sky.getWidth() * (float) pixelH / (float) sky.getHeight()));
+        skyScaled = sky.rescaled (w, pixelH, juce::Graphics::highResamplingQuality);
+    }
+
+    // The clouds drift very slowly across and back (one crossing every quarter hour).
+    const int travel = skyScaled.getWidth() - pixelW;
+    const int x = juce::roundToInt ((0.5f + 0.5f * std::sin (t * 0.0035f)) * (float) travel);
+    g.setOpacity (1.0f);
+    g.drawImageAt (skyScaled, -x, 0);
+
+    // Bright midday haze, so the glass and the type stay light and clear.
+    g.setGradientFill (juce::ColourGradient (colours::frost.withAlpha (0.06f), 0.0f, 0.0f,
+                                             colours::paper.withAlpha (0.3f), 0.0f, (float) pixelH, false));
+    g.fillAll();
+
+    // The aurora's coloured light still breathes with the sound, softly, over the sky.
+    const float w = (float) pixelW, h = (float) pixelH;
+    const float breath = processor.engine.breath.load();
+    for (const auto& b : blobs)
+    {
+        const float cx = (b.x + 0.08f * std::sin (t * b.speed + b.phase) + 0.02f * breath) * w;
+        const float cy = (b.y + 0.06f * std::cos (t * b.speed * 0.8f + b.phase * 1.3f)) * h;
+        const float r = b.radius * w * (1.0f + 0.06f * std::sin (t * 0.3f + b.phase));
+        drawGlow (g, { cx, cy }, r, b.colour.withAlpha (std::min (0.35f, 0.16f * (b.warm ? warm : cool))));
+    }
+    return true;
+}
+
 void Surface::renderBackground()
 {
     // Rendered at the screen's pixel density so it stays sharp on Retina displays.
@@ -444,6 +483,9 @@ void Surface::renderBackground()
     const float cool = 0.8f + 0.9f * std::min (1.0f, processor.engine.wetLevel.load() * 2.0f);
     const float breath = processor.engine.breath.load();
 
+    // Photoreal: a real sky drifting behind the glass. Otherwise the painted aurora.
+    if (! paintSky (g, pixelW, pixelH, t, warm, cool))
+    {
     // The aurora is painted small and stretched: it is all blur anyway, and it's cheap.
     {
         juce::Graphics ag (aurora);
@@ -516,6 +558,8 @@ void Surface::renderBackground()
                 }
             }
         }
+    }
+
     }
 
     g.addTransform (juce::AffineTransform::scale ((float) scale));

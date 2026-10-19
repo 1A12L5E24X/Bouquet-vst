@@ -70,6 +70,9 @@ private:
     Meadow meadow;
 
     juce::Image aurora, background;
+    juce::SharedResourcePointer<real::FlowerSprites> sprites;
+    juce::Image skyScaled;          // the photoreal sky at the window's pixel height
+    bool paintSky (juce::Graphics&, int pixelW, int pixelH, float t, float warm, float cool);
     std::array<juce::int8, 256 * 256> grainNoise {};
     struct Column { int offset, t; };
     std::vector<Column> columns;

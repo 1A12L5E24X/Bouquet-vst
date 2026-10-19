@@ -37,7 +37,8 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
   and lift its flowers; the mod wheel blows wind through the grains and the garden. The recordings
   cross-fade smoothly between soft and loud layers, and no two notes are played quite the same.
 - **The garden**: grass springs up under the keys you play and every chord grows a bouquet that rots when
-  you let go. **photoreal / drawn** switches between 3D-rendered and illustrated flowers.
+  you let go. **photoreal / drawn** switches between 3D-rendered and illustrated flowers; photoreal
+  also puts a real daylight sky behind the glass, its clouds drifting slowly across.
 - **Presets**: click **garden** to look down on a lawn where every preset is a flower. Hover to see a name,
   click to load, **plant this sound** to save yours as a new flower. Right-click to uproot.
 
@@ -63,7 +64,7 @@ needed): `MACOS_CERTIFICATES_P12` (base64 of a .p12 with both Developer ID certi
 - `Bouquet/assets/samples`: instrument recordings from [VSCO-2 CE](https://github.com/sgossner/VSCO-2-CE)
   (CC0) and the FluidR3 electric piano (MIT), prepared by `tools/samples/build_samples.py`.
 - `Bouquet/assets/flowers`: flowers, grass and lawn rendered in Blender by `tools/flowers/render_flowers.py`,
-  lit by a CC0 sky from Poly Haven.
+  lit by a CC0 sky from Poly Haven; the sky by `tools/flowers/render_sky.py`.
 - Fonts: Newsreader and Inter, SIL Open Font License.
 
 ## Licence

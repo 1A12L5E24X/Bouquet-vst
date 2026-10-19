@@ -348,6 +348,13 @@ juce::Image FlowerSprites::drop() const
     return extrasSheet.getClippedImage ({ 4 * extrasSize, 0, extrasSize, extrasSize });
 }
 
+juce::Image FlowerSprites::sky()
+{
+    if (! skyImage.isValid() && folder.isDirectory())
+        skyImage = juce::ImageFileFormat::loadFrom (folder.getChildFile ("sky.jpg"));
+    return skyImage;
+}
+
 juce::Image FlowerSprites::ground()
 {
     if (! groundImage.isValid() && folder.isDirectory())
