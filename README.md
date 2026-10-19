@@ -13,9 +13,9 @@ on the right; and a garden that grows a bouquet for every chord you play, then l
 
 ## Install (Mac)
 
-1. Download **Bouquet-macOS.pkg** from the [latest release](https://github.com/1A12L5E24X/vst3-test/releases/latest)
+1. Download **Bouquet-macOS.pkg** from the [latest release](https://github.com/1A12L5E24X/Bouquet-vst/releases/latest)
    (or, for the newest build, from the Artifacts of the latest green run in the
-   [Actions tab](https://github.com/1A12L5E24X/vst3-test/actions)).
+   [Actions tab](https://github.com/1A12L5E24X/Bouquet-vst/actions)).
 2. Open it. The installer isn't notarized yet, so macOS may say it can't check it: open
    **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
 3. Rescan plug-ins in your DAW. In Ableton: Settings → Plug-Ins → "Use Audio Units" → Rescan.
