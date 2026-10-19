@@ -161,6 +161,32 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
         play (2.0f);
     }
 
+    // For design mock-ups: the garden alone, on transparency, at twice the size.
+    if (const char* gardenFile = std::getenv ("BOUQUET_GARDEN_PNG"))
+    {
+        std::function<juce::Component* (juce::Component&)> findGarden = [&] (juce::Component& c) -> juce::Component*
+        {
+            if (dynamic_cast<bouquet::ui::Garden*> (&c) != nullptr)
+                return &c;
+            for (auto* child : c.getChildren())
+                if (auto* found = findGarden (*child))
+                    return found;
+            return nullptr;
+        };
+        if (auto* gardenView = findGarden (*editor))
+        {
+            juce::Image layer (juce::Image::ARGB, gardenView->getWidth() * 2, gardenView->getHeight() * 2, true);
+            juce::Graphics lg (layer);
+            lg.addTransform (juce::AffineTransform::scale (2.0f));
+            gardenView->paintEntireComponent (lg, false);
+            juce::File (gardenFile).deleteFile();
+            juce::FileOutputStream gout ((juce::File (gardenFile)));
+            juce::PNGImageFormat().writeImageToStream (layer, gout);
+            std::cout << "Garden layer " << gardenView->getWidth() << "x" << gardenView->getHeight()
+                      << " at " << gardenView->getScreenPosition().toString() << "\n";
+        }
+    }
+
     const auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);
     file.deleteFile();
     juce::FileOutputStream out (file);
