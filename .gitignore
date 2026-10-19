@@ -1,2 +1,6 @@
 build/
 .cache/
+
+# Intermediate frames written while tools/flowers renders (atlases are kept)
+Bouquet/assets/flowers/_*.png
+__pycache__/
