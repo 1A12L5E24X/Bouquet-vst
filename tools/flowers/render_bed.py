@@ -37,11 +37,11 @@ def screen_v(p):
 
 
 def ground_height(x, half_keys, half_frame):  # noqa: ARG001
-    """The ground banks up around the ends of the keyboard, then falls away."""
+    """The ground swells up around the ends of the keyboard and stays high out to the
+    window's edges, so the ends of the keys disappear into it."""
     d = abs(x) - half_keys
-    if d < -0.02:
-        return 0.0
-    return 0.03 * math.exp(-((d - 0.016) / 0.03) ** 2)
+    t = min(1.0, max(0.0, (d + 0.11) / 0.15))
+    return 0.05 * t * t * (3 - 2 * t)
 
 
 def holdout_material():
@@ -75,7 +75,7 @@ def build(rng, args):
     keys.data.materials.append(holdout_material())
 
     # The ground: from below the frame up to just behind the keys.
-    y_front = -(h_px - contact_px) * mm / math.sin(PITCH) - 0.25
+    y_front = -(h_px - contact_px) * mm / math.sin(PITCH) - 0.6
     y_back = args.behind * mm
     nu, nv = 240, 60
     verts, faces = [], []
@@ -100,11 +100,13 @@ def build(rng, args):
         x = rng.uniform(-half_frame - 0.03, half_frame + 0.03)
         y = rng.uniform(y_front, y_back)
         z = ground_height(x - cx, half_keys, half_frame)
-        h = rng.uniform(0.007, 0.016) * args.grass
+        if screen_v(Vector((x, y, z))) < -(h_px - contact_px) * mm - 0.01:
+            continue                               # below the frame
+        h = rng.uniform(0.008, 0.018) * args.grass
         if y > 0.0:
             h *= 0.6                               # behind the keys: never above them
         elif y > -0.03 and abs(x - cx) < half_keys:
-            h *= 0.45 + 0.55 * (-y / 0.03)         # just in front: only tips over the keys' lower edge
+            h *= 0.6 + 0.4 * (-y / 0.03)         # just in front: only tips over the keys' lower edge
         a = rng.uniform(0, 2 * math.pi)
         lean = rng.uniform(0.15, 0.8)
         d = Vector((math.cos(a) * lean, math.sin(a) * lean * 0.6, 1.0))
@@ -136,7 +138,7 @@ def main():
     ap.add_argument("--window", type=int, nargs=2, default=[1160, 860])
     ap.add_argument("--keys", type=int, nargs=4, default=[44, 768, 1116, 832], help="x0 y0 x1 y1 in window pixels")
     ap.add_argument("--top", type=int, default=730, help="the strip rendered runs from here to the window's bottom")
-    ap.add_argument("--sink", type=int, default=10, help="how far the keys sit down into the ground, in pixels")
+    ap.add_argument("--sink", type=int, default=18, help="how far the keys sit down into the ground, in pixels")
     ap.add_argument("--behind", type=float, default=10.0, help="how far the ground runs behind the keys, in mm")
     ap.add_argument("--grass", type=float, default=1.0, help="grass height, relative")
     ap.add_argument("--density", type=float, default=90000.0, help="blades per square metre")
