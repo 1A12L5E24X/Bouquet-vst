@@ -64,6 +64,12 @@ namespace
             case Species::poppy:  return sinPow (pi * (0.05f + 0.9f * s), 0.4f) * (0.8f + 0.35f * s);
             case Species::rose:   return sinPow (pi * (0.12f + 0.8f * s), 0.5f) * (0.85f + 0.2f * s);
             case Species::tulip:  return sinPow (pi * s, 0.75f);
+            case Species::lily:   return sinPow (pi * (0.04f + 0.92f * s), 0.6f) * (1.0f - 0.25f * s);
+            case Species::iris:   return sinPow (pi * (0.06f + 0.88f * s), 0.55f) * (0.55f + 0.45f * s);
+            case Species::dahlia: return sinPow (pi * (0.1f + 0.85f * s), 0.5f);
+            case Species::peony:  return sinPow (pi * (0.1f + 0.85f * s), 0.45f) * (0.8f + 0.3f * s);
+            case Species::foxglove:
+            case Species::allium:
             case Species::bell:
             case Species::count:  break;
         }
@@ -207,6 +213,18 @@ Genome makeGenome (Species species, juce::Colour petal, float size, uint32_t see
                               g.centre = petal; break;
         case Species::bell:   outer = 1 + r.nextInt (2);  length = 1.25f; width = 0.85f;
                               g.centre = petal; break;
+        case Species::lily:   outer = 6;                  length = 1.45f; width = 0.42f;
+                              g.centre = juce::Colour (0xff8a3b14); break;
+        case Species::iris:   outer = 3; inner = 3;       length = 1.3f;  width = 0.8f;
+                              g.centre = juce::Colour (0xfff2c12e); break;
+        case Species::dahlia: outer = 14 + r.nextInt (4); inner = outer - 3; length = 0.95f; width = 0.42f;
+                              g.centre = petal.darker (0.3f); break;
+        case Species::peony:  outer = 7; inner = 7;       length = 1.05f; width = 1.1f;
+                              g.centre = juce::Colour (0xfff0c24a); break;
+        case Species::foxglove: outer = 5 + r.nextInt (3); length = 0.75f; width = 0.6f;
+                              g.centre = petal.darker (0.5f); break;
+        case Species::allium: outer = 40;                 length = 0.2f;  width = 0.2f;
+                              g.centre = petal.darker (0.35f); break;
         case Species::count:  break;
     }
 
@@ -234,8 +252,9 @@ Genome genomeForPreset (const Preset& p)
     juce::Random r ((juce::int64) seed);
 
     // Species follows the voice; the seed sometimes picks a cousin.
-    const Species byInstrument[] = { Species::cosmos, Species::rose, Species::tulip, Species::daisy, Species::bell,
-                                     Species::cosmos, Species::poppy, Species::rose, Species::bell, Species::daisy };
+    // live input, piano, rhodes, marimba, glass, harp, violin, cello, flute, choir
+    const Species byInstrument[] = { Species::cosmos, Species::rose, Species::dahlia, Species::daisy, Species::allium,
+                                     Species::lily, Species::poppy, Species::iris, Species::foxglove, Species::peony };
     const int instrument = juce::jlimit (0, 9, (int) p.get (ids::instrument, 1.0f));
     auto species = byInstrument[instrument];
     if (r.nextFloat() < 0.25f)
@@ -552,6 +571,120 @@ void paintPlant (juce::Graphics& g, const Genome& gen, const Pose& pose)
                 break;
             }
 
+            case Species::lily:
+            {
+                // Six long tepals flung open around rust-tipped stamens.
+                drawRing (gen.petals, 1.0f, deepColour, petalColour.brighter (0.08f), 0.0f);
+                for (int k = 0; k < 6; ++k)
+                {
+                    const float a = tilt + (float) k * twoPi / 6.0f + 0.3f;
+                    const auto end = tip + juce::Point<float> (std::sin (a), -std::cos (a)) * r * 0.75f * open;
+                    g.setColour (juce::Colour (0xffc9d08a).withMultipliedAlpha (fade));
+                    g.drawLine ({ tip, end }, 0.6f);
+                    g.setColour (rotted (gen.centre, rot).withMultipliedAlpha (fade));
+                    g.fillEllipse (juce::Rectangle<float> (2.0f, 3.0f).withCentre (end));
+                }
+                break;
+            }
+
+            case Species::iris:
+            {
+                // Three falls hanging down, three standards upright, a golden beard on each fall.
+                for (size_t k = 0; k < gen.petals.size() && k < 3; ++k)
+                {
+                    const auto& p = gen.petals[k];
+                    const float len = r * p.length * (0.8f + 0.2f * open), wid = r * p.width * shrivel;
+                    const float a = tilt + pi + ((float) k - 1.0f) * (0.5f + 0.5f * open) + rot * 0.5f;
+                    const auto path = petalPath (Species::iris, len, wid, wid * (0.05f + 0.4f * rot), p.phase);
+                    fillPetal (g, path, juce::AffineTransform::rotation (a).translated (tip), len, wid, { deepColour, petalColour, fade, gloss, true });
+                    g.setColour (rotted (gen.centre, rot).withMultipliedAlpha (fade));
+                    g.drawLine ({ tip, tip + juce::Point<float> (std::sin (a), -std::cos (a)) * len * 0.4f }, 1.6f);
+                }
+                for (size_t k = 0; k < gen.innerPetals.size() && k < 3; ++k)
+                {
+                    const auto& p = gen.innerPetals[k];
+                    const float len = r * p.length * 0.9f, wid = r * p.width * 0.8f * shrivel;
+                    const float a = tilt + ((float) k - 1.0f) * 0.25f * open;
+                    const auto path = petalPath (Species::iris, len, wid, wid * (0.05f + 0.4f * rot), p.phase);
+                    fillPetal (g, path, juce::AffineTransform::rotation (a).translated (tip), len, wid, { deepColour.darker (0.1f), petalColour, fade, gloss, true });
+                }
+                break;
+            }
+
+            case Species::dahlia:
+            {
+                // Rings of short rolled petals, tighter and darker towards the heart.
+                drawRing (gen.petals, 1.0f, deepColour, petalColour, 0.0f);
+                drawRing (gen.innerPetals, 0.72f, deepColour.darker (0.08f), petalColour, 0.2f);
+                drawRing (gen.innerPetals, 0.46f, deepColour.darker (0.18f), petalColour.darker (0.05f), 0.45f);
+                g.setColour (deepColour.darker (0.3f).withMultipliedAlpha (fade));
+                g.fillEllipse (juce::Rectangle<float> (r * 0.35f, r * 0.35f).withCentre (tip));
+                break;
+            }
+
+            case Species::peony:
+            {
+                // A loose, heavy ball of ruffled petals.
+                sepals();
+                drawRing (gen.petals, 1.0f, deepColour, petalColour, 0.0f);
+                drawRing (gen.innerPetals, 0.78f, deepColour.darker (0.08f), petalColour.brighter (0.05f), 0.5f);
+                for (int k = 0; k < 5; ++k)
+                {
+                    const float rr = r * (0.55f - 0.08f * (float) k) * (0.6f + 0.4f * open);
+                    g.setColour (petalColour.interpolatedWith (deepColour, 0.15f * (float) k).withMultipliedAlpha (fade));
+                    g.fillEllipse (juce::Rectangle<float> (rr * 2.0f, rr * 1.7f).withCentre (tip + juce::Point<float> (rr * 0.12f * (float) (k % 2 ? 1 : -1), -rr * 0.1f)));
+                }
+                g.setColour (rotted (gen.centre, rot).withMultipliedAlpha (0.8f * fade));
+                g.fillEllipse (juce::Rectangle<float> (r * 0.25f, r * 0.18f).withCentre (tip));
+                break;
+            }
+
+            case Species::foxglove:
+            {
+                // Bells nodding from the top of the stem, smaller and closed towards the tip.
+                const int n = (int) gen.petals.size();
+                for (int k = n - 1; k >= 0; --k)
+                {
+                    const float along = 0.62f + 0.38f * (float) k / (float) std::max (1, n);
+                    const auto at = bezier (pose, grow * along);
+                    const float s = r * (0.75f - 0.4f * (float) k / (float) n) * (0.5f + 0.5f * open) * shrivel;
+                    const float side = (k % 2 == 0 ? 1.0f : -1.0f);
+                    const auto mouth = at + juce::Point<float> (side * s * 0.9f, s * 0.5f);
+                    juce::Path bell;
+                    bell.startNewSubPath (at);
+                    bell.quadraticTo (at.x + side * s * 0.2f, at.y - s * 0.35f, mouth.x + side * s * 0.1f, mouth.y - s * 0.55f);
+                    bell.lineTo (mouth.x - side * s * 0.15f, mouth.y + s * 0.25f);
+                    bell.quadraticTo (at.x + side * s * 0.2f, at.y + s * 0.3f, at.x, at.y);
+                    bell.closeSubPath();
+                    g.setGradientFill (juce::ColourGradient (deepColour.withMultipliedAlpha (fade), at.x, at.y,
+                                                             petalColour.brighter (0.15f).withMultipliedAlpha (fade), mouth.x, mouth.y, false));
+                    g.fillPath (bell);
+                    g.setColour (rotted (gen.centre, rot).withAlpha (0.6f * fade));
+                    g.fillEllipse (juce::Rectangle<float> (s * 0.18f, s * 0.18f).withCentre (mouth + juce::Point<float> (-side * s * 0.1f, -s * 0.12f)));
+                }
+                break;
+            }
+
+            case Species::allium:
+            {
+                // A globe of tiny star florets.
+                const float globe = r * (0.55f + 0.45f * open) * shrivel;
+                const auto centre = tip + juce::Point<float> (std::sin (tilt), -std::cos (tilt)) * globe * 0.85f;
+                g.setColour (deepColour.darker (0.25f).withMultipliedAlpha (fade));
+                g.fillEllipse (juce::Rectangle<float> (globe * 1.7f, globe * 1.7f).withCentre (centre));
+                juce::Random fr ((juce::int64) gen.seed);
+                for (int k = 0; k < 70; ++k)
+                {
+                    const float a = fr.nextFloat() * twoPi, d = globe * std::sqrt (fr.nextFloat());
+                    if (rot > 0.3f && fr.nextFloat() < (rot - 0.3f) * 1.3f)
+                        continue;
+                    const auto p = centre + juce::Point<float> (std::cos (a), std::sin (a)) * d;
+                    g.setColour ((fr.nextBool() ? petalColour : petalColour.brighter (0.25f)).withMultipliedAlpha (fade));
+                    g.fillEllipse (juce::Rectangle<float> (2.2f, 2.2f).withCentre (p));
+                }
+                break;
+            }
+
             case Species::count:
                 break;
         }
@@ -709,6 +842,51 @@ void paintFromAbove (juce::Graphics& g, const Genome& gen, juce::Point<float> c,
             }
             break;
         }
+        case Species::lily:
+            ring (6, r * 1.0f, r * 0.42f, 0.0f, deep, petal.brighter (0.1f), Species::lily);
+            g.setColour (gen.centre.withAlpha (alpha));
+            for (int k = 0; k < 6; ++k)
+                g.fillEllipse (juce::Rectangle<float> (r * 0.09f, r * 0.13f)
+                                   .withCentre (c + juce::Point<float> (std::cos (angle + (float) k * 1.05f + 0.5f), std::sin (angle + (float) k * 1.05f + 0.5f)) * r * 0.3f));
+            break;
+        case Species::iris:
+            ring (3, r * 0.95f, r * 0.8f, 0.0f, deep, petal, Species::iris);
+            ring (3, r * 0.6f, r * 0.55f, 0.5f, deep.darker (0.1f), petal.brighter (0.08f), Species::iris);
+            g.setColour (gen.centre.withAlpha (alpha));
+            for (int k = 0; k < 3; ++k)
+            {
+                const float a = angle + (float) k * twoPi / 3.0f - juce::MathConstants<float>::halfPi;
+                g.drawLine ({ c, c + juce::Point<float> (std::cos (a), std::sin (a)) * r * 0.45f }, r * 0.07f);
+            }
+            break;
+        case Species::dahlia:
+            for (int k = 0; k < 4; ++k)
+                ring (14 - 2 * k, r * (0.95f - 0.2f * (float) k), r * 0.36f, 0.27f * (float) k,
+                      deep.darker (0.06f * (float) k), petal.darker (0.04f * (float) k), Species::dahlia);
+            g.setColour (deep.darker (0.3f).withAlpha (alpha));
+            g.fillEllipse (juce::Rectangle<float> (r * 0.22f, r * 0.22f).withCentre (c));
+            break;
+        case Species::peony:
+            ring (7, r * 1.0f, r * 0.95f, 0.0f, deep, petal, Species::peony);
+            ring (6, r * 0.75f, r * 0.8f, 0.4f, deep, petal.brighter (0.05f), Species::peony);
+            ring (5, r * 0.5f, r * 0.6f, 0.8f, deep.darker (0.08f), petal, Species::peony);
+            g.setColour (gen.centre.withAlpha (alpha));
+            g.fillEllipse (juce::Rectangle<float> (r * 0.22f, r * 0.22f).withCentre (c));
+            break;
+        case Species::allium:
+        {
+            g.setColour (deep.darker (0.2f).withAlpha (alpha));
+            g.fillEllipse (juce::Rectangle<float> (r * 1.7f, r * 1.7f).withCentre (c));
+            juce::Random fr ((juce::int64) gen.seed);
+            for (int k = 0; k < 90; ++k)
+            {
+                const float a = fr.nextFloat() * twoPi, d = r * 0.85f * std::sqrt (fr.nextFloat());
+                g.setColour ((fr.nextBool() ? petal : petal.brighter (0.25f)).withAlpha (alpha));
+                g.fillEllipse (juce::Rectangle<float> (r * 0.16f, r * 0.16f).withCentre (c + juce::Point<float> (std::cos (a), std::sin (a)) * d));
+            }
+            break;
+        }
+        case Species::foxglove:
         case Species::tulip:
         case Species::bell:
         {

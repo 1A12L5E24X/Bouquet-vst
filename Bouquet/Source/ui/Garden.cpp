@@ -403,7 +403,7 @@ void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sw
         pose.time = time;
         pose.stemWidth = 2.4f;
         pose.glow = press;
-        if (processor.photorealFlowers() && sprites->available())
+        if (processor.photorealFlowers() && sprites->has (f.genome.species))
         {
             // Rendered flowers carry their own droop; we only fan them out and sway them.
             const float fan = f.spread * 0.011f + breeze * 0.008f;

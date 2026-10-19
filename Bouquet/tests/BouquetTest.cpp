@@ -233,7 +233,7 @@ int main (int argc, char** argv)
     {
         // Debug aid: every species, fresh and rotting, on one sheet.
         using namespace bouquet::ui::botany;
-        juce::Image img (juce::Image::RGB, 900, 360, true);
+        juce::Image img (juce::Image::RGB, 150 * (int) Species::count, 360, true);
         juce::Graphics g (img);
         g.fillAll (juce::Colour (0xfffbf7f0));
         for (int s = 0; s < (int) Species::count; ++s)
@@ -495,7 +495,8 @@ int main (int argc, char** argv)
         bouquet::ui::real::FlowerSprites sprites;
         sprites.waitForLoads = true;
         const auto folder = bouquet::assets::find ("Flowers", "daisy0.json");
-        const char* speciesNames[] = { "daisy", "tulip", "poppy", "cosmos", "bell", "rose" };
+        const char* speciesNames[] = { "daisy", "tulip", "poppy", "cosmos", "bell", "rose",
+                                       "lily", "iris", "dahlia", "peony", "foxglove", "allium" };
         const char* colourNames[] = { "white", "butter", "apricot", "coral", "crimson", "pink", "lilac", "blue" };
         if (! sprites.available())
             std::cout << "Rendered flowers not present; skipping photoreal checks\n";

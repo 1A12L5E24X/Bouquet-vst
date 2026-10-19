@@ -9,7 +9,7 @@ namespace bouquet { struct Preset; }
 // Realistic flowers and grass, shared by the chord garden and the preset meadow.
 namespace bouquet::ui::botany
 {
-enum class Species { daisy, tulip, poppy, cosmos, bell, rose, count };
+enum class Species { daisy, tulip, poppy, cosmos, bell, rose, lily, iris, dahlia, peony, foxglove, allium, count };
 
 struct PetalGene
 {
