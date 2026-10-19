@@ -6,7 +6,8 @@ namespace bouquet::ui::real
 {
 namespace
 {
-    const char* speciesNames[] = { "daisy", "tulip", "poppy", "cosmos", "bell", "rose" };
+    const char* speciesNames[] = { "daisy", "tulip", "poppy", "cosmos", "bell", "rose",
+                                   "lily", "iris", "dahlia", "peony", "foxglove", "allium" };
     const char* colourNames[] = { "white", "butter", "apricot", "coral", "crimson", "pink", "lilac", "blue" };
     const juce::Colour colourValues[] = {
         juce::Colour (0xfff2efe6), juce::Colour (0xfff5c542), juce::Colour (0xfff7944a), juce::Colour (0xffe8473a),

@@ -21,6 +21,8 @@ public:
     ~FlowerSprites();
 
     bool available() const { return ! infos.empty(); }
+    // Whether this species has been rendered (otherwise draw it illustrated).
+    bool has (botany::Species s) const { return infos.count (infoKey (s, 0)) != 0; }
     static constexpr int numVariants = 3;
 
     // Decode atlases on the calling thread instead of in the background (offline use).

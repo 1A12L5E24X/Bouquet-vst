@@ -34,7 +34,8 @@ from PIL import Image
 from mathutils import Matrix, Vector
 from bpy_extras.object_utils import world_to_camera_view
 
-SPECIES = ["daisy", "tulip", "poppy", "cosmos", "bell", "rose"]
+SPECIES = ["daisy", "tulip", "poppy", "cosmos", "bell", "rose",
+           "lily", "iris", "dahlia", "peony", "foxglove", "allium"]
 
 COLOURS = {
     "white":   (0.93, 0.91, 0.86),
@@ -515,7 +516,7 @@ def build_plant(species, colour_name, bloom, rot, seed):
     axis = (pts[-1] - pts[-3]).normalized()
     if TOP_VIEW and species != "bell":
         axis = Vector((0.0, 0.0, 1.0))      # seen from above: faces turn to the sky
-    elif species in ("daisy", "cosmos", "poppy", "rose"):
+    elif species in ("daisy", "cosmos", "poppy", "rose", "lily", "dahlia", "peony"):
         # Open faces turn towards the viewer (and the sun), less so as the plant collapses.
         axis = (axis + Vector((0.0, -1.0, 0.15)) * (0.9 * (1.0 - smooth(rot * 1.3)))).normalized()
 
@@ -678,6 +679,184 @@ def build_plant(species, colour_name, bloom, rot, seed):
         rot_m = down.to_track_quat("-Z", "Y").to_matrix().to_4x4()
         transform = Matrix.Translation(top) @ rot_m
         lathe("bell", prof, 30, pmat, transform, lobes=5, lobe_depth=0.12 * open_)
+
+
+    elif species == "lily":
+        # Six recurved tepals, long stamens with rust anthers, a green style.
+        for i in range(6):
+            f = fallen(i, 6)
+            if f >= 1.0:
+                continue
+            az = 2 * math.pi * i / 6 + (0.5 if i % 2 else 0.0) * 0.0
+            el = math.radians(80.0 - 62.0 * open_) - sag
+            L = 0.04 * HEAD * (0.55 + 0.45 * open_) * rng.uniform(0.95, 1.05)
+            W = (0.017 if i % 2 else 0.014) * HEAD * shrivel
+            petal(f"petal{i}", top, axis, az, el, L, W,
+                  lambda u: max(0.0, math.sin(math.pi * (0.04 + 0.92 * u))) ** 0.6 * (1.0 - 0.25 * u),
+                  cup=0.35, curl=-0.55 * open_, ruffle=0.0012 * open_ + ruffle_rot, twist=rng.uniform(-0.1, 0.1),
+                  material=pmat, seed=seed + i, fall=f)
+        if open_ > 0.3:
+            ref = Vector((1, 0, 0)) if abs(axis.x) < 0.9 else Vector((0, 1, 0))
+            e1 = axis.cross(ref).normalized()
+            e2 = axis.cross(e1).normalized()
+            fil = simple_material("filament", mix((0.7, 0.75, 0.45), NECROTIC, smooth(rot / 0.6)), roughness=0.4)
+            anth = simple_material("anther", mix((0.45, 0.13, 0.03), NECROTIC, smooth(rot / 0.6)), roughness=0.7, texture=0.4)
+            ends = []
+            for k in range(6):
+                a = 2 * math.pi * k / 6 + 0.3
+                out = e1 * math.cos(a) + e2 * math.sin(a)
+                end = top + axis * 0.034 * HEAD * open_ + out * 0.012 * HEAD * open_
+                tube_along(f"stamen{k}", [top, top + axis * 0.02 * HEAD * open_ + out * 0.004 * HEAD, end],
+                           [0.0005 * HEAD, 0.0004 * HEAD, 0.0003 * HEAD], fil, sides=5)
+                ends.append((end, 0.0018 * HEAD))
+            spheres("anthers", ends, 0.0018 * HEAD, anth, subdivisions=2, squash=Matrix.Diagonal((0.6, 0.6, 1.6, 1.0)))
+            tube_along("style", [top, top + axis * 0.038 * HEAD * open_], [0.0007 * HEAD, 0.0006 * HEAD], fil, sides=6)
+
+    elif species == "iris":
+        # Three upright standards and three drooping falls with a golden beard.
+        sepals(3, 0.01)
+        beard = simple_material("beard", mix((0.95, 0.72, 0.12), NECROTIC, smooth(rot / 0.5)), roughness=0.8, texture=0.6)
+        ref = Vector((1, 0, 0)) if abs(axis.x) < 0.9 else Vector((0, 1, 0))
+        e1 = axis.cross(ref).normalized()
+        e2 = axis.cross(e1).normalized()
+        beards = []
+        for i in range(6):
+            f = fallen(i, 6)
+            if f >= 1.0:
+                continue
+            fall_petal = i % 2 == 1
+            az = 2 * math.pi * i / 6
+            if fall_petal:
+                el = math.radians(70.0 - 110.0 * open_) - sag
+                L, W = 0.05 * HEAD * (0.7 + 0.3 * open_), 0.03 * HEAD * shrivel
+                curl, cup = -0.25 * open_, 0.6
+            else:
+                el = math.radians(86.0 - 18.0 * open_) - sag
+                L, W = 0.045 * HEAD * (0.75 + 0.25 * open_), 0.026 * HEAD * shrivel
+                curl, cup = 0.3, 1.1
+            petal(f"petal{i}", top, axis, az, el, L, W,
+                  lambda u: max(0.0, math.sin(math.pi * (0.06 + 0.88 * u))) ** 0.55 * (0.55 + 0.45 * u),
+                  cup=cup, curl=curl, ruffle=0.0025 + ruffle_rot, twist=0.0, material=pmat, seed=seed + i, fall=f)
+            if fall_petal and open_ > 0.4 and f <= 0.0:
+                # Along the fall's midrib, just above its surface (the same frame petal() uses).
+                h1 = axis.cross(ref).normalized()
+                h2 = axis.cross(h1).normalized()
+                horiz = (h1 * math.cos(az) + h2 * math.sin(az)).normalized()
+                d = (horiz * math.cos(el) + axis * math.sin(el)).normalized()
+                normal = d.cross(axis.cross(horiz).normalized()).normalized()
+                for k in range(7):
+                    u = 0.08 + 0.06 * k
+                    beards.append(top + d * L * u + normal * (curl * u * u * L + 0.0012 * HEAD))
+        if beards:
+            spheres("beard", [(b, 0.0016 * HEAD) for b in beards], 0.0016 * HEAD, beard, subdivisions=2)
+
+    elif species == "dahlia":
+        # A full decorative dahlia: rings of rolled petals, tighter towards the heart.
+        sepals(8, 0.01)
+        rings = [(16, 0.026, 6.0), (14, 0.022, 22.0), (12, 0.018, 40.0), (10, 0.013, 58.0), (8, 0.009, 72.0)]
+        idx = 0
+        for r_i, (n, length, elev) in enumerate(rings):
+            n = max(6, round(n * VAR["petals"]))
+            for k in range(n):
+                f = fallen(idx, 60) if r_i < 3 else 0.0
+                idx += 1
+                if f >= 1.0:
+                    continue
+                az = 2 * math.pi * k / n + r_i * 0.37
+                el = math.radians(85.0 + (elev - 85.0) * open_) - sag * (1.0 - r_i / 5.0)
+                L = length * HEAD * (0.5 + 0.5 * open_) * rng.uniform(0.93, 1.05)
+                W = L * 0.42 * shrivel
+                petal(f"petal{r_i}_{k}", top + axis * 0.0015 * HEAD * r_i, axis, az, el, L, W,
+                      lambda u: max(0.0, math.sin(math.pi * (0.1 + 0.85 * u))) ** 0.5,
+                      cup=1.6, curl=0.08, ruffle=ruffle_rot, twist=0.0, material=pmat, seed=seed + idx, fall=f, nu=8, nv=6)
+
+    elif species == "peony":
+        # A heavy ball of ruffled petals with a few golden stamens at the heart.
+        sepals(5, 0.016)
+        n = round(34 * VAR["petals"])
+        for i in range(n):
+            k = i / max(1, n - 1)
+            f = fallen(i, n) if k < 0.5 else 0.0
+            if f >= 1.0:
+                continue
+            az = i * 2.39996
+            closed = 86.0
+            opened = 20.0 + 62.0 * k
+            el = math.radians(closed + (opened - closed) * open_) - sag * (1.0 - k)
+            L = (0.034 - 0.012 * k) * HEAD * (0.55 + 0.45 * open_)
+            W = L * (1.25 - 0.3 * k) * shrivel
+            petal(f"petal{i}", top + axis * 0.004 * HEAD * k, axis, az, el, L, W,
+                  lambda u: max(0.0, math.sin(math.pi * (0.1 + 0.85 * u))) ** 0.45 * (0.8 + 0.3 * u),
+                  cup=1.25, curl=0.12 * k, ruffle=0.0035 + 0.002 * k + ruffle_rot, twist=rng.uniform(-0.2, 0.2),
+                  material=pmat, seed=seed + i, fall=f, nu=10, nv=8)
+        if open_ > 0.6:
+            gold = simple_material("stamens", mix((0.95, 0.75, 0.2), NECROTIC, smooth(rot / 0.5)), roughness=0.7, texture=0.5)
+            ref = Vector((1, 0, 0)) if abs(axis.x) < 0.9 else Vector((0, 1, 0))
+            e1 = axis.cross(ref).normalized()
+            e2 = axis.cross(e1).normalized()
+            spheres("stamens", [(top + axis * 0.012 * HEAD + (e1 * math.cos(a) + e2 * math.sin(a)) * 0.004 * HEAD * (0.5 + (a % 1.0)),
+                                 0.0012 * HEAD) for a in [k * 2.39996 for k in range(24)]], 0.0012 * HEAD, gold)
+
+    elif species == "foxglove":
+        # A spike of nodding bells up the top of the stem, opening from the bottom up, buds at the tip.
+        ref = Vector((1, 0, 0))
+        m = len(pts)
+        start = int(m * 0.42)
+        bells = m - start
+        for j in range(bells):
+            i = start + j
+            k = j / max(1, bells - 1)
+            here = pts[i]
+            tangent = (pts[min(i + 1, m - 1)] - pts[max(i - 1, 0)]).normalized()
+            az = j * 2.2 + 0.4
+            side = (tangent.cross(ref) * math.cos(az) + tangent.cross(tangent.cross(ref)) * math.sin(az)).normalized()
+            side = (side + Vector((0.0, -0.8, 0.0))).normalized()          # most face the viewer
+            open_here = max(0.0, min(1.0, open_ * 1.6 - k * 0.9))
+            size = (1.0 - 0.55 * k) * (0.35 + 0.65 * open_here)
+            f = fallen(j, bells)
+            if f >= 1.0:
+                continue
+            down = (side * 0.9 + Vector((0.0, 0.0, -0.45)) * (1.0 - 0.6 * k)).normalized()
+            origin = here + side * 0.003 * HEAD - Vector((0, 0, 0.004 * f))
+            if open_here < 0.15 or k > 0.85:
+                spheres(f"bud{j}", [(origin + down * 0.003 * HEAD, 0.0028 * HEAD * (1.0 - 0.5 * k))], 0.003, green_mat if k > 0.85 else pmat,
+                        subdivisions=2, squash=Matrix.Diagonal((0.8, 0.8, 1.2, 1.0)))
+                continue
+            prof = []
+            for q in range(9):
+                t = q / 8
+                r = (0.0028 + 0.0055 * t ** 1.5 * open_here) * HEAD * size * shrivel
+                prof.append((r, -0.022 * HEAD * size * t))
+            rot_m = down.to_track_quat("-Z", "Y").to_matrix().to_4x4()
+            lathe(f"bell{j}", prof, 18, pmat, Matrix.Translation(origin) @ rot_m, lobes=5, lobe_depth=0.15 * open_here)
+
+    elif species == "allium":
+        # A globe of tiny starry florets on fine stalks.
+        floret = pmat
+        stalk = simple_material("pedicel", stem_colour, roughness=0.5)
+        radius = (0.012 + 0.012 * open_) * HEAD * shrivel
+        heads, stalks = [], 0
+        count = round(220 * VAR["petals"])
+        centre = top + axis * radius * 0.9
+        for k in range(count):
+            # Evenly over the sphere (Fibonacci), except where it meets the stem.
+            zf = 1.0 - 2.0 * (k + 0.5) / count
+            if zf < -0.75:
+                continue
+            a = k * 2.39996
+            rr = math.sqrt(max(0.0, 1.0 - zf * zf))
+            ref = Vector((1, 0, 0)) if abs(axis.x) < 0.9 else Vector((0, 1, 0))
+            e1 = axis.cross(ref).normalized()
+            e2 = axis.cross(e1).normalized()
+            dirv = (e1 * (math.cos(a) * rr) + e2 * (math.sin(a) * rr) + axis * zf).normalized()
+            if rot > 0.3 and random.Random(seed * 13 + k).random() < (rot - 0.3) * 1.3:
+                continue                                                   # florets shed as it rots
+            heads.append((centre + dirv * radius, 0.0025 * HEAD * (0.5 + 0.5 * open_)))
+        # A green core, so the globe reads as solid between its florets.
+        core = simple_material("core", mix(mix(colour, (0.2, 0.25, 0.1), 0.45), NECROTIC, smooth(rot / 0.6)), roughness=0.6, texture=0.5)
+        spheres("core", [(centre, radius * 0.86)], radius * 0.86, core, subdivisions=3)
+        if heads:
+            spheres("florets", heads, 0.0025 * HEAD, floret, subdivisions=2)
 
     # --- Gore: blood beads, a trail down the stem, and a pool.
     if rot > 0.12:
@@ -869,7 +1048,7 @@ def render_tops(out_dir, variants, samples, size=256):
                 add_lights()
                 pts = build_plant(species, colour, 1.0, 0.0, 1000 + SPECIES.index(species) * 97 + variant * 5003)
                 top = pts[-1]
-                scale = {"tulip": 0.12, "bell": 0.12}.get(species, 0.16)
+                scale = {"tulip": 0.12, "bell": 0.12, "foxglove": 0.13, "allium": 0.12, "iris": 0.15}.get(species, 0.16)
                 top_camera(Vector((top.x, top.y, top.z + 0.05)), scale * settings["head"])
                 path = os.path.join(out_dir, f"_top_{species}_{colour}.png")
                 scene.render.filepath = path
