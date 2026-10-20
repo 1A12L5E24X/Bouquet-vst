@@ -54,7 +54,7 @@ void GlowKnob::paint (juce::Graphics& g)
 {
     const bool touching = slider.isMouseOverOrDragging();
     const auto text = touching ? (param->getCurrentValueAsText() + " " + param->getLabel()).trim() : label.toUpperCase();
-    g.setFont (touching ? Fonts::sans (10.5f) : Fonts::sansMedium (9.0f, 0.1f));
+    g.setFont (touching ? Fonts::sans (10.5f) : Fonts::sansMedium (getWidth() < 52 ? 8.5f : 9.0f, getWidth() < 52 ? 0.05f : 0.1f));
     g.setColour (colours::ink.withAlpha (touching ? 0.9f : 0.5f));
     g.drawText (text, getLocalBounds().removeFromBottom (16), juce::Justification::centred, false);
 }
@@ -62,7 +62,7 @@ void GlowKnob::paint (juce::Graphics& g)
 //==============================================================================
 GlowItem::GlowItem (const juce::String& t, Style s, juce::Colour a, juce::Colour b)
     : text (t), style (s), accentA (a), accentB (b),
-      font (s == Style::text ? Fonts::serif (19.0f) : Fonts::serif (15.0f))
+      font (s == Style::text ? Fonts::serif (19.0f) : Fonts::serifItalic (17.0f))
 {
     setMouseCursor (juce::MouseCursor::PointingHandCursor);
 }
@@ -94,28 +94,14 @@ void GlowItem::paint (juce::Graphics& g)
 
     if (style == Style::pill)
     {
-        const auto pill = bounds.reduced (2.0f);
-        const float radius = pill.getHeight() * 0.5f;
-
-        if (selectLight > 0.01f)
-        {
-            // Light pooling outward from the chosen pill.
-            drawGlow (g, bounds, accentA.withAlpha (0.22f * selectLight * breathe));
-            juce::ColourGradient grad (accentA.withAlpha (0.38f * selectLight), pill.getX(), pill.getY(),
-                                       accentB.withAlpha (0.30f * selectLight), pill.getRight(), pill.getBottom(), false);
-            g.setGradientFill (grad);
-            g.fillRoundedRectangle (pill, radius);
-        }
-
-        g.setColour (frost.withAlpha (0.55f + 0.3f * hoverLight - 0.3f * selectLight));
-        g.fillRoundedRectangle (pill, radius);
-        g.setColour (selectLight > 0.5f ? accentA.interpolatedWith (ink, 0.15f).withAlpha (0.6f)
-                                        : ink.withAlpha (0.09f + 0.10f * hoverLight));
-        g.drawRoundedRectangle (pill, radius, 1.0f);
-
-        g.setFont (font);
-        g.setColour (ink.withAlpha (0.62f + 0.2f * hoverLight + 0.3f * selectLight));
-        g.drawText (text, pill, juce::Justification::centred, false);
+        const auto cell = bounds.reduced (0.5f);
+        g.setColour (frost.withAlpha (0.45f + 0.25f * hoverLight));
+        g.fillRoundedRectangle (cell, 10.0f);
+        g.setColour (ink.withAlpha (0.2f + 0.1f * hoverLight));
+        g.drawRoundedRectangle (cell, 10.0f, 1.0f);
+        g.setFont (Fonts::sansMedium (12.5f));
+        g.setColour (ink.withAlpha (0.8f + 0.2f * hoverLight));
+        g.drawText (text, cell, juce::Justification::centred, false);
         return;
     }
 

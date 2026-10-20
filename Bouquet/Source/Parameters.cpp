@@ -57,9 +57,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout (bool 
     layout.add (std::make_unique<Float> (ParameterID { ids::attack, 1 }, "Attack", range (0.0f, 4.0f, 0.3f), 0.0f, attrs ("s")));
     layout.add (std::make_unique<Float> (ParameterID { ids::release, 1 }, "Release", range (0.02f, 10.0f, 1.0f), 0.8f, attrs ("s")));
     layout.add (std::make_unique<AudioParameterInt> (ParameterID { ids::octave, 1 }, "Octave", -2, 2, 0));
-    layout.add (std::make_unique<Float> (ParameterID { ids::sourceLevel, 1 }, "Source Level", NormalisableRange<float> (-36.0f, 12.0f), 0.0f, attrs ("dB")));
-    layout.add (std::make_unique<Float> (ParameterID { ids::forest, 1 }, "Forest", NormalisableRange<float> (0.0f, 1.0f), 0.5f, pct));
-    layout.add (std::make_unique<Float> (ParameterID { ids::wildlife, 1 }, "Wildlife", NormalisableRange<float> (0.0f, 1.0f), 0.3f, pct));
+    layout.add (std::make_unique<Float> (ParameterID { ids::sourceLevel, 1 }, "Level", NormalisableRange<float> (-36.0f, 12.0f), 0.0f, attrs ("dB")));
+    layout.add (std::make_unique<Float> (ParameterID { ids::forest, 1 }, "Distance", NormalisableRange<float> (0.0f, 1.0f), 0.5f, pct));
+    layout.add (std::make_unique<Float> (ParameterID { ids::wildlife, 1 }, "Ambience", NormalisableRange<float> (0.0f, 1.0f), 0.3f, pct));
 
     // --- Magic Lab
     StringArray harmonyNames;
@@ -68,25 +68,25 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout (bool 
 
     layout.add (std::make_unique<Float> (ParameterID { ids::density, 1 }, "Density", range (0.5f, 80.0f, 12.0f), d.density, attrs ("/s")));
     layout.add (std::make_unique<Float> (ParameterID { ids::size, 1 }, "Grain Size", range (8.0f, 2000.0f, 200.0f), d.sizeMs, attrs ("ms")));
-    layout.add (std::make_unique<Float> (ParameterID { ids::time, 1 }, "Reach", range (0.0f, 6.0f, 0.6f), d.timeSec, attrs ("s")));
+    layout.add (std::make_unique<Float> (ParameterID { ids::time, 1 }, "Delay", range (0.0f, 6.0f, 0.6f), d.timeSec, attrs ("s")));
     layout.add (std::make_unique<Float> (ParameterID { ids::spray, 1 }, "Spray", NormalisableRange<float> (0.0f, 1.0f), d.spray, pct));
     layout.add (std::make_unique<Float> (ParameterID { ids::pitch, 1 }, "Pitch", NormalisableRange<float> (-24.0f, 24.0f, 0.01f), d.pitch, attrs ("st")));
-    layout.add (std::make_unique<Choice> (ParameterID { ids::harmony, 1 }, "Harmony", harmonyNames, d.harmony));
+    layout.add (std::make_unique<Choice> (ParameterID { ids::harmony, 1 }, "Scale", harmonyNames, d.harmony));
     layout.add (std::make_unique<Float> (ParameterID { ids::harmonyAmount, 1 }, "Harmony Amount", NormalisableRange<float> (0.0f, 1.0f), d.harmonyAmount, pct));
     layout.add (std::make_unique<Float> (ParameterID { ids::detune, 1 }, "Detune", range (0.0f, 50.0f, 10.0f), d.detune, attrs ("ct")));
     layout.add (std::make_unique<Float> (ParameterID { ids::reverse, 1 }, "Reverse", NormalisableRange<float> (0.0f, 1.0f), d.reverse, pct));
-    layout.add (std::make_unique<Float> (ParameterID { ids::chaos, 1 }, "Chaos", NormalisableRange<float> (0.0f, 1.0f), d.chaos, pct));
-    layout.add (std::make_unique<Float> (ParameterID { ids::shape, 1 }, "Edge", NormalisableRange<float> (0.0f, 1.0f), d.shape, pct));
+    layout.add (std::make_unique<Float> (ParameterID { ids::chaos, 1 }, "Jitter", NormalisableRange<float> (0.0f, 1.0f), d.chaos, pct));
+    layout.add (std::make_unique<Float> (ParameterID { ids::shape, 1 }, "Grain Shape", NormalisableRange<float> (0.0f, 1.0f), d.shape, pct));
     layout.add (std::make_unique<Float> (ParameterID { ids::width, 1 }, "Width", NormalisableRange<float> (0.0f, 1.0f), d.width, pct));
     layout.add (std::make_unique<Float> (ParameterID { ids::feedback, 1 }, "Feedback", NormalisableRange<float> (0.0f, 0.95f), d.feedback, pct));
-    layout.add (std::make_unique<Float> (ParameterID { ids::colour, 1 }, "Colour", NormalisableRange<float> (-1.0f, 1.0f), d.colour));
-    layout.add (std::make_unique<Float> (ParameterID { ids::space, 1 }, "Space", NormalisableRange<float> (0.0f, 1.0f), d.space, pct));
-    layout.add (std::make_unique<Float> (ParameterID { ids::decay, 1 }, "Space Decay", range (0.5f, 30.0f, 5.0f), d.decay, attrs ("s")));
-    layout.add (std::make_unique<Float> (ParameterID { ids::life, 1 }, "Life", NormalisableRange<float> (0.0f, 1.0f), d.life, pct));
+    layout.add (std::make_unique<Float> (ParameterID { ids::colour, 1 }, "Grain Tone", NormalisableRange<float> (-1.0f, 1.0f), d.colour));
+    layout.add (std::make_unique<Float> (ParameterID { ids::space, 1 }, "Reverb", NormalisableRange<float> (0.0f, 1.0f), d.space, pct));
+    layout.add (std::make_unique<Float> (ParameterID { ids::decay, 1 }, "Reverb Decay", range (0.5f, 30.0f, 5.0f), d.decay, attrs ("s")));
+    layout.add (std::make_unique<Float> (ParameterID { ids::life, 1 }, "Drift", NormalisableRange<float> (0.0f, 1.0f), d.life, pct));
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ids::freeze, 1 }, "Freeze", d.freeze));
     layout.add (std::make_unique<Float> (ParameterID { ids::mix, 1 }, "Mix", NormalisableRange<float> (0.0f, 1.0f), d.mix, pct));
-    layout.add (std::make_unique<Float> (ParameterID { ids::auraX, 1 }, "Aura X", NormalisableRange<float> (0.0f, 1.0f), 0.5f));
-    layout.add (std::make_unique<Float> (ParameterID { ids::auraY, 1 }, "Aura Y", NormalisableRange<float> (0.0f, 1.0f), 0.5f));
+    layout.add (std::make_unique<Float> (ParameterID { ids::auraX, 1 }, "Pad X (Grain Length)", NormalisableRange<float> (0.0f, 1.0f), 0.5f));
+    layout.add (std::make_unique<Float> (ParameterID { ids::auraY, 1 }, "Pad Y (Space)", NormalisableRange<float> (0.0f, 1.0f), 0.5f));
     layout.add (std::make_unique<Float> (ParameterID { ids::output, 1 }, "Output", NormalisableRange<float> (-24.0f, 6.0f), 0.0f, attrs ("dB")));
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ids::magic, 1 }, "Magic Lab", true));
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ids::sync, 1 }, "Tempo Sync", false));
@@ -139,7 +139,7 @@ GrainSettings readGrains (const juce::AudioProcessorValueTreeState& s)
     g.freeze = get (s, ids::freeze) > 0.5f;
     g.mix = get (s, ids::mix);
 
-    // The aura pad: left = fine dust, right = long smears; down = close, up = vast.
+    // The pad: left = short grains, right = long ones; down = dry and close, up = spacious.
     const float x = (get (s, ids::auraX) - 0.5f) * 2.0f;
     const float y = (get (s, ids::auraY) - 0.5f) * 2.0f;
     g.sizeSec = std::clamp (g.sizeSec * std::exp2 (2.5f * x), 0.005f, 3.0f);

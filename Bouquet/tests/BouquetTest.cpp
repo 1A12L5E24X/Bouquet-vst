@@ -251,9 +251,202 @@ static int renderDemo (const juce::File& file, int spell, int instrument, const 
     return writer != nullptr && writer->writeFromAudioSampleBuffer (out, 0, written) ? 0 : 1;
 }
 
+
+// Resident memory of this process in MB (Linux and macOS; 0 elsewhere).
+static double residentMB()
+{
+   #if JUCE_LINUX
+    juce::StringArray lines;
+    lines.addLines (juce::File ("/proc/self/status").loadFileAsString());
+    for (auto& l : lines)
+        if (l.startsWith ("VmRSS:"))
+            return l.fromFirstOccurrenceOf (":", false, false).trim().getDoubleValue() / 1024.0;
+   #endif
+    return 0.0;
+}
+
+// Measures what the plugin costs: audio CPU per instrument and for the busiest spells,
+// the editor's frame and paint times with a full garden, and memory.
+static int measure()
+{
+    const auto names = instrumentNames();
+    const auto& book = spellBook();
+    std::cout << "Memory at start: " << juce::String (residentMB(), 0) << " MB\n\n";
+
+    // Audio: a held four-note chord through the default spell, as a share of real time.
+    auto cpu = [] (BouquetProcessor& p, float seconds, int root)
+    {
+        juce::MidiBuffer midi;
+        for (int k : { 0, 4, 7, 11 })
+            midi.addEvent (juce::MidiMessage::noteOn (1, root + k, 0.8f), 0);
+        juce::AudioBuffer<float> buf (2, block);
+        const int blocks = (int) (seconds * sr / block);
+        double worst = 0.0, total = 0.0;
+        for (int b = 0; b < blocks; ++b)
+        {
+            buf.clear();
+            const auto t0 = juce::Time::getMillisecondCounterHiRes();
+            p.processBlock (buf, midi);
+            const double ms = juce::Time::getMillisecondCounterHiRes() - t0;
+            midi.clear();
+            total += ms;
+            worst = std::max (worst, ms);
+        }
+        const double blockMs = 1000.0 * block / sr;
+        return std::pair { 100.0 * total / (blocks * blockMs), 100.0 * worst / blockMs };
+    };
+
+    std::cout << "Audio, 48 kHz, 512-sample blocks, a held 4-note chord (with the chord shape on top):\n";
+    for (int i = 1; i < names.size(); ++i)
+    {
+        BouquetProcessor p (false);
+        p.setNonRealtime (true);
+        p.prepareToPlay (sr, block);
+        set (p, ids::instrument, (float) i);
+        p.setNonRealtime (false);
+        cpu (p, 1.0f, 48);   // warm up
+        const auto [avg, worst] = cpu (p, 10.0f, 52);
+        std::cout << "  " << names[i].paddedRight (' ', 8) << "average " << juce::String (avg, 1) << "%  worst block "
+                  << juce::String (worst, 1) << "%\n";
+    }
+
+    // The heaviest spells, on the piano.
+    std::vector<std::pair<double, int>> spells;
+    for (int sp = 0; sp < (int) book.size(); ++sp)
+    {
+        BouquetProcessor p (false);
+        p.setNonRealtime (true);
+        p.prepareToPlay (sr, block);
+        set (p, ids::instrument, 1.0f);
+        p.castSpell (sp, 0.0);
+        p.setNonRealtime (false);
+        cpu (p, 1.0f, 48);
+        spells.push_back ({ cpu (p, 4.0f, 52).first, sp });
+    }
+    std::sort (spells.rbegin(), spells.rend());
+    std::cout << "  heaviest spells on piano:";
+    for (int k = 0; k < 3; ++k)
+        std::cout << " " << book[(size_t) spells[(size_t) k].second].name << " " << juce::String (spells[(size_t) k].first, 1) << "%";
+    std::cout << "\n  lightest spell: " << book[(size_t) spells.back().second].name << " " << juce::String (spells.back().first, 1) << "%\n";
+    std::cout << "Memory after audio: " << juce::String (residentMB(), 0) << " MB\n\n";
+
+    // The editor, photoreal, with a garden of twelve bouquets (half of them rotting).
+    BouquetProcessor p (false);
+    p.setPlayConfigDetails (0, 2, sr, block);
+    p.prepareToPlay (sr, block);
+    p.setPhotorealFlowers (true);
+    std::unique_ptr<juce::AudioProcessorEditor> editor (p.createEditor());
+    juce::MidiBuffer midi;
+    juce::AudioBuffer<float> buf (2, block);
+    auto play = [&] (float seconds)
+    {
+        for (int f = 0; f < (int) (seconds * 30.0f); ++f)
+        {
+            for (int b = 0; b < 3; ++b)
+            {
+                buf.clear();
+                p.processBlock (buf, midi);
+            }
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (33);
+        }
+    };
+    for (int i = 0; i < 12; ++i)
+    {
+        const int root = 40 + i * 5;
+        p.keyboardState.noteOn (1, root, 0.8f);
+        play (0.7f);
+        if (i % 2 == 0)
+            p.keyboardState.noteOff (1, root, 0.0f);
+    }
+    play (2.0f);
+    std::cout << "Memory with the editor open and twelve bouquets: " << juce::String (residentMB(), 0) << " MB\n";
+
+    std::function<juce::Component* (juce::Component&)> findSurface = [&] (juce::Component& c) -> juce::Component*
+    {
+        if (dynamic_cast<bouquet::ui::Surface*> (&c) != nullptr)
+            return &c;
+        for (auto* child : c.getChildren())
+            if (auto* found = findSurface (*child))
+                return found;
+        return nullptr;
+    };
+    auto* surface = dynamic_cast<bouquet::ui::Surface*> (findSurface (*editor));
+
+    const int designW = editor->getWidth(), designH = editor->getHeight();
+    for (int scale : { 1, 2 })
+    {
+        // Sized up, the editor renders its cached layers at that density, as on a Retina screen.
+        editor->setSize (designW * scale, designH * scale);
+        play (1.0f);
+        juce::Image target (juce::Image::RGB, editor->getWidth(), editor->getHeight(), false);
+        auto paintMs = [&] (juce::Rectangle<int> area)
+        {
+            double total = 0.0;
+            for (int i = 0; i < 20; ++i)
+            {
+                juce::Graphics g (target);
+                g.reduceClipRegion (area * scale);
+                const auto t0 = juce::Time::getMillisecondCounterHiRes();
+                editor->paintEntireComponent (g, true);
+                total += juce::Time::getMillisecondCounterHiRes() - t0;
+            }
+            return total / 20.0;
+        };
+        double frameMs = 0.0;
+        for (int i = 0; i < 30; ++i)
+        {
+            const auto t0 = juce::Time::getMillisecondCounterHiRes();
+            surface->frame (1.0f / 30.0f);
+            frameMs += juce::Time::getMillisecondCounterHiRes() - t0;
+        }
+        frameMs /= 30.0;
+        const double plants = paintMs ({ 0, 630, 1160, 230 });   // the garden and the grass over the keys
+        const double pad = paintMs ({ 468, 262, 472, 232 });
+        const double full = paintMs ({ 0, 0, designW, designH });
+        std::cout << "Editor at " << scale << "x: frame update " << juce::String (frameMs, 2) << " ms; the aura pad (30 a second) "
+                  << juce::String (pad, 2) << " ms; the garden and grass (15 a second) " << juce::String (plants, 2)
+                  << " ms; a full repaint as the sky moves (2.5 a second) " << juce::String (full, 2) << " ms\n";
+        const double perSecond = 30.0 * (frameMs + pad) + 15.0 * plants + 2.5 * full;
+        std::cout << "  about " << juce::String (perSecond / 10.0, 1) << "% of one core at 30 fps\n";
+    }
+    return 0;
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;
+
+    if (argc >= 2 && juce::String (argv[1]) == "--measure")
+        return measure();
+
+    if (argc >= 2 && juce::String (argv[1]) == "--measure-sprites")
+    {
+        bouquet::ui::real::FlowerSprites sprites;
+        sprites.waitForLoads = true;
+        juce::Image target (juce::Image::RGB, 2320, 400, true);
+        for (auto quality : { juce::Graphics::mediumResamplingQuality, juce::Graphics::highResamplingQuality })
+        {
+            double flower = 0.0, tuft = 0.0;
+            for (int i = 0; i < 40; ++i)
+            {
+                juce::Graphics g (target);
+                g.addTransform (juce::AffineTransform::scale (2.0f));
+                g.setImageResamplingQuality (quality);
+                auto t0 = juce::Time::getMillisecondCounterHiRes();
+                bouquet::ui::real::paintFlower (g, sprites, bouquet::ui::botany::Species::rose, 1, 3, { 200.0f + (float) i * 20.0f, 190.0f },
+                                                 110.0f, 0.05f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f);
+                flower += juce::Time::getMillisecondCounterHiRes() - t0;
+                const auto image = sprites.grass (i % 8);
+                t0 = juce::Time::getMillisecondCounterHiRes();
+                g.drawImageTransformed (image, juce::AffineTransform::translation (-(float) image.getWidth() * 0.5f, -sprites.grassGround())
+                                                   .sheared (-0.1f, 0.0f).scaled (0.4f).translated (300.0f + (float) i * 10.0f, 190.0f));
+                tuft += juce::Time::getMillisecondCounterHiRes() - t0;
+            }
+            std::cout << (quality == juce::Graphics::highResamplingQuality ? "high" : "medium") << ": one flower " << juce::String (flower / 40.0, 3)
+                      << " ms, one grass tuft " << juce::String (tuft / 40.0, 3) << " ms (2x)\n";
+        }
+        return 0;
+    }
 
     if (argc >= 3 && juce::String (argv[1]) == "--species")
     {

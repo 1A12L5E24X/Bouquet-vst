@@ -166,10 +166,10 @@ void AuraPad::paint (juce::Graphics& g)
     g.setFont (Fonts::sansMedium (9.5f, 0.14f));
     g.setColour (ink.withAlpha (0.5f));
     const auto inner = f.reduced (12.0f, 10.0f);
-    g.drawText ("DUST",  inner, juce::Justification::centredLeft, false);
-    g.drawText ("SMEAR", inner, juce::Justification::centredRight, false);
-    g.drawText ("VAST",  inner, juce::Justification::centredTop, false);
-    g.drawText ("CLOSE", inner, juce::Justification::centredBottom, false);
+    g.drawText ("SHORT GRAINS",  inner, juce::Justification::centredLeft, false);
+    g.drawText ("LONG GRAINS", inner, juce::Justification::centredRight, false);
+    g.drawText ("MORE SPACE",  inner, juce::Justification::centredTop, false);
+    g.drawText ("LESS SPACE", inner, juce::Justification::centredBottom, false);
 }
 
 void AuraPad::paintBackdrop (juce::Graphics& g) const
