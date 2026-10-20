@@ -4,8 +4,13 @@ grass seen from just above it, running back to a hazy horizon, with a shallow de
 field so it reads as atmosphere rather than detail. The horizon sits behind the keys,
 and the strip fades out above it, so nothing rises behind the keyboard.
 
+It comes in two layers drawn either side of the keys: `under` (the whole field) and
+`over` (only the blades in front of the keyboard, which grow up over its lower edge in
+uneven clumps, thickest around its ends, as if it had fallen into the grass).
+
 Usage (Blender's Python module, `pip install bpy`):
-    python render_meadow.py --out ../../Bouquet/assets/flowers/meadow.png
+    python render_meadow.py --layer under --out ../../Bouquet/assets/flowers/meadow.png
+    python render_meadow.py --layer over --out ../../Bouquet/assets/flowers/meadow_over.png
 """
 
 import argparse
@@ -27,12 +32,28 @@ BASE = 2.0                # distance to where the keyboard stands, metres (in fo
 HFOV = math.radians(46.0)
 
 
-def build(rng, density):
-    # The ground, with grass from just below the frame to a little behind the keyboard.
-    bpy.ops.mesh.primitive_plane_add(size=1.0, location=(0.0, 20.0, 0.0))
-    plane = bpy.context.active_object
-    plane.scale = (100.0, 50.0, 1.0)
-    plane.data.materials.append(rf.simple_material("turf", (0.07, 0.10, 0.03), roughness=0.9, texture=0.8))
+KEYS_HALF = 0.81          # half the keyboard's width at BASE, metres
+
+
+def clumping(x, y):
+    """How much taller the grass grows here: in uneven clumps along the front of the
+    keyboard, and banked up around its ends, one end more than the other."""
+    if not BASE - 0.14 < y < BASE + 0.05:
+        return 1.0
+    c = math.sin(x * 23 + 1.3) + 0.7 * math.sin(x * 41 - 0.7) + 0.5 * math.sin(x * 67 + 2.1)
+    clump = max(0.0, c - 0.5) * 0.9
+    end = math.exp(-((abs(x) - KEYS_HALF + 0.03) / 0.09) ** 2) * (3.0 if x < 0 else 2.1)
+    near = 1.0 - (BASE - y) / 0.14 if y < BASE else 1.0
+    return 1.0 + (clump + end) * max(0.0, near)
+
+
+def build(rng, density, layer):
+    if layer == "under":
+        # The ground, under grass from just below the frame to a little behind the keyboard.
+        bpy.ops.mesh.primitive_plane_add(size=1.0, location=(0.0, 20.0, 0.0))
+        plane = bpy.context.active_object
+        plane.scale = (100.0, 50.0, 1.0)
+        plane.data.materials.append(rf.simple_material("turf", (0.07, 0.10, 0.03), roughness=0.9, texture=0.8))
 
     blades = []
     y0, y1 = 1.2, BASE + 1.2
@@ -45,8 +66,11 @@ def build(rng, density):
         a = rng.uniform(0, 2 * math.pi)
         lean = rng.uniform(0.1, 0.7)
         d = Vector((math.cos(a) * lean, math.sin(a) * lean * 0.6, 1.0))
-        blades.append((Vector((x, y, 0.0)), d, rng.uniform(0.015, 0.035), rng.uniform(0.0007, 0.0013),
-                       rng.uniform(0.2, 0.9), rng.uniform(-0.6, 0.6), rng.random()))
+        blade = (Vector((x, y, 0.0)), d, rng.uniform(0.015, 0.035) * clumping(x, y), rng.uniform(0.0007, 0.0013),
+                 rng.uniform(0.2, 0.9), rng.uniform(-0.6, 0.6), rng.random())
+        # Both layers draw the same blades; the top one keeps those in front of the keys.
+        if layer == "under" or BASE - 0.4 < y < BASE:
+            blades.append(blade)
     print(f"{len(blades)} blades", flush=True)
     rf.grass_object("grass", blades, rf.grass_material("grass", 0))
 
@@ -94,8 +118,9 @@ def main():
     ap.add_argument("--density", type=float, default=26000.0, help="blades per square metre")
     ap.add_argument("--base", type=float, default=0.52, help="where the keyboard stands, as a fraction from the top")
     ap.add_argument("--fstop", type=float, default=2.0, help="lower: blurrier foreground")
-    ap.add_argument("--fade", type=float, nargs=2, default=[0.28, 0.5], help="fade-in band, fractions from the top")
-    ap.add_argument("--sides", type=float, default=0.6, help="how much the strip fades towards its ends")
+    ap.add_argument("--layer", choices=["under", "over"], default="under")
+    ap.add_argument("--fade", type=float, nargs=2, default=[0.0, 0.12], help="fade-in band, fractions from the top")
+    ap.add_argument("--sides", type=float, default=0.0, help="how much the strip fades towards its ends")
     args = ap.parse_args(argv)
     width, height = (int(v) for v in args.size.split("x"))
 
@@ -103,7 +128,7 @@ def main():
     rf.setup_render(width, height, args.samples)
     rf.clear_scene()
     rf.add_lights()
-    build(random.Random(3), args.density)
+    build(random.Random(3), args.density, args.layer)
     add_camera(width, height, args.base, args.fstop)
     out = os.path.abspath(args.out)
     bpy.context.scene.render.filepath = out
