@@ -42,6 +42,10 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
   keyboard in a meadow, the bouquets growing up from behind the keys.
 - **Presets**: click **Garden** to look down on a lawn where every preset is a flower. Hover to see a name,
   click to load, **plant this sound** to save yours as a new flower. Right-click to uproot.
+  **Water** a flower to grow a richer version of it: click the flasks on the lab bench to stir tonics
+  into the beaker (rain water for air and room, honey for warmth and more voices, moonwater for shimmer
+  and echoes, storm water for wildness), then drag the beaker onto a flower. Every pour measures a
+  little differently, and sometimes the mix fizzes into something unexpected. Click the beaker to tip it out.
 
   ![The preset garden](docs/meadow.jpg)
 

@@ -288,6 +288,16 @@ Preset BouquetProcessor::plantPreset (const juce::String& name)
     return preset;
 }
 
+bouquet::Watering BouquetProcessor::waterPreset (const Preset& source, const std::vector<bouquet::Tonic>& tonics)
+{
+    auto watering = bouquet::waterPreset (apvts, source, tonics, presets, random);
+    presets.save (watering.preset);
+    if (auto* saved = presets.find (watering.preset.name))
+        watering.preset = *saved;
+    applyPreset (watering.preset, 1.6);
+    return watering;
+}
+
 void BouquetProcessor::mutate()
 {
     std::vector<std::pair<juce::String, float>> targets;

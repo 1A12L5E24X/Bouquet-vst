@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "ui/Garden.h"
 #include "ui/PluginEditor.h"
+#include "ui/Meadow.h"
 #include "ui/Botany.h"
 #include "ui/RealFlowers.h"
 #include "Assets.h"
@@ -159,6 +160,29 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
         if (auto* bouquetEditor = dynamic_cast<BouquetEditor*> (editor.get()))
             bouquetEditor->showPresetGarden (17);
         play (2.0f);
+    }
+    // The lab bench: honey and moonwater poured on a flower, mid-pour or just after.
+    if (mode.startsWith ("water") || mode.startsWith ("realwater"))
+    {
+        const auto temp = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("bouquet-snapshot-presets");
+        temp.deleteRecursively();
+        p.presets.setUserFolder (temp);
+        if (auto* bouquetEditor = dynamic_cast<BouquetEditor*> (editor.get()))
+            bouquetEditor->showPresetGarden();
+        play (2.0f);
+        std::function<bouquet::ui::Meadow* (juce::Component&)> findMeadow = [&] (juce::Component& c) -> bouquet::ui::Meadow*
+        {
+            if (auto* m = dynamic_cast<bouquet::ui::Meadow*> (&c))
+                return m;
+            for (auto* child : c.getChildren())
+                if (auto* found = findMeadow (*child))
+                    return found;
+            return nullptr;
+        };
+        if (auto* meadow = findMeadow (*editor))
+            meadow->water (8, { Tonic::honey, Tonic::moon });
+        play (mode.endsWith ("ed") ? 2.0f : 1.0f);
+        temp.deleteRecursively();
     }
 
     // For design mock-ups: the garden alone, on transparency, at twice the size.
@@ -694,6 +718,27 @@ int main (int argc, char** argv)
 
         p.presets.remove (*p.presets.find ("test bloom"));
         check (p.presets.user().empty(), "uprooting deletes it");
+
+        // Watering grows a richer version beside the original, never quite the same twice.
+        const auto& cello = *p.presets.find ("bare cello");
+        const auto watered = p.waterPreset (cello, {});
+        check (watered.preset.name == "bare cello, watered" && p.presets.find ("bare cello, watered") != nullptr, "watering saves a new preset");
+        check (watered.preset.get (ids::magic) > 0.5f, "watering wakes the Magic Lab");
+        check (watered.preset.get (ids::harmonyAmount) > cello.get (ids::harmonyAmount)
+                   || watered.fizzed, "watered preset is fuller");
+        check (p.getCurrentPresetName() == watered.preset.name, "watering loads the new preset");
+        const auto again = p.waterPreset (cello, { Tonic::rain, Tonic::moon, Tonic::rain });
+        check (again.preset.name == "bare cello, rain-fed & moonlit", "tonics name the new preset");
+        check (again.preset.get (ids::space) > cello.get (ids::space), "rain water adds space");
+        const auto twice = p.waterPreset (cello, {});
+        check (twice.preset.name == "bare cello, watered ii", "watering the same way again grows a sibling");
+        const auto rewatered = p.waterPreset (again.preset, { Tonic::storm });
+        check (rewatered.preset.name == "bare cello, storm-struck", "rewatering keeps the root name");
+        for (auto* w : { &watered, &again, &twice, &rewatered })
+            for (auto& [id, value] : w->preset.values)
+                if (auto* param = p.apvts.getParameter (id))
+                    check (std::isfinite (value) && param->convertTo0to1 (value) >= -0.001f && param->convertTo0to1 (value) <= 1.001f,
+                           "watered value in range: " + id);
         temp.deleteRecursively();
     }
 
