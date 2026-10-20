@@ -62,6 +62,13 @@ jobs:
           NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
         run: scripts/package-macos.sh build
 
+      # Install the package on the runner and check the plugin finds what it installed.
+      - name: Install and find the assets
+        if: runner.os == 'macOS'
+        run: |
+          sudo installer -pkg build/Bouquet-macOS.pkg -target /
+          BOUQUET_NO_DEV_ASSETS=1 build/Bouquet/BouquetTest_artefacts/Release/BouquetTest --where
+
       - name: Upload macOS installer
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4

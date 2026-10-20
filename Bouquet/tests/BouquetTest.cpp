@@ -419,6 +419,16 @@ int main (int argc, char** argv)
     if (argc >= 2 && juce::String (argv[1]) == "--measure")
         return measure();
 
+    if (argc >= 2 && juce::String (argv[1]) == "--where")
+    {
+        // Where the plugin finds its shipped assets (CI runs this after installing the .pkg).
+        const auto flowers = bouquet::assets::find ("Flowers", "daisy0.json");
+        const auto samples = bouquet::assets::find ("Samples", "samples.json");
+        std::cout << "Flowers: " << (flowers.exists() ? flowers.getFullPathName() : juce::String ("NOT FOUND")) << "\n"
+                  << "Samples: " << (samples.exists() ? samples.getFullPathName() : juce::String ("NOT FOUND")) << "\n";
+        return flowers.exists() && samples.exists() ? 0 : 1;
+    }
+
     if (argc >= 2 && juce::String (argv[1]) == "--measure-sprites")
     {
         bouquet::ui::real::FlowerSprites sprites;
