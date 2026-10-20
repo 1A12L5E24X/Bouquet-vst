@@ -57,8 +57,8 @@ private:
     bool opening = false;
     juce::String pendingGrowth;   // name of a newly planted preset, grows in from seed
 
-    GlowItem plantButton { "plant this sound", GlowItem::Style::pill, juce::Colour (0xff5cc9a7), juce::Colour (0xfff2c14e) };
-    GlowItem closeButton { "back to the lab", GlowItem::Style::pill, juce::Colour (0xffa58cf0), juce::Colour (0xff6fa8f5) };
+    GlowItem plantButton { "Plant this sound", GlowItem::Style::pill, juce::Colour (0xff5cc9a7), juce::Colour (0xfff2c14e) };
+    GlowItem closeButton { "Back to the lab", GlowItem::Style::pill, juce::Colour (0xffa58cf0), juce::Colour (0xff6fa8f5) };
     juce::TextEditor nameField;
 };
 } // namespace bouquet::ui

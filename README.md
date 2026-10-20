@@ -27,10 +27,10 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
 
 - **Sound Lab**: piano, rhodes, marimba, harp, violin, cello and flute are recordings of real
   instruments; glass and choir are synthesised; or use live input. One finger plays a whole chord
-  (shape, voicing, strum). **forest** and **wildlife** set how deep in the trees you are and how much
-  of the forest you hear.
+  (shape, voicing, strum). **Distance** sets how deep in the trees the instrument is, **Ambience** how
+  much of the forest you hear.
 - **Magic Lab**: 40 granular spells (chord smear, frozen breath, shimmer halo…). Click one and everything
-  glides there. Drag the aura pad, hit **Freeze**, **Mutate**. The **Magic Lab** switch bypasses it and folds it away.
+  glides there. Drag the pad (left–right: grain length; down–up: space), hit **Freeze**, **Mutate**. The **Magic Lab** switch bypasses it and folds it away.
   **Tempo sync** locks the grains to your DAW's beat grid (the grain rate snaps to the nearest note
   length, straight or triplet) and makes echoes land on whole note lengths.
 - **Expression**: press into held keys (aftertouch, channel or polyphonic) to swell and brighten a note

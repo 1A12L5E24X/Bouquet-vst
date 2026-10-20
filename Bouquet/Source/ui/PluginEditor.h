@@ -10,17 +10,24 @@
 
 namespace bouquet::ui
 {
-// The blades of grass in front of the keyboard, drawn over the keys (photoreal only).
-// It never takes the mouse, so the keys underneath still play.
-class GrassOverKeys : public juce::Component
+// One layer of the meadow the keyboard lies in (photoreal only): the field behind and
+// under the keys (still), or the blades in front of them, drawn over the keys, which
+// sway gently, more with the mod wheel. It never takes the mouse, so the keys still play.
+class MeadowLayer : public juce::Component
 {
 public:
-    explicit GrassOverKeys (BouquetProcessor& p) : processor (p) { setInterceptsMouseClicks (false, false); }
+    MeadowLayer (BouquetProcessor& p, bool overKeys) : processor (p), over (overKeys) { setInterceptsMouseClicks (false, false); }
     void paint (juce::Graphics&) override;
+
+    // Bends the grass for this moment; call once per frame. True when it changed.
+    bool sway (float time, float wind, int pixelScale);
 
 private:
     BouquetProcessor& processor;
+    bool over;
     juce::SharedResourcePointer<real::FlowerSprites> sprites;
+    juce::Image source, bent;      // at the screen's pixel density
+    std::vector<float> wave;
 };
 
 // Everything lives in this fixed-size surface; the editor scales it to the window.
@@ -80,14 +87,15 @@ private:
     HeaderButton mutate { "Mutate", HeaderButton::Icon::sparkle };
     GlowKnob output;
 
+    MeadowLayer meadowUnder;
     Garden garden;
     GlowKeyboard keyboard;
-    GrassOverKeys grassOverKeys;
+    MeadowLayer meadowOver;
     Meadow meadow;
 
     juce::Image aurora, background;
     juce::SharedResourcePointer<real::FlowerSprites> sprites;
-    juce::Image skyScaled;          // the photoreal sky at the window's pixel height
+    juce::Image skyStrip;           // the photoreal sky at the window's pixel height, then mirrored
     bool paintSky (juce::Graphics&, int pixelW, int pixelH, float t);
     std::array<juce::int8, 256 * 256> grainNoise {};
     struct Column { int offset, t; };
@@ -98,6 +106,7 @@ private:
     int shownInstrument = -1, shownSpell = -1;
     juce::Rectangle<int> spellLineArea;
     float magicShown = 1.0f;   // eases towards the Magic Lab switch: 1 open, 0 folded away
+    int frameCount = 0;
 };
 } // namespace bouquet::ui
 

@@ -28,24 +28,6 @@ namespace
             g.fillRoundedRectangle (r.expanded (spread * k).translated (0.0f, dropY * k), radius + spread * k);
         }
     }
-
-    struct AuroraBlob
-    {
-        float x, y, radius, speed, phase;
-        juce::Colour colour;
-        bool warm;
-    };
-
-    // Sunlight: warm on the left, sky on the right, a pale sun up in the corner.
-    const AuroraBlob blobs[] = {
-        { 0.10f, 0.08f, 0.55f, 0.05f, 0.0f, colours::butter, true },
-        { 0.18f, 0.55f, 0.40f, 0.11f, 1.7f, colours::peach,  true },
-        { 0.08f, 0.95f, 0.32f, 0.13f, 3.1f, colours::rose,   true },
-        { 0.62f, 0.18f, 0.42f, 0.07f, 0.9f, colours::sky,    false },
-        { 0.92f, 0.60f, 0.40f, 0.09f, 2.4f, colours::lilac,  false },
-        { 0.75f, 1.00f, 0.32f, 0.12f, 4.2f, colours::mint,   false },
-        { 0.45f, 0.50f, 0.26f, 0.05f, 5.0f, colours::butter, false },
-    };
 }
 
 Surface::Surface (BouquetProcessor& p)
@@ -55,21 +37,22 @@ Surface::Surface (BouquetProcessor& p)
       attack  (state, ids::attack, "attack", colours::coral, colours::peach),
       release (state, ids::release, "release", colours::coral, colours::peach),
       strum   (state, ids::strum, "strum", colours::rose, colours::amber),
-      forest  (state, ids::forest, "forest", juce::Colour (0xff6f9f5c), colours::mint),
-      wildlife (state, ids::wildlife, "wildlife", juce::Colour (0xff6f9f5c), colours::butter),
+      forest  (state, ids::forest, "distance", juce::Colour (0xff6f9f5c), colours::mint),
+      wildlife (state, ids::wildlife, "ambience", juce::Colour (0xff6f9f5c), colours::butter),
       level   (state, ids::sourceLevel, "level", colours::coral, colours::amber),
       aura    (state, p.engine),
       mix     (state, ids::mix, "mix", colours::violet, colours::aqua),
-      space   (state, ids::space, "space", colours::indigo, colours::lavender),
-      life    (state, ids::life, "life", colours::violet, colours::rose),
+      space   (state, ids::space, "reverb", colours::indigo, colours::lavender),
+      life    (state, ids::life, "drift", colours::violet, colours::rose),
       freeze  (state),
       output  (state, ids::output, "output", colours::lilac, colours::sky),
+      meadowUnder (p, false),
       garden (p, [this] (float note)
       {
           return keyboard.getRectangleForKey (juce::jlimit (36, 107, juce::roundToInt (note))).getCentreX();
       }),
       keyboard (p.keyboardState),
-      grassOverKeys (p),
+      meadowOver (p, true),
       meadow (p)
 {
     setOpaque (true);
@@ -131,11 +114,11 @@ Surface::Surface (BouquetProcessor& p)
 
     struct InnerDef { const juce::String& id; const char* label; bool bipolar; };
     const InnerDef innerDefs[] = {
-        { ids::density, "density", false }, { ids::size, "size", false },      { ids::time, "reach", false },
-        { ids::spray, "spray", false },     { ids::pitch, "pitch", true },     { ids::harmonyAmount, "chord", false },
-        { ids::detune, "detune", false },   { ids::reverse, "reverse", false }, { ids::chaos, "chaos", false },
-        { ids::shape, "edge", false },      { ids::width, "width", false },    { ids::feedback, "echo", false },
-        { ids::colour, "colour", true },    { ids::decay, "decay", false },
+        { ids::density, "density", false }, { ids::size, "size", false },      { ids::time, "delay", false },
+        { ids::spray, "spray", false },     { ids::pitch, "pitch", true },     { ids::harmonyAmount, "harmony", false },
+        { ids::detune, "detune", false },   { ids::reverse, "reverse", false }, { ids::chaos, "jitter", false },
+        { ids::shape, "shape", false },      { ids::width, "width", false },    { ids::feedback, "feedback", false },
+        { ids::colour, "tone", true },    { ids::decay, "decay", false },
     };
     for (size_t i = 0; i < std::size (innerDefs); ++i)
     {
@@ -154,9 +137,10 @@ Surface::Surface (BouquetProcessor& p)
     for (auto* c : std::initializer_list<juce::Component*> { &gardenButton, &flowerStyle, &syncSwitch, &magicSwitch })
         addAndMakeVisible (c);
 
+    addAndMakeVisible (meadowUnder);
     addAndMakeVisible (garden);
     addAndMakeVisible (keyboard);
-    addAndMakeVisible (grassOverKeys);
+    addAndMakeVisible (meadowOver);
     addChildComponent (meadow);
     magicShown = param (ids::magic) > 0.5f ? 1.0f : 0.0f;
 
@@ -253,7 +237,8 @@ void Surface::resized()
 
     garden.setBounds (gardenArea);
     keyboard.setBounds (keysArea);
-    grassOverKeys.setBounds (meadowArea);
+    meadowUnder.setBounds (meadowArea);
+    meadowOver.setBounds (meadowArea);
     meadow.setBounds (getLocalBounds());
     keyboard.setKeyWidth ((float) keysArea.getWidth() / 42.0f);
 
@@ -349,9 +334,9 @@ void Surface::frame (float dt)
     shownInstrument = instrument;
     shownSpell = spell;
 
-    // The aurora drifts slowly; refresh it a few times a second (and when the
+    // The sky drifts slowly; refresh it a few times a second (and when the
     // window moves to a screen with a different pixel density).
-    if (background.isNull() || clock() - backgroundTime > 0.2 || pixelScale() != backgroundScale)
+    if (background.isNull() || clock() - backgroundTime > 0.4 || pixelScale() != backgroundScale)
     {
         backgroundTime = clock();
         renderBackground();
@@ -362,6 +347,13 @@ void Surface::frame (float dt)
     if (magicShown > 0.0f)
         aura.tick (dt);
     garden.tick (dt);
+    // The plants move slowly, so the garden and the grass in front of the keys are redrawn
+    // together at half the frame rate (one paint for both).
+    const bool plantFrame = (++frameCount & 1) == 0;
+    if (meadowUnder.sway (0.0f, 0.0f, pixelScale()))
+        meadowUnder.repaint();
+    if (plantFrame && meadowOver.sway ((float) clock(), processor.modWheel.load(), pixelScale()))
+        meadowOver.repaint();
 
     if (fullRepaint)
     {
@@ -391,7 +383,8 @@ void Surface::frame (float dt)
         aura.repaint();
         freeze.repaint();
     }
-    garden.repaint();
+    if (plantFrame)
+        garden.repaint();
 }
 
 int Surface::pixelScale() const
@@ -414,18 +407,25 @@ bool Surface::paintSky (juce::Graphics& g, int pixelW, int pixelH, float t)
     if (! sky.isValid())
         return false;
 
-    // Scaled once to the window's pixel height, then only ever blitted.
-    if (skyScaled.getHeight() != pixelH)
+    // Scaled once to the window's pixel height and laid next to its mirror image, so it
+    // can scroll on forever without a seam; then only ever blitted.
+    if (skyStrip.getHeight() != pixelH)
     {
         const int w = std::max (pixelW, juce::roundToInt ((float) sky.getWidth() * (float) pixelH / (float) sky.getHeight()));
-        skyScaled = sky.rescaled (w, pixelH, juce::Graphics::highResamplingQuality);
+        const auto scaled = sky.rescaled (w, pixelH, juce::Graphics::highResamplingQuality);
+        skyStrip = juce::Image (juce::Image::RGB, w * 2, pixelH, false);
+        juce::Graphics sg (skyStrip);
+        sg.drawImageAt (scaled, 0, 0);
+        sg.drawImageTransformed (scaled, juce::AffineTransform::scale (-1.0f, 1.0f).translated ((float) w * 2.0f, 0.0f));
     }
 
-    // The clouds drift very slowly across and back (one crossing every quarter hour).
-    const int travel = skyScaled.getWidth() - pixelW;
-    const int x = juce::roundToInt ((0.5f + 0.5f * std::sin (t * 0.0035f)) * (float) travel);
+    // The clouds drift steadily across, two points a second.
+    const int period = skyStrip.getWidth();
+    const int x = (int) std::fmod ((double) t * 2.0 * (double) pixelH / (double) designHeight, (double) period);
     g.setOpacity (1.0f);
-    g.drawImageAt (skyScaled, -x, 0);
+    g.drawImageAt (skyStrip, -x, 0);
+    if (period - x < pixelW)
+        g.drawImageAt (skyStrip, period - x, 0);
 
     // Bright midday haze, so the glass and the type stay light and clear.
     g.setGradientFill (juce::ColourGradient (colours::frost.withAlpha (0.06f), 0.0f, 0.0f,
@@ -465,23 +465,28 @@ void Surface::renderBackground()
         ag.setGradientFill (base);
         ag.fillAll();
 
-        for (const auto& b : blobs)
-        {
-            const float cx = (b.x + 0.08f * std::sin (t * b.speed + b.phase) + 0.02f * breath) * w;
-            const float cy = (b.y + 0.06f * std::cos (t * b.speed * 0.8f + b.phase * 1.3f)) * h;
-            const float r = b.radius * w * (1.0f + 0.06f * std::sin (t * 0.3f + b.phase));
-            const float alpha = 0.3f * (b.warm ? warm : cool);
-            juce::ColourGradient grad (b.colour.withAlpha (std::min (0.6f, alpha)), cx, cy,
-                                       b.colour.withAlpha (0.0f), cx + r, cy, true);
-            ag.setGradientFill (grad);
-            ag.fillEllipse (cx - r, cy - r, r * 2.0f, r * 2.0f);
-        }
-
-        // Daylight: the centre washed brighter, the edges a touch warmer.
-        juce::ColourGradient wash (colours::frost.withAlpha (0.35f), w * 0.5f, h * 0.4f,
-                                   colours::paperDeep.withAlpha (0.0f), 0.0f, 0.0f, true);
-        ag.setGradientFill (wash);
+        // Calm daylight on paper: the sun low on the left, a cool sky light on the right,
+        // both breathing a little with the sound.
+        juce::ColourGradient sun (colours::butter.withAlpha (std::min (0.3f, 0.18f * warm)), w * 0.12f, h * 0.05f,
+                                  colours::butter.withAlpha (0.0f), w * 0.7f, h * 0.05f, true);
+        ag.setGradientFill (sun);
         ag.fillAll();
+        juce::ColourGradient skyLight (colours::sky.withAlpha (std::min (0.16f, 0.08f * cool)), w * 0.95f, h * 0.3f,
+                                       colours::sky.withAlpha (0.0f), w * 0.4f, h * 0.3f, true);
+        ag.setGradientFill (skyLight);
+        ag.fillAll();
+
+        // The ground the keyboard rests on: a soft sage hill along the bottom.
+        juce::Path hill;
+        hill.startNewSubPath (0.0f, h * 0.9f);
+        hill.cubicTo (w * 0.3f, h * 0.875f, w * 0.7f, h * 0.875f, w, h * 0.9f);
+        hill.lineTo (w, h);
+        hill.lineTo (0.0f, h);
+        hill.closeSubPath();
+        ag.setGradientFill (juce::ColourGradient (juce::Colour (0xffb8cfa6).withAlpha (0.55f), 0.0f, h * 0.88f,
+                                                  juce::Colour (0xff97b585).withAlpha (0.7f), 0.0f, h, false));
+        ag.fillPath (hill);
+        juce::ignoreUnused (t, breath);
     }
 
     // Stretch the aurora to full size (bilinear) and sprinkle film grain in the same pass.
@@ -537,17 +542,8 @@ void Surface::renderBackground()
 
     // The keyboard lies in a meadow (photoreal), or rests on the light (drawn).
     const auto keys = keysArea.toFloat();
-    if (photoreal && sprites->meadow (false).isValid())
-    {
-        g.setOpacity (1.0f);
-        g.drawImage (sprites->meadow (false), meadowArea.toFloat());
-        drawGlow (g, juce::Rectangle<float> (keys.getX() + 6.0f, keys.getBottom() - 10.0f, keys.getWidth() - 12.0f, 22.0f),
-                  juce::Colour (0xff0c1806).withAlpha (0.45f));
-    }
-    else
-    {
+    if (! photoreal)
         softShadow (g, keys, 10.0f, colours::ink.withAlpha (0.08f), 12.0f, 6.0f);
-    }
 
     // Glass: the light behind each panel, blurred, under a pale frost.
     paintPanel (g, soundPanel, frost (soundPanel, scale));
@@ -600,15 +596,79 @@ void Surface::paintPanel (juce::Graphics& g, juce::Rectangle<float> r, const juc
     g.drawRoundedRectangle (r.reduced (0.5f), radius, 1.0f);
 }
 
-void GrassOverKeys::paint (juce::Graphics& g)
+bool MeadowLayer::sway (float time, float wind, int scale)
 {
-    if (! processor.photorealFlowers())
-        return;
-    const auto image = sprites->meadow (true);
-    if (image.isValid())
+    if (! processor.photorealFlowers() || getWidth() <= 0)
     {
-        g.setOpacity (1.0f);
-        g.drawImage (image, getLocalBounds().toFloat());
+        const bool shown = bent.isValid();
+        bent = {};
+        return shown;
+    }
+    const auto full = sprites->meadow (over);
+    if (! full.isValid())
+        return false;
+
+    const int w = getWidth() * scale, h = getHeight() * scale;
+    if (! over && bent.isValid() && bent.getWidth() == w && bent.getHeight() == h)
+        return false;   // the field under the keys stays still
+    if (source.getWidth() != w || source.getHeight() != h)
+    {
+        source = full.rescaled (w, h, juce::Graphics::highResamplingQuality).convertedToFormat (juce::Image::ARGB);
+        bent = juce::Image (juce::Image::ARGB, w, h, true);
+        wave.resize ((size_t) w);
+    }
+
+    // A slow wave of wind running along the field, a quicker ripple on top, in gusts.
+    const float px = (float) scale;
+    const float amp = over ? (1.1f + 4.0f * wind) * (0.7f + 0.3f * std::sin (time * 0.37f)) * px : 0.0f;
+    for (int x = 0; x < w; ++x)
+    {
+        const float lx = (float) x / px;
+        wave[(size_t) x] = amp * (std::sin (lx * 0.021f - time * 0.9f) + 0.5f * std::sin (lx * 0.067f - time * 1.7f + 1.7f));
+    }
+
+    // Each row slides along the wave, the tips the most and the roots not at all.
+    const float tips = over ? 0.25f : 0.1f, roots = over ? 0.8f : 0.7f;
+    const juce::Image::BitmapData in (source, juce::Image::BitmapData::readOnly);
+    juce::Image::BitmapData out (bent, juce::Image::BitmapData::writeOnly);
+    const int stride = in.pixelStride;
+    for (int y = 0; y < h; ++y)
+    {
+        const float k = juce::jlimit (0.0f, 1.0f, (roots - (float) y / (float) h) / (roots - tips));
+        const juce::uint8* src = in.getLinePointer (y);
+        juce::uint8* dst = out.getLinePointer (y);
+        if (k * amp * 1.5f < 0.05f)
+        {
+            std::memcpy (dst, src, (size_t) (w * stride));
+            continue;
+        }
+        for (int x = 0; x < w; ++x, dst += stride)
+        {
+            const float sx = (float) x - wave[(size_t) x] * k;
+            const int i = (int) std::floor (sx);
+            const int f = (int) ((sx - (float) i) * 256.0f);
+            const juce::uint8* a = src + juce::jlimit (0, w - 1, i) * stride;
+            const juce::uint8* b = src + juce::jlimit (0, w - 1, i + 1) * stride;
+            for (int c = 0; c < stride; ++c)
+                dst[c] = (juce::uint8) ((a[c] * (256 - f) + b[c] * f) >> 8);
+        }
+    }
+    return true;
+}
+
+void MeadowLayer::paint (juce::Graphics& g)
+{
+    if (! bent.isValid())
+        return;
+    g.setOpacity (1.0f);
+    g.drawImage (bent, getLocalBounds().toFloat());
+
+    // The keyboard's shadow on the grass it lies in.
+    if (! over)
+    {
+        const auto keys = keysArea.toFloat() - getPosition().toFloat();
+        drawGlow (g, juce::Rectangle<float> (keys.getX() + 6.0f, keys.getBottom() - 10.0f, keys.getWidth() - 12.0f, 22.0f),
+                  juce::Colour (0xff0c1806).withAlpha (0.45f));
     }
 }
 
@@ -669,8 +729,8 @@ void Surface::paint (juce::Graphics& g)
               spellLineArea.withTrimmedLeft (nameW));
     }
 
-    label ("harmony", harmony.getX() + 8, 498, magicShown);
-    label ("inner workings", mx, 522, magicShown);
+    label ("scale", harmony.getX() + 8, 498, magicShown);
+    label ("grains", mx, 522, magicShown);
 }
 } // namespace bouquet::ui
 

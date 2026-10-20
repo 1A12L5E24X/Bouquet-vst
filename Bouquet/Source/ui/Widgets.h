@@ -30,11 +30,11 @@ private:
 };
 
 // A selectable word: a voice (with a dot that lights when chosen), a tab (underlined
-// when chosen), or a pill.
+// when chosen), or a button (a word in a framed glass cell).
 class GlowItem : public juce::Component
 {
 public:
-    enum class Style { text, pill, tab };
+    enum class Style { text, tab, pill };
 
     GlowItem (const juce::String& text, Style, juce::Colour a, juce::Colour b);
 
