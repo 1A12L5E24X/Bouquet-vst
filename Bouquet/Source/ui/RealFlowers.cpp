@@ -311,6 +311,21 @@ void FlowerSprites::prefetch (botany::Species s, int variant, int colour)
         atlas (atlasKey (s, variant, colour), juce::String (speciesNames[(int) s]) + juce::String (variant) + "_" + colourNames[colour], false);
 }
 
+bool FlowerSprites::ready (botany::Species s, int variant, int colour)
+{
+    variant = juce::jlimit (0, numVariants - 1, variant);
+    colour = juce::jlimit (0, numColours - 1, colour);
+    if (infos.count (infoKey (s, variant)) == 0)
+        return true;
+    {
+        const std::lock_guard<std::mutex> l (lock);
+        if (atlases.count (atlasKey (s, variant, colour)) != 0)
+            return true;
+    }
+    prefetch (s, variant, colour);
+    return false;
+}
+
 juce::Image FlowerSprites::top (botany::Species s, int variant, int colour)
 {
     variant = juce::jlimit (0, numVariants - 1, variant);
@@ -374,7 +389,7 @@ juce::Image FlowerSprites::ground()
 //==============================================================================
 void paintFlower (juce::Graphics& g, FlowerSprites& sprites, botany::Species species, int variant, int colour,
                   juce::Point<float> base, float height, float lean, float grow, float bloom, float rot,
-                  float time, float glow, float alpha)
+                  float time, float glow, float alpha, float stretch)
 {
     const float fade = (rot > 0.88f ? 1.0f - (rot - 0.88f) / 0.12f : 1.0f) * alpha;
     if (fade <= 0.01f || grow <= 0.0f)
@@ -388,8 +403,9 @@ void paintFlower (juce::Graphics& g, FlowerSprites& sprites, botany::Species spe
     // Scale from the fully open plant so the size stays steady as it droops.
     const float spriteHeight = std::max (1.0f, open.base.y - open.head.y);
     const float scale = height / spriteHeight;
+    const float tall = 1.0f + juce::jlimit (-0.7f, 0.6f, stretch);
     const auto t = juce::AffineTransform::translation (-frame.base.x, -frame.base.y)
-                       .scaled (scale)
+                       .scaled (scale / std::sqrt (tall), scale * tall)
                        .rotated (lean)
                        .translated (base);
 
