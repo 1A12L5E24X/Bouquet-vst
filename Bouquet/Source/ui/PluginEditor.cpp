@@ -350,10 +350,10 @@ void Surface::frame (float dt)
     // The plants move slowly, so the garden and the grass in front of the keys are redrawn
     // together at half the frame rate (one paint for both).
     const bool plantFrame = (++frameCount & 1) == 0;
-    if (meadowUnder.sway (0.0f, 0.0f, pixelScale()))
-        meadowUnder.repaint();
-    if (plantFrame && meadowOver.sway ((float) clock(), processor.modWheel.load(), pixelScale()))
-        meadowOver.repaint();
+    const float gustOffset = (float) (garden.getX() - meadowArea.getX());
+    for (auto* layer : { &meadowUnder, &meadowOver })
+        if (plantFrame && layer->sway ((float) clock(), processor.modWheel.load(), pixelScale(), garden.getRipples(), gustOffset))
+            layer->repaint();
 
     if (fullRepaint)
     {
@@ -596,7 +596,7 @@ void Surface::paintPanel (juce::Graphics& g, juce::Rectangle<float> r, const juc
     g.drawRoundedRectangle (r.reduced (0.5f), radius, 1.0f);
 }
 
-bool MeadowLayer::sway (float time, float wind, int scale)
+bool MeadowLayer::sway (float time, float wind, int scale, const std::vector<botany::Ripple>& gusts, float gustOffset)
 {
     if (! processor.photorealFlowers() || getWidth() <= 0)
     {
@@ -609,8 +609,6 @@ bool MeadowLayer::sway (float time, float wind, int scale)
         return false;
 
     const int w = getWidth() * scale, h = getHeight() * scale;
-    if (! over && bent.isValid() && bent.getWidth() == w && bent.getHeight() == h)
-        return false;   // the field under the keys stays still
     if (source.getWidth() != w || source.getHeight() != h)
     {
         source = full.rescaled (w, h, juce::Graphics::highResamplingQuality).convertedToFormat (juce::Image::ARGB);
@@ -618,13 +616,22 @@ bool MeadowLayer::sway (float time, float wind, int scale)
         wave.resize ((size_t) w);
     }
 
-    // A slow wave of wind running along the field, a quicker ripple on top, in gusts.
+    // A slow wave of wind running along the field, a quicker ripple on top, in gusts; the
+    // field under the keys moves less than the blades in front. Each chord sends its own
+    // gust out from where it was played.
     const float px = (float) scale;
-    const float amp = over ? (1.1f + 4.0f * wind) * (0.7f + 0.3f * std::sin (time * 0.37f)) * px : 0.0f;
+    const float amp = (over ? 2.4f : 1.2f) * (1.0f + 1.8f * wind) * (0.7f + 0.3f * std::sin (time * 0.37f)) * px;
+    const float gustAmp = (over ? 7.0f : 4.0f) * px;
     for (int x = 0; x < w; ++x)
     {
         const float lx = (float) x / px;
-        wave[(size_t) x] = amp * (std::sin (lx * 0.021f - time * 0.9f) + 0.5f * std::sin (lx * 0.067f - time * 1.7f + 1.7f));
+        float v = amp * (std::sin (lx * 0.021f - time * 0.9f) + 0.5f * std::sin (lx * 0.067f - time * 1.7f + 1.7f));
+        for (const auto& r : gusts)
+        {
+            const float dist = std::abs (lx - (r.x + gustOffset));
+            v += gustAmp * r.strength * std::exp (-r.age * 1.3f) * std::sin (dist * 0.045f - r.age * 7.0f) * std::exp (-dist / 260.0f);
+        }
+        wave[(size_t) x] = v;
     }
 
     // Each row slides along the wave, the tips the most and the roots not at all.
@@ -637,7 +644,7 @@ bool MeadowLayer::sway (float time, float wind, int scale)
         const float k = juce::jlimit (0.0f, 1.0f, (roots - (float) y / (float) h) / (roots - tips));
         const juce::uint8* src = in.getLinePointer (y);
         juce::uint8* dst = out.getLinePointer (y);
-        if (k * amp * 1.5f < 0.05f)
+        if (k < 0.001f)
         {
             std::memcpy (dst, src, (size_t) (w * stride));
             continue;

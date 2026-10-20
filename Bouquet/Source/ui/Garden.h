@@ -9,16 +9,16 @@ class BouquetProcessor;
 
 namespace bouquet::ui
 {
-// The garden: every chord you play sets down its own bouquet, whole, molded by how you
-// play it (the strike squashes it, pressing in draws it up and opens it, the mod wheel
-// bends it), and slowly rotting once it is let go.
+// The garden: every chord you play grows its own bouquet, rising whole from the soil and
+// molded by how you play it (pressing in draws it up and opens it, the mod wheel bends
+// it), and slowly rotting once it is let go.
 class Garden : public juce::Component
 {
 public:
     // noteToX maps a MIDI note to an x position in this component (the key below it).
     Garden (BouquetProcessor&, std::function<float (float note)> noteToX);
 
-    // Advances the molding and decay; call once per frame.
+    // Advances growth, molding and decay; call once per frame.
     void tick (float dt);
     bool isAlive() const { return ! bouquets.empty(); }
 
@@ -27,6 +27,9 @@ public:
 
     // 0 resting .. 1 drawn in: the garden inhales while you play.
     float getBreath() const { return breath; }
+
+    // The gusts sent out by each new chord (x in this component's coordinates).
+    const std::vector<botany::Ripple>& getRipples() const { return ripples; }
 
     // The same chord (notes, shape, instrument, touch) always grows the same bouquet;
     // a different one grows a different bouquet.
@@ -49,6 +52,7 @@ private:
         float x = 0.0f;
         float age = 0.0f;
         bool formed = false;          // shown: its flowers are ready to draw
+        float growth = 0.0f, growSeconds = 1.0f;   // 0 seed .. 1 grown (in time since formed)
         float stiffness = 200.0f;     // how firmly it springs back into shape
         float stretch = 0.0f, stretchSpeed = 0.0f;   // squashed (-) .. drawn up (+)
         float open = 0.0f;            // how far its flowers have opened

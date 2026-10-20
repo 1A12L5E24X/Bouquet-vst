@@ -11,8 +11,9 @@
 namespace bouquet::ui
 {
 // One layer of the meadow the keyboard lies in (photoreal only): the field behind and
-// under the keys (still), or the blades in front of them, drawn over the keys, which
-// sway gently, more with the mod wheel. It never takes the mouse, so the keys still play.
+// under the keys, or the blades in front of them, drawn over the keys. Both sway in a
+// light breeze, more with the mod wheel, and each chord sends a gust through them from
+// where it was played. It never takes the mouse, so the keys still play.
 class MeadowLayer : public juce::Component
 {
 public:
@@ -20,7 +21,8 @@ public:
     void paint (juce::Graphics&) override;
 
     // Bends the grass for this moment; call once per frame. True when it changed.
-    bool sway (float time, float wind, int pixelScale);
+    // gusts: the garden's ripples, their x offset by gustOffset into this layer.
+    bool sway (float time, float wind, int pixelScale, const std::vector<botany::Ripple>& gusts = {}, float gustOffset = 0.0f);
 
 private:
     BouquetProcessor& processor;
