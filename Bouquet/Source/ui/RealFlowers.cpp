@@ -136,6 +136,19 @@ FlowerSprites::FlowerSprites() : folder (assets::find ("Flowers", "daisy0.json")
     extrasSize = (int) juce::JSON::parse (folder.getChildFile ("extras.json")).getProperty ("size", 64);
 
     pool = std::make_unique<juce::ThreadPool> (juce::ThreadPoolOptions().withThreadName ("Bouquet flowers").withNumberOfThreads (2));
+    assets::log ("flowers: " + juce::String ((int) infos.size()) + " species variants read from " + folder.getFullPathName()
+                 + ", grass tufts " + juce::String (grassTufts));
+}
+
+juce::String FlowerSprites::problem()
+{
+    if (! folder.isDirectory())
+        return "the Flowers folder wasn't found (see ~/Library/Logs/Bouquet.log)";
+    if (infos.empty())
+        return "couldn't read the flower data in " + folder.getFullPathName();
+    if (! sky().isValid())
+        return "couldn't open " + folder.getChildFile ("sky.jpg").getFullPathName();
+    return {};
 }
 
 FlowerSprites::~FlowerSprites()
@@ -351,8 +364,13 @@ juce::Image FlowerSprites::drop() const
 
 juce::Image FlowerSprites::sky()
 {
-    if (! skyImage.isValid() && folder.isDirectory())
+    if (! skyImage.isValid() && folder.isDirectory() && ! skyTried)
+    {
+        skyTried = true;
         skyImage = juce::ImageFileFormat::loadFrom (folder.getChildFile ("sky.jpg"));
+        assets::log ("sky: " + (skyImage.isValid() ? juce::String (skyImage.getWidth()) + " x " + juce::String (skyImage.getHeight())
+                                                   : juce::String ("could not be opened")));
+    }
     return skyImage;
 }
 

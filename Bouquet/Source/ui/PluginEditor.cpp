@@ -455,6 +455,7 @@ void Surface::renderBackground()
 
     // Photoreal: a real sky drifting behind the glass. Otherwise the painted aurora.
     const bool photoreal = paintSky (g, pixelW, pixelH, t);
+    photorealProblem = processor.photorealFlowers() && ! photoreal ? sprites->problem() : juce::String();
     if (! photoreal)
     {
     // The aurora is painted small and stretched: it is all blur anyway, and it's cheap.
@@ -694,6 +695,11 @@ void Surface::paint (juce::Graphics& g)
 
     const auto soundArea = this->soundArea();
     const auto magicArea = this->magicArea();
+
+    // Photoreal is on but can't be shown: say why, rather than quietly drawing.
+    if (photorealProblem.isNotEmpty())
+        text ("Photoreal is unavailable: " + photorealProblem, Fonts::sans (11.0f), ink.withAlpha (0.6f),
+              { 24, 732, designWidth - 48, 16 }, juce::Justification::centred);
 
     // --- Sound Lab
     const int lx = soundArea.getX() + pad, lw = soundArea.getWidth() - 2 * pad;

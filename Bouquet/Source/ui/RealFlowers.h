@@ -21,6 +21,8 @@ public:
     ~FlowerSprites();
 
     bool available() const { return ! infos.empty(); }
+    // Why photoreal can't be shown on this machine (empty when it can).
+    juce::String problem();
     // Whether this species has been rendered (otherwise draw it illustrated).
     bool has (botany::Species s) const { return infos.count (infoKey (s, 0)) != 0; }
     static constexpr int numVariants = 3;
@@ -120,6 +122,7 @@ private:
     juce::Image grassSheet, extrasSheet, groundImage, skyImage, meadowUnder, meadowOver;
     int grassTufts = 0, extrasSize = 64;
     float grassGroundY = 0.0f;
+    bool skyTried = false;
 };
 
 // Draws one rendered flower standing at `base`, `height` tall, leaning by `lean`

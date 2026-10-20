@@ -2,7 +2,10 @@ cmake_minimum_required(VERSION 3.22)
 
 # Mac first: run on macOS 11+ (universal arm64 + x86_64 is chosen in CI).
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version")
-project(VST3Test VERSION 0.2.0 LANGUAGES C CXX)
+# The version shown to hosts and in the installer comes from the VERSION file.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" BOUQUET_VERSION)
+string(STRIP "${BOUQUET_VERSION}" BOUQUET_VERSION)
+project(VST3Test VERSION ${BOUQUET_VERSION} LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
