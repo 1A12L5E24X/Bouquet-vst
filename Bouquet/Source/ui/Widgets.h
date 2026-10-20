@@ -6,7 +6,7 @@
 
 namespace bouquet::ui
 {
-// A minimal rotary control: a thin arc of light, its name beneath,
+// A rotary control: a white disc inside a thin coloured arc, its name beneath,
 // which turns into the value while you touch it.
 class GlowKnob : public juce::Component
 {
@@ -29,11 +29,12 @@ private:
     bool wasTouched = false;
 };
 
-// A selectable word or pill that glows when chosen and warms when hovered.
+// A selectable word: a voice (with a dot that lights when chosen), a tab (underlined
+// when chosen), or a pill.
 class GlowItem : public juce::Component
 {
 public:
-    enum class Style { text, pill };
+    enum class Style { text, pill, tab };
 
     GlowItem (const juce::String& text, Style, juce::Colour a, juce::Colour b);
 
@@ -63,7 +64,83 @@ private:
     float hoverLight = 0.0f, selectLight = 0.0f;
 };
 
-// A glass orb that freezes time.
+// A row (or grid) of choices in one frame, divided by hairlines; the chosen cell is
+// tinted with the accent. A cell can be passive (shown, not clickable), which makes
+// a stepper of three cells: minus, the value, plus.
+class Segmented : public juce::Component
+{
+public:
+    Segmented (juce::Colour accent, int columns);
+
+    void setItems (const juce::StringArray&);
+    void setText (int index, const juce::String&);
+    void setSelected (int index);
+    void setPassive (int index) { passive = index; }
+    void setColumnWeights (std::vector<float> w) { weights = std::move (w); }
+    int getNumItems() const { return items.size(); }
+
+    std::function<void (int)> onSelect;
+
+    void paint (juce::Graphics&) override;
+    void mouseMove (const juce::MouseEvent&) override;
+    void mouseExit (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+
+private:
+    juce::Rectangle<float> cell (int index) const;
+    int cellAt (juce::Point<float>) const;
+
+    juce::Colour accent;
+    int columns;
+    juce::StringArray items;
+    std::vector<float> weights;
+    int selected = -1, hovered = -1, passive = -1;
+};
+
+// An on/off switch with its name beside it.
+class Toggle : public juce::Component
+{
+public:
+    explicit Toggle (const juce::String& label);
+
+    void setOn (bool);
+    bool isOn() const { return on; }
+    std::function<void()> onClick;
+
+    void paint (juce::Graphics&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+    void mouseEnter (const juce::MouseEvent&) override { repaint(); }
+    void mouseExit (const juce::MouseEvent&) override  { repaint(); }
+
+    // Slides the knob towards its side; call once per frame. True when it moved.
+    bool animate();
+
+private:
+    juce::String label;
+    bool on = false;
+    float position = 0.0f;
+};
+
+// A plain word with a small line icon in front, for actions in the header.
+class HeaderButton : public juce::Component
+{
+public:
+    enum class Icon { sprout, sparkle };
+    HeaderButton (const juce::String& label, Icon);
+
+    std::function<void()> onClick;
+
+    void paint (juce::Graphics&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+    void mouseEnter (const juce::MouseEvent&) override { repaint(); }
+    void mouseExit (const juce::MouseEvent&) override  { repaint(); }
+
+private:
+    juce::String label;
+    Icon icon;
+};
+
+// The freeze button: a small glass square with a snowflake, which tints when frozen.
 class FreezeOrb : public juce::Component
 {
 public:
@@ -77,11 +154,13 @@ private:
     bool on = false;
 };
 
-// Dark glass keys that bloom with light when played.
+// Ivory and ebony keys in one rounded frame; played keys warm with a coral edge.
 class GlowKeyboard : public juce::MidiKeyboardComponent
 {
 public:
     explicit GlowKeyboard (juce::MidiKeyboardState&);
+
+    void paint (juce::Graphics&) override;
 
     void drawWhiteNote (int note, juce::Graphics&, juce::Rectangle<float>, bool isDown, bool isOver,
                         juce::Colour lineColour, juce::Colour textColour) override;

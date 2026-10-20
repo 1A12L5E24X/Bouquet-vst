@@ -69,6 +69,10 @@ public:
     // A daylight sky with drifting cumulus, wider than the window (photoreal backdrop).
     juce::Image sky();
 
+    // The meadow the keyboard lies in: the field (drawn under the keys) and the blades
+    // in front of them (drawn over the keys). Both span the window's width.
+    juce::Image meadow (bool overKeys);
+
 private:
     struct Info
     {
@@ -113,7 +117,7 @@ private:
     std::map<int, Blend> blends;                      // per atlas: the last cross-fade made
 
     std::map<int, juce::Image> tops;
-    juce::Image grassSheet, extrasSheet, groundImage, skyImage;
+    juce::Image grassSheet, extrasSheet, groundImage, skyImage, meadowUnder, meadowOver;
     int grassTufts = 0, extrasSize = 64;
     float grassGroundY = 0.0f;
 };

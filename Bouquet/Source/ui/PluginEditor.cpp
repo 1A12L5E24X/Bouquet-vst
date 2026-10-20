@@ -4,11 +4,18 @@ namespace bouquet::ui
 {
 namespace
 {
-    constexpr int pad = 22;
-    const juce::Rectangle<int> soundHome { 24, 84, 404, 556 };
-    const juce::Rectangle<int> magicHome { 444, 84, 692, 556 };
-    const juce::Rectangle<int> gardenArea { 24, 640, 1112, 142 };
-    const juce::Rectangle<int> keysArea  { 24, 782, 1112, 66 };
+    constexpr int pad = 24;
+    const juce::Rectangle<int> soundHome { 24, 84, 404, 548 };
+    const juce::Rectangle<int> magicHome { 444, 84, 692, 548 };
+    // The bouquets stand behind the keys, so their stems disappear behind the keyboard.
+    const juce::Rectangle<int> gardenArea { 24, 630, 1112, 142 };
+    const juce::Rectangle<int> keysArea  { 24, 752, 1112, 64 };
+    const juce::Rectangle<int> meadowArea { 0, 760, 1160, 100 };
+
+    juce::String capitalised (const juce::String& s)
+    {
+        return s.substring (0, 1).toUpperCase() + s.substring (1);
+    }
 
     // A soft shadow made of a few widening, faint layers (much cheaper than a blur).
     void softShadow (juce::Graphics& g, juce::Rectangle<float> r, float radius, juce::Colour colour, float spread, float dropY)
@@ -57,11 +64,12 @@ Surface::Surface (BouquetProcessor& p)
       life    (state, ids::life, "life", colours::violet, colours::rose),
       freeze  (state),
       output  (state, ids::output, "output", colours::lilac, colours::sky),
-      keyboard (p.keyboardState),
       garden (p, [this] (float note)
       {
           return keyboard.getRectangleForKey (juce::jlimit (36, 107, juce::roundToInt (note))).getCentreX();
       }),
+      keyboard (p.keyboardState),
+      grassOverKeys (p),
       meadow (p)
 {
     setOpaque (true);
@@ -72,61 +80,53 @@ Surface::Surface (BouquetProcessor& p)
     {
         auto* item = instruments.add (new GlowItem (names[i], GlowItem::Style::text, colours::coral, colours::peach));
         item->setShowDot (true);
-        item->setFont (Fonts::serif (19.0f));
+        item->setFont (Fonts::serif (18.0f));
         item->onClick = [this, i] { setParam (ids::instrument, (float) i); };
         addAndMakeVisible (item);
     }
 
-    const auto& shapes = chordShapes();
-    for (int i = 0; i < (int) shapes.size(); ++i)
-    {
-        auto* item = chords.add (new GlowItem (shapes[(size_t) i].name, GlowItem::Style::pill, colours::rose, colours::amber));
-        item->setFont (Fonts::serif (14.5f));
-        item->onClick = [this, i] { setParam (ids::chord, (float) i); };
-        addAndMakeVisible (item);
-    }
+    juce::StringArray chordNames;
+    for (const auto& shape : chordShapes())
+        chordNames.add (capitalised (shape.name));
+    chords.setItems (chordNames);
+    chords.onSelect = [this] (int i) { setParam (ids::chord, (float) i); };
 
-    const juce::StringArray voicingNames { "close", "open", "wide" };
-    for (int i = 0; i < voicingNames.size(); ++i)
-    {
-        auto* item = voicings.add (new GlowItem (voicingNames[i], GlowItem::Style::pill, colours::coral, colours::peach));
-        item->setFont (Fonts::serif (14.5f));
-        item->onClick = [this, i] { setParam (ids::voicing, (float) i); };
-        addAndMakeVisible (item);
-    }
+    voicings.setItems ({ "Close", "Open", "Wide" });
+    voicings.onSelect = [this] (int i) { setParam (ids::voicing, (float) i); };
 
-    octaveDown.onClick = [this] { setParam (ids::octave, std::max (-2.0f, param (ids::octave) - 1.0f)); };
-    octaveUp.onClick   = [this] { setParam (ids::octave, std::min (2.0f, param (ids::octave) + 1.0f)); };
-    for (auto* c : std::initializer_list<juce::Component*> { &octaveDown, &octaveUp, &tone, &attack, &release, &strum, &forest, &wildlife, &level })
+    octave.setItems ({ juce::String (juce::CharPointer_UTF8 ("\xe2\x88\x92")), "0", "+" });
+    octave.setPassive (1);
+    octave.setColumnWeights ({ 1.0f, 1.2f, 1.0f });
+    octave.onSelect = [this] (int i)
+    {
+        const float step = i == 0 ? -1.0f : 1.0f;
+        setParam (ids::octave, juce::jlimit (-2.0f, 2.0f, param (ids::octave) + step));
+    };
+    for (auto* c : std::initializer_list<juce::Component*> { &chords, &voicings, &octave, &tone, &attack, &release, &strum, &forest, &wildlife, &level })
         addAndMakeVisible (c);
 
     // --- Magic Lab
     const auto cats = spellCategories();
     for (int i = 0; i < cats.size(); ++i)
     {
-        auto* item = categories.add (new GlowItem (cats[i], GlowItem::Style::text, colours::violet, colours::aqua));
+        auto* item = categories.add (new GlowItem (cats[i], GlowItem::Style::tab, colours::violet, colours::aqua));
         item->setFont (Fonts::serifItalic (17.0f));
         item->onClick = [this, i] { showCategory (i); };
         addAndMakeVisible (item);
     }
 
-    for (int i = 0; i < 8; ++i)
+    spells.onSelect = [this] (int i)
     {
-        auto* item = spells.add (new GlowItem ({}, GlowItem::Style::pill, colours::violet, colours::aqua));
-        item->setFont (Fonts::serif (15.5f));
-        item->onClick = [this, i]
-        {
-            if (i < (int) visibleSpells.size())
-                processor.castSpell (visibleSpells[(size_t) i]);
-        };
-        addAndMakeVisible (item);
-    }
+        if (i < (int) visibleSpells.size())
+            processor.castSpell (visibleSpells[(size_t) i]);
+    };
+    addAndMakeVisible (spells);
 
     for (auto* c : std::initializer_list<juce::Component*> { &aura, &mix, &space, &life, &freeze, &mutate, &output, &harmony })
         addAndMakeVisible (c);
 
     for (auto& h : harmonySets())
-        harmony.addItem (h.name, harmony.getNumItems() + 1);
+        harmony.addItem (capitalised (h.name), harmony.getNumItems() + 1);
     harmonyAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (state, ids::harmony, harmony);
 
     struct InnerDef { const juce::String& id; const char* label; bool bipolar; };
@@ -146,23 +146,17 @@ Surface::Surface (BouquetProcessor& p)
         addAndMakeVisible (knob);
     }
 
-    mutate.setFont (Fonts::serifItalic (16.0f));
     mutate.onClick = [this] { processor.mutate(); };
-    gardenButton.setFont (Fonts::serifItalic (17.0f));
     gardenButton.onClick = [this] { meadow.open(); };
-    magicSwitch.setFont (Fonts::serifItalic (16.0f));
     magicSwitch.onClick = [this] { setParam (ids::magic, param (ids::magic) > 0.5f ? 0.0f : 1.0f); };
-    flowerStyle.setFont (Fonts::serifItalic (16.0f));
-    flowerStyle.onClick = [this] { processor.setPhotorealFlowers (! processor.photorealFlowers()); repaint(); };
-    addAndMakeVisible (flowerStyle);
-    syncSwitch.setFont (Fonts::serifItalic (16.0f));
+    flowerStyle.onClick = [this] { processor.setPhotorealFlowers (! processor.photorealFlowers()); renderBackground(); repaint(); };
     syncSwitch.onClick = [this] { setParam (ids::sync, param (ids::sync) > 0.5f ? 0.0f : 1.0f); };
-    addAndMakeVisible (syncSwitch);
-    addAndMakeVisible (gardenButton);
-    addAndMakeVisible (magicSwitch);
+    for (auto* c : std::initializer_list<juce::Component*> { &gardenButton, &flowerStyle, &syncSwitch, &magicSwitch })
+        addAndMakeVisible (c);
 
-    addAndMakeVisible (keyboard);
     addAndMakeVisible (garden);
+    addAndMakeVisible (keyboard);
+    addAndMakeVisible (grassOverKeys);
     addChildComponent (meadow);
     magicShown = param (ids::magic) > 0.5f ? 1.0f : 0.0f;
 
@@ -196,9 +190,8 @@ juce::Rectangle<int> Surface::magicArea() const
 
 std::vector<juce::Component*> Surface::magicComponents()
 {
-    std::vector<juce::Component*> list { &aura, &mix, &space, &life, &freeze, &harmony, &mutate };
+    std::vector<juce::Component*> list { &aura, &mix, &space, &life, &freeze, &harmony, &mutate, &spells };
     for (auto* c : categories) list.push_back (c);
-    for (auto* c : spells)     list.push_back (c);
     for (auto* c : inner)      list.push_back (c);
     return list;
 }
@@ -211,70 +204,68 @@ void Surface::resized()
     // Sound Lab
     const int lx = soundArea.getX() + pad, lw = soundArea.getWidth() - 2 * pad;
     for (int i = 0; i < instruments.size(); ++i)
-        instruments[i]->setBounds (lx + (i % 2) * (lw / 2), 162 + (i / 2) * 34, lw / 2, 34);
+        instruments[i]->setBounds (lx + (i % 2) * (lw / 2), 176 + (i / 2) * 27, lw / 2, 27);
 
-    const int chordW = lw / 7;
-    for (int i = 0; i < chords.size(); ++i)
-        chords[i]->setBounds (lx + (i % 7) * chordW, 388 + (i / 7) * 32, chordW, 32);
+    chords.setBounds (lx, 402, lw, 60);
+    voicings.setBounds (lx, 496, 200, 30);
+    octave.setBounds (lx + 238, 496, 118, 30);
 
-    for (int i = 0; i < voicings.size(); ++i)
-        voicings[i]->setBounds (lx + i * 60, 478, 60, 32);
-    octaveDown.setBounds (lx + 228, 478, 34, 32);
-    octaveUp.setBounds (lx + 326, 478, 34, 32);
-
-    int kx = lx - 4;
+    int kx = lx - 10;
     for (auto* k : { &tone, &attack, &release, &strum, &forest, &wildlife, &level })
     {
-        k->setBounds (kx, 532, 56, 78);
+        k->setBounds (kx, 542, 54, 62);
         kx += 52;
     }
 
     // Magic Lab
     const int mx = magicArea.getX() + pad, mw = magicArea.getWidth() - 2 * pad;
-    for (int i = 0; i < categories.size(); ++i)
-        categories[i]->setBounds (mx + mw - (categories.size() - i) * 76, 100, 76, 32);
+    {
+        int tx = magicArea.getX() + 330;
+        for (auto* tab : categories)
+        {
+            const int w = juce::roundToInt (juce::GlyphArrangement::getStringWidth (Fonts::serifItalic (17.0f), spellCategories()[categories.indexOf (tab)]));
+            tab->setBounds (tx, 108, w + 2, 30);
+            tx += w + 22;
+        }
+    }
 
-    const int spellW = mw / 4;
-    for (int i = 0; i < spells.size(); ++i)
-        spells[i]->setBounds (mx + (i % 4) * spellW, 146 + (i / 4) * 38, spellW, 38);
+    spells.setBounds (mx, 156, mw, 64);
+    aura.setBounds (mx, 262, 472, 232);
 
-    aura.setBounds (mx, 258, 474, 236);
+    const int cx = magicArea.getX() + 514;
+    mix.setBounds (magicArea.getX() + 532, 256, 110, 112);
+    space.setBounds (cx, 374, 66, 70);
+    life.setBounds (cx + 80, 374, 66, 70);
+    freeze.setBounds (cx, 460, 60, 52);
+    harmony.setBounds (cx + 74, 460, 80, 34);
 
-    const int cx = mx + 474 + 12, cw = mw - 474 - 12;
-    mix.setBounds (cx + (cw - 96) / 2, 252, 96, 104);
-    space.setBounds (cx + cw / 2 - 76, 356, 76, 78);
-    life.setBounds (cx + cw / 2, 356, 76, 78);
-    freeze.setBounds (cx, 436, 64, 62);
-    harmony.setBounds (cx + 70, 456, cw - 70, 28);
-
-    const int innerW = (mw + 8) / inner.size();
+    const int innerW = (mw + 16) / inner.size();
     for (int i = 0; i < inner.size(); ++i)
-        inner[i]->setBounds (mx - 4 + i * innerW, 530, innerW, 66);
+        inner[i]->setBounds (mx - 8 + i * innerW, 542, innerW, 54);
 
     // Header
-    gardenButton.setBounds (24, 28, 112, 36);
-    flowerStyle.setBounds (144, 30, 118, 34);
-    output.setBounds (designWidth - 24 - 56, 18, 56, 60);
-    mutate.setBounds (designWidth - 24 - 56 - 116, 30, 108, 34);
-    magicSwitch.setBounds (mutate.getX() - 128, 30, 120, 34);
-    syncSwitch.setBounds (magicSwitch.getX() - 120, 30, 112, 34);
+    gardenButton.setBounds (28, 28, 76, 30);
+    flowerStyle.setBounds (116, 28, 110, 30);
+    syncSwitch.setBounds (770, 28, 116, 30);
+    magicSwitch.setBounds (892, 28, 108, 30);
+    mutate.setBounds (1006, 28, 72, 30);
+    output.setBounds (designWidth - 24 - 56, 12, 56, 62);
 
-    keyboard.setBounds (keysArea);
     garden.setBounds (gardenArea);
+    keyboard.setBounds (keysArea);
+    grassOverKeys.setBounds (meadowArea);
     meadow.setBounds (getLocalBounds());
     keyboard.setKeyWidth ((float) keysArea.getWidth() / 42.0f);
 
     soundPanel = soundArea.toFloat();
     magicPanel = magicArea.toFloat();
-    spellLineArea = { mx, 224, mw, 28 };
+    spellLineArea = { mx, 222, mw, 26 };
 
     for (auto* c : magicComponents())
     {
         c->setAlpha (magicShown);
         c->setVisible (magicShown > 0.02f);
     }
-    for (int i = 0; i < spells.size(); ++i)
-        spells[i]->setVisible (magicShown > 0.02f && i < (int) visibleSpells.size());
     renderBackground();
 }
 
@@ -301,12 +292,10 @@ void Surface::showCategory (int c)
         if (book[(size_t) i].category == c)
             visibleSpells.push_back (i);
 
-    for (int i = 0; i < spells.size(); ++i)
-    {
-        const bool used = i < (int) visibleSpells.size();
-        spells[i]->setVisible (used);
-        spells[i]->setText (used ? book[(size_t) visibleSpells[(size_t) i]].name : "");
-    }
+    juce::StringArray names;
+    for (int i : visibleSpells)
+        names.add (capitalised (book[(size_t) i].name));
+    spells.setItems (names);
     syncSelections();
 }
 
@@ -316,27 +305,21 @@ void Surface::syncSelections()
     for (int i = 0; i < instruments.size(); ++i)
         instruments[i]->setSelected (i == instrument);
 
-    const int chord = (int) param (ids::chord);
-    for (int i = 0; i < chords.size(); ++i)
-        chords[i]->setSelected (i == chord);
-
-    const int voicing = (int) param (ids::voicing);
-    for (int i = 0; i < voicings.size(); ++i)
-        voicings[i]->setSelected (i == voicing);
+    chords.setSelected ((int) param (ids::chord));
+    voicings.setSelected ((int) param (ids::voicing));
+    const int oct = (int) param (ids::octave);
+    octave.setText (1, oct > 0 ? "+" + juce::String (oct) : juce::String (oct));
 
     for (int i = 0; i < categories.size(); ++i)
         categories[i]->setSelected (i == category);
 
     const int spell = processor.getCurrentSpell();
-    for (int i = 0; i < spells.size(); ++i)
-        spells[i]->setSelected (i < (int) visibleSpells.size() && visibleSpells[(size_t) i] == spell);
+    const auto found = std::find (visibleSpells.begin(), visibleSpells.end(), spell);
+    spells.setSelected (found == visibleSpells.end() ? -1 : (int) (found - visibleSpells.begin()));
 
-    magicSwitch.setSelected (param (ids::magic) > 0.5f);
-    magicSwitch.setText (param (ids::magic) > 0.5f ? "magic lab on" : "magic lab off");
-    flowerStyle.setSelected (processor.photorealFlowers());
-    syncSwitch.setSelected (param (ids::sync) > 0.5f);
-    syncSwitch.setText (param (ids::sync) > 0.5f ? "synced" : "tempo sync");
-    flowerStyle.setText (processor.photorealFlowers() ? "photoreal" : "drawn");
+    magicSwitch.setOn (param (ids::magic) > 0.5f);
+    flowerStyle.setOn (processor.photorealFlowers());
+    syncSwitch.setOn (param (ids::sync) > 0.5f);
 }
 
 void Surface::frame (float dt)
@@ -353,18 +336,17 @@ void Surface::frame (float dt)
         if (std::abs (magicTarget - magicShown) < 0.01f)
             magicShown = magicTarget;
         resized();
-        for (auto* item : { &gardenButton, &magicSwitch, &flowerStyle, &syncSwitch, &mutate })
-            item->animate();
+        for (auto* toggle : { &magicSwitch, &flowerStyle, &syncSwitch })
+            toggle->animate();
         repaint();
         return;
     }
 
     // Parameter changes that alter painted text redraw everything once.
-    const int instrument = (int) param (ids::instrument), octave = (int) param (ids::octave);
+    const int instrument = (int) param (ids::instrument);
     const int spell = processor.getCurrentSpell();
-    bool fullRepaint = instrument != shownInstrument || octave != shownOctave || spell != shownSpell;
+    bool fullRepaint = instrument != shownInstrument || spell != shownSpell;
     shownInstrument = instrument;
-    shownOctave = octave;
     shownSpell = spell;
 
     // The aurora drifts slowly; refresh it a few times a second (and when the
@@ -383,22 +365,22 @@ void Surface::frame (float dt)
 
     if (fullRepaint)
     {
-        for (auto* group : { &instruments, &chords, &voicings, &categories, &spells })
+        for (auto* group : { &instruments, &categories })
             for (auto* item : *group)
                 item->animate();
-        for (auto* item : { &octaveDown, &octaveUp, &mutate, &gardenButton, &magicSwitch, &flowerStyle, &syncSwitch })
-            item->animate();
+        for (auto* toggle : { &magicSwitch, &flowerStyle, &syncSwitch })
+            toggle->animate();
         repaint();
         return;
     }
 
-    for (auto* group : { &instruments, &chords, &voicings, &categories, &spells })
+    for (auto* group : { &instruments, &categories })
         for (auto* item : *group)
             if (item->animate())
                 item->repaint();
-    for (auto* item : { &octaveDown, &octaveUp, &mutate, &gardenButton, &magicSwitch, &flowerStyle, &syncSwitch })
-        if (item->animate())
-            item->repaint();
+    for (auto* toggle : { &magicSwitch, &flowerStyle, &syncSwitch })
+        if (toggle->animate())
+            toggle->repaint();
     for (auto* knob : { &tone, &attack, &release, &strum, &forest, &wildlife, &level, &mix, &space, &life, &output })
         knob->refreshIfTouched();
     for (auto* knob : inner)
@@ -408,8 +390,6 @@ void Surface::frame (float dt)
     {
         aura.repaint();
         freeze.repaint();
-        repaint (spellLineArea.withWidth (30));
-        repaint (mutate.getBounds());
     }
     garden.repaint();
 }
@@ -426,7 +406,7 @@ int Surface::pixelScale() const
 //==============================================================================
 // The background moves slowly, so it is rendered into a cached image a few times
 // a second (aurora, film grain and glass), and simply copied on every frame.
-bool Surface::paintSky (juce::Graphics& g, int pixelW, int pixelH, float t, float warm, float cool)
+bool Surface::paintSky (juce::Graphics& g, int pixelW, int pixelH, float t)
 {
     if (! processor.photorealFlowers() || ! sprites->available())
         return false;
@@ -452,16 +432,6 @@ bool Surface::paintSky (juce::Graphics& g, int pixelW, int pixelH, float t, floa
                                              colours::paper.withAlpha (0.3f), 0.0f, (float) pixelH, false));
     g.fillAll();
 
-    // The aurora's coloured light still breathes with the sound, softly, over the sky.
-    const float w = (float) pixelW, h = (float) pixelH;
-    const float breath = processor.engine.breath.load();
-    for (const auto& b : blobs)
-    {
-        const float cx = (b.x + 0.08f * std::sin (t * b.speed + b.phase) + 0.02f * breath) * w;
-        const float cy = (b.y + 0.06f * std::cos (t * b.speed * 0.8f + b.phase * 1.3f)) * h;
-        const float r = b.radius * w * (1.0f + 0.06f * std::sin (t * 0.3f + b.phase));
-        drawGlow (g, { cx, cy }, r, b.colour.withAlpha (std::min (0.35f, 0.16f * (b.warm ? warm : cool))));
-    }
     return true;
 }
 
@@ -484,7 +454,8 @@ void Surface::renderBackground()
     const float breath = processor.engine.breath.load();
 
     // Photoreal: a real sky drifting behind the glass. Otherwise the painted aurora.
-    if (! paintSky (g, pixelW, pixelH, t, warm, cool))
+    const bool photoreal = paintSky (g, pixelW, pixelH, t);
+    if (! photoreal)
     {
     // The aurora is painted small and stretched: it is all blur anyway, and it's cheap.
     {
@@ -563,66 +534,82 @@ void Surface::renderBackground()
     }
 
     g.addTransform (juce::AffineTransform::scale ((float) scale));
-    paintPanel (g, soundPanel, colours::coral);
+
+    // The keyboard lies in a meadow (photoreal), or rests on the light (drawn).
+    const auto keys = keysArea.toFloat();
+    if (photoreal && sprites->meadow (false).isValid())
+    {
+        g.setOpacity (1.0f);
+        g.drawImage (sprites->meadow (false), meadowArea.toFloat());
+        drawGlow (g, juce::Rectangle<float> (keys.getX() + 6.0f, keys.getBottom() - 10.0f, keys.getWidth() - 12.0f, 22.0f),
+                  juce::Colour (0xff0c1806).withAlpha (0.45f));
+    }
+    else
+    {
+        softShadow (g, keys, 10.0f, colours::ink.withAlpha (0.08f), 12.0f, 6.0f);
+    }
+
+    // Glass: the light behind each panel, blurred, under a pale frost.
+    paintPanel (g, soundPanel, frost (soundPanel, scale));
     if (magicShown > 0.02f)
     {
+        const auto frosted = frost (magicPanel, scale);
         g.beginTransparencyLayer (magicShown);
-        paintPanel (g, magicPanel, colours::violet);
+        paintPanel (g, magicPanel, frosted);
         aura.paintBackdrop (g);
         g.endTransparencyLayer();
     }
-
-    // Glass behind the keys.
-    {
-        juce::Path keysGlass;
-        keysGlass.addRoundedRectangle (keysArea.toFloat().expanded (4.0f), 14.0f);
-        softShadow (g, keysArea.toFloat().expanded (4.0f), 14.0f, colours::ink.withAlpha (0.06f), 12.0f, 5.0f);
-        g.setColour (colours::frost.withAlpha (0.6f));
-        g.fillPath (keysGlass);
-        g.setColour (colours::ink.withAlpha (0.07f));
-        g.strokePath (keysGlass, juce::PathStrokeType (1.0f));
-    }
-
-    // The soil line the bouquets grow from.
-    juce::ColourGradient soil (colours::coral.withAlpha (0.0f), (float) gardenArea.getX(), 0.0f,
-                               colours::sky.withAlpha (0.0f), (float) gardenArea.getRight(), 0.0f, false);
-    soil.addColour (0.2, colours::mint.withAlpha (0.35f));
-    soil.addColour (0.8, colours::mint.withAlpha (0.35f));
-    g.setGradientFill (soil);
-    g.fillRect ((float) gardenArea.getX(), (float) gardenArea.getBottom() - 1.5f, (float) gardenArea.getWidth(), 1.0f);
-
-    // A divider of light under the header.
-    juce::ColourGradient line (colours::coral.withAlpha (0.0f), 24.0f, 0.0f, colours::violet.withAlpha (0.0f), (float) designWidth - 24.0f, 0.0f, false);
-    line.addColour (0.3, colours::coral.withAlpha (0.25f));
-    line.addColour (0.7, colours::violet.withAlpha (0.25f));
-    g.setGradientFill (line);
-    g.fillRect (24.0f, 78.0f, (float) designWidth - 48.0f, 0.8f);
 }
 
-void Surface::paintPanel (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour glow)
+juce::Image Surface::frost (juce::Rectangle<float> r, int scale) const
+{
+    // Shrinking the light behind the panel and stretching it back blurs it, cheaply.
+    const auto area = (r * (float) scale).getSmallestIntegerContainer().getIntersection (background.getBounds());
+    if (area.isEmpty())
+        return {};
+    const auto behind = background.getClippedImage (area).createCopy();
+    return behind.rescaled (std::max (1, area.getWidth() / 16), std::max (1, area.getHeight() / 16),
+                            juce::Graphics::mediumResamplingQuality);
+}
+
+void Surface::paintPanel (juce::Graphics& g, juce::Rectangle<float> r, const juce::Image& frosted)
 {
     // Frosted glass resting in the sun: a soft shadow below, a bright rim on top.
-    const float radius = 26.0f;
+    constexpr float radius = 18.0f;
     juce::Path panel;
     panel.addRoundedRectangle (r, radius);
-    softShadow (g, r, radius, glow.withAlpha (0.10f), 26.0f, 0.0f);
-    softShadow (g, r, radius, colours::ink.withAlpha (0.07f), 18.0f, 7.0f);
+    softShadow (g, r, radius, colours::ink.withAlpha (0.08f), 18.0f, 8.0f);
 
-    g.setColour (colours::frost.withAlpha (0.58f));
-    g.fillPath (panel);
+    {
+        juce::Graphics::ScopedSaveState save (g);
+        g.reduceClipRegion (panel);
+        if (frosted.isValid())
+        {
+            g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+            g.setOpacity (1.0f);
+            g.drawImage (frosted, r);
+        }
+        g.setColour (juce::Colour (0xfffcf8f4).withAlpha (0.66f));
+        g.fillPath (panel);
+    }
 
-    juce::ColourGradient edge (colours::frost, r.getX(), r.getY(),
-                               colours::ink.withAlpha (0.07f), r.getX(), r.getBottom(), false);
-    edge.addColour (0.5, glow.withAlpha (0.12f));
-    g.setGradientFill (edge);
-    g.drawRoundedRectangle (r.reduced (0.5f), radius, 1.2f);
+    juce::ColourGradient rim (colours::frost.withAlpha (0.95f), r.getX(), r.getY(),
+                              colours::ink.withAlpha (0.1f), r.getX(), r.getBottom(), false);
+    rim.addColour (0.1, colours::frost.withAlpha (0.5f));
+    g.setGradientFill (rim);
+    g.drawRoundedRectangle (r.reduced (0.5f), radius, 1.0f);
 }
 
-void Surface::paintSectionLabel (juce::Graphics& g, const juce::String& text, int x, int y)
+void GrassOverKeys::paint (juce::Graphics& g)
 {
-    g.setFont (Fonts::sansMedium (9.5f, 0.2f));
-    g.setColour (colours::ink.withAlpha (0.42f));
-    g.drawText (text.toUpperCase(), x, y, 300, 14, juce::Justification::centredLeft, false);
+    if (! processor.photorealFlowers())
+        return;
+    const auto image = sprites->meadow (true);
+    if (image.isValid())
+    {
+        g.setOpacity (1.0f);
+        g.drawImage (image, getLocalBounds().toFloat());
+    }
 }
 
 void Surface::paint (juce::Graphics& g)
@@ -640,57 +627,50 @@ void Surface::paint (juce::Graphics& g)
         g.setColour (colour);
         g.drawText (str, area, just, true);
     };
-    auto label = [&text] (const juce::String& str, int x, int y)
+    auto label = [&text] (const juce::String& str, int x, int y, float alpha = 1.0f)
     {
-        text (str.toUpperCase(), Fonts::sansMedium (9.5f, 0.2f), ink.withAlpha (0.42f), { x, y, 300, 14 });
+        text (str.toUpperCase(), Fonts::sansMedium (10.0f, 0.14f), ink.withAlpha (0.5f * alpha), { x, y, 300, 14 });
     };
 
-    const float t = (float) clock();
     const auto soundArea = this->soundArea();
     const auto magicArea = this->magicArea();
 
     // --- Sound Lab
     const int lx = soundArea.getX() + pad, lw = soundArea.getWidth() - 2 * pad;
-    text ("sound lab", Fonts::serifItalic (30.0f), ink, { lx, 98, 200, 38 });
-    text ("choose a voice", Fonts::serifItalic (15.0f), ink.withAlpha (0.4f), { lx, 102, lw, 34 }, juce::Justification::centredRight);
-    label ("voice", lx, 146);
+    text ("sound lab", Fonts::serifItalic (32.0f), ink, { lx, 98, 240, 40 });
+    label ("voice", lx, 156);
 
     const int instrument = (int) param (ids::instrument);
     auto description = instrumentDescriptions()[instrument];
     if (instrument == 0 && ! processor.isEffect && processor.getMainBusNumInputChannels() == 0)
         description = "route audio into bouquet to hear it";
-    text (description, Fonts::serifItalic (15.5f), coral.darker (0.15f), { lx, 334, lw, 24 });
+    text (capitalised (description), Fonts::serifItalic (15.0f), ink.withAlpha (0.72f), { lx, 342, lw, 24 });
 
-    label ("chord", lx, 372);
-    label ("voicing", lx, 462);
-    label ("octave", lx + 228, 462);
-    const int octave = (int) param (ids::octave);
-    text (octave > 0 ? "+" + juce::String (octave) : juce::String (octave), Fonts::serif (19.0f), ink.withAlpha (0.85f),
-          { lx + 262, 478, 64, 32 }, juce::Justification::centred);
-    label ("shape", lx, 516);
+    label ("chord", lx, 384);
+    label ("voicing", lx, 478);
+    label ("octave", lx + 238, 478);
 
     // --- Magic Lab
     if (magicShown <= 0.02f)
         return;
-    const int mx = magicArea.getX() + pad, mw = magicArea.getWidth() - 2 * pad;
-    text ("magic lab", Fonts::serifItalic (30.0f), ink.withAlpha (magicShown), { mx, 98, 200, 38 });
+    const int mx = magicArea.getX() + pad;
+    text ("magic lab", Fonts::serifItalic (32.0f), ink.withAlpha (magicShown), { mx, 98, 240, 40 });
 
-    // The spell's line of poetry.
+    // The spell's name and its line of poetry.
     const int spell = processor.getCurrentSpell();
     if (juce::isPositiveAndBelow (spell, (int) spellBook().size()) && g.clipRegionIntersects (spellLineArea))
     {
         const auto& s = spellBook()[(size_t) spell];
-        drawSparkle (g, { (float) mx + 6.0f, 238.0f }, 5.5f, butter.withAlpha (0.7f + 0.3f * std::sin (t * 2.0f)));
-        text (juce::String (s.name) + juce::String (juce::CharPointer_UTF8 ("  \xe2\x80\x94  ")) + s.description,
-              Fonts::serifItalic (16.5f), violet.darker (0.2f), { mx + 20, 226, mw - 20, 24 });
+        const auto font = Fonts::serifItalic (15.0f);
+        const auto name = capitalised (s.name);
+        const int nameW = juce::roundToInt (juce::GlyphArrangement::getStringWidth (font, name));
+        text (name, font, ink.withAlpha (magicShown), spellLineArea);
+        text (juce::String (juce::CharPointer_UTF8 (" \xe2\x80\x94 ")) + s.description, font, ink.withAlpha (0.72f * magicShown),
+              spellLineArea.withTrimmedLeft (nameW));
     }
 
-    label ("harmony", harmony.getX(), 440);
-    label ("inner workings", mx, 512);
-
-    const auto m = mutate.getBounds().toFloat();
-    if (g.clipRegionIntersects (mutate.getBounds()))
-        drawSparkle (g, { m.getX() + 20.0f, m.getCentreY() }, 5.0f, butter.withAlpha (0.8f + 0.2f * std::sin (t * 1.3f)));
+    label ("harmony", harmony.getX() + 8, 498, magicShown);
+    label ("inner workings", mx, 522, magicShown);
 }
 } // namespace bouquet::ui
 
