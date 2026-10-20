@@ -30,17 +30,20 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
   (shape, voicing, strum). **forest** and **wildlife** set how deep in the trees you are and how much
   of the forest you hear.
 - **Magic Lab**: 40 granular spells (chord smear, frozen breath, shimmer halo…). Click one and everything
-  glides there. Drag the aura pad, hit **freeze**, **mutate**. The on/off switch bypasses it and folds it away.
-  **tempo sync** locks the grains to your DAW's beat grid (the grain rate snaps to the nearest note
+  glides there. Drag the aura pad, hit **Freeze**, **Mutate**. The **Magic Lab** switch bypasses it and folds it away.
+  **Tempo sync** locks the grains to your DAW's beat grid (the grain rate snaps to the nearest note
   length, straight or triplet) and makes echoes land on whole note lengths.
 - **Expression**: press into held keys (aftertouch, channel or polyphonic) to swell and brighten a note
   and lift its flowers; the mod wheel blows wind through the grains and the garden. The recordings
   cross-fade smoothly between soft and loud layers, and no two notes are played quite the same.
 - **The garden**: grass springs up under the keys you play and every chord grows a bouquet that rots when
-  you let go. **photoreal / drawn** switches between 3D-rendered and illustrated flowers; photoreal
-  also puts a real daylight sky behind the glass, its clouds drifting slowly across.
-- **Presets**: click **garden** to look down on a lawn where every preset is a flower. Hover to see a name,
+  you let go. The **Photoreal** switch chooses between 3D-rendered and illustrated flowers; photoreal
+  also puts a real daylight sky behind the glass, its clouds drifting slowly across, and lays the
+  keyboard in a meadow, the bouquets growing up from behind the keys.
+- **Presets**: click **Garden** to look down on a lawn where every preset is a flower. Hover to see a name,
   click to load, **plant this sound** to save yours as a new flower. Right-click to uproot.
+
+  ![The preset garden](docs/meadow.jpg)
 
 ## Building
 
@@ -64,7 +67,8 @@ needed): `MACOS_CERTIFICATES_P12` (base64 of a .p12 with both Developer ID certi
 - `Bouquet/assets/samples`: instrument recordings from [VSCO-2 CE](https://github.com/sgossner/VSCO-2-CE)
   (CC0) and the FluidR3 electric piano (MIT), prepared by `tools/samples/build_samples.py`.
 - `Bouquet/assets/flowers`: flowers, grass and lawn rendered in Blender by `tools/flowers/render_flowers.py`,
-  lit by a CC0 sky from Poly Haven; the sky by `tools/flowers/render_sky.py`.
+  lit by a CC0 sky from Poly Haven; the sky by `tools/flowers/render_sky.py`; the meadow around the keys
+  by `tools/flowers/render_meadow.py`.
 - Fonts: Newsreader and Inter, SIL Open Font License.
 
 ## Licence
