@@ -10,6 +10,19 @@
 
 namespace bouquet::ui
 {
+// The blades of grass in front of the keyboard, drawn over the keys (photoreal only).
+// It never takes the mouse, so the keys underneath still play.
+class GrassOverKeys : public juce::Component
+{
+public:
+    explicit GrassOverKeys (BouquetProcessor& p) : processor (p) { setInterceptsMouseClicks (false, false); }
+    void paint (juce::Graphics&) override;
+
+private:
+    BouquetProcessor& processor;
+    juce::SharedResourcePointer<real::FlowerSprites> sprites;
+};
+
 // Everything lives in this fixed-size surface; the editor scales it to the window.
 class Surface : public juce::Component
 {
@@ -27,8 +40,8 @@ public:
 private:
     void renderBackground();
     int pixelScale() const;
-    void paintPanel (juce::Graphics&, juce::Rectangle<float>, juce::Colour glow);
-    void paintSectionLabel (juce::Graphics&, const juce::String&, int x, int y);
+    void paintPanel (juce::Graphics&, juce::Rectangle<float>, const juce::Image& frosted);
+    juce::Image frost (juce::Rectangle<float>, int scale) const;
     void setParam (const juce::String& id, float value);
     float param (const juce::String& id) const;
     void showCategory (int category);
@@ -41,13 +54,15 @@ private:
     juce::AudioProcessorValueTreeState& state;
 
     // Sound Lab
-    juce::OwnedArray<GlowItem> instruments, chords, voicings;
-    GlowItem octaveDown { "-", GlowItem::Style::pill, colours::coral, colours::peach };
-    GlowItem octaveUp   { "+", GlowItem::Style::pill, colours::coral, colours::peach };
+    juce::OwnedArray<GlowItem> instruments;
+    Segmented chords   { colours::coral, 7 };
+    Segmented voicings { colours::coral, 3 };
+    Segmented octave   { colours::coral, 3 };
     GlowKnob tone, attack, release, strum, forest, wildlife, level;
 
     // Magic Lab
-    juce::OwnedArray<GlowItem> categories, spells;
+    juce::OwnedArray<GlowItem> categories;
+    Segmented spells { colours::violet, 4 };
     std::vector<int> visibleSpells;
     int category = 0;
     AuraPad aura;
@@ -58,28 +73,29 @@ private:
     juce::OwnedArray<GlowKnob> inner;
 
     // Header
-    GlowItem gardenButton { "garden", GlowItem::Style::pill, colours::mint, colours::butter };
-    GlowItem magicSwitch  { "magic lab", GlowItem::Style::pill, colours::violet, colours::sky };
-    GlowItem flowerStyle  { "photoreal", GlowItem::Style::pill, colours::rose, colours::peach };
-    GlowItem syncSwitch   { "tempo sync", GlowItem::Style::pill, colours::mint, colours::sky };
-    GlowItem mutate { "mutate", GlowItem::Style::pill, colours::violet, colours::aqua };
+    HeaderButton gardenButton { "Garden", HeaderButton::Icon::sprout };
+    Toggle flowerStyle { "Photoreal" };
+    Toggle syncSwitch  { "Tempo sync" };
+    Toggle magicSwitch { "Magic Lab" };
+    HeaderButton mutate { "Mutate", HeaderButton::Icon::sparkle };
     GlowKnob output;
 
-    GlowKeyboard keyboard;
     Garden garden;
+    GlowKeyboard keyboard;
+    GrassOverKeys grassOverKeys;
     Meadow meadow;
 
     juce::Image aurora, background;
     juce::SharedResourcePointer<real::FlowerSprites> sprites;
     juce::Image skyScaled;          // the photoreal sky at the window's pixel height
-    bool paintSky (juce::Graphics&, int pixelW, int pixelH, float t, float warm, float cool);
+    bool paintSky (juce::Graphics&, int pixelW, int pixelH, float t);
     std::array<juce::int8, 256 * 256> grainNoise {};
     struct Column { int offset, t; };
     std::vector<Column> columns;
     int backgroundScale = 1;
     double backgroundTime = -1.0;
     juce::Rectangle<float> soundPanel, magicPanel;
-    int shownInstrument = -1, shownOctave = 99, shownSpell = -1;
+    int shownInstrument = -1, shownSpell = -1;
     juce::Rectangle<int> spellLineArea;
     float magicShown = 1.0f;   // eases towards the Magic Lab switch: 1 open, 0 folded away
 };

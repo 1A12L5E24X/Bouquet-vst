@@ -356,6 +356,14 @@ juce::Image FlowerSprites::sky()
     return skyImage;
 }
 
+juce::Image FlowerSprites::meadow (bool overKeys)
+{
+    auto& image = overKeys ? meadowOver : meadowUnder;
+    if (! image.isValid() && folder.isDirectory())
+        image = juce::ImageFileFormat::loadFrom (folder.getChildFile (overKeys ? "meadow_over.png" : "meadow.png"));
+    return image;
+}
+
 juce::Image FlowerSprites::ground()
 {
     if (! groundImage.isValid() && folder.isDirectory())

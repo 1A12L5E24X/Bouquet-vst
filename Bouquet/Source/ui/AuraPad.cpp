@@ -73,7 +73,7 @@ void AuraPad::paint (juce::Graphics& g)
     const float t = (float) clock();
     const float wet = std::min (1.0f, engine.wetLevel.load() * 1.8f);
     const float breath = engine.breath.load();
-    const float corner = 18.0f;
+    const float corner = 10.0f;
 
     {
         juce::Graphics::ScopedSaveState save (g);
@@ -84,7 +84,7 @@ void AuraPad::paint (juce::Graphics& g)
         const juce::Point<float> cursorPos (f.getX() + shownX * f.getWidth(), f.getY() + (1.0f - shownY) * f.getHeight());
 
         // A slow inner aurora that follows the cursorPos and swells with the sound.
-        drawGlow (g, cursorPos, f.getHeight() * (0.75f + 0.25f * wet + 0.05f * breath), lilac.withAlpha (0.24f + 0.2f * wet));
+        drawGlow (g, cursorPos, f.getHeight() * (0.6f + 0.2f * wet + 0.05f * breath), lilac.withAlpha (0.12f + 0.12f * wet));
 
         // Memory: a soft ribbon of what the plugin has heard, newest on the left.
         {
@@ -150,7 +150,7 @@ void AuraPad::paint (juce::Graphics& g)
                       10.0f * k + 4.0f, lavender.withAlpha (0.10f * k));
         }
         const float ring = 13.0f + 3.0f * std::sin (t * 1.6f) + 10.0f * wet;
-        drawGlow (g, cursorPos, ring * 2.4f, lilac.withAlpha (0.5f + 0.3f * wet));
+        drawGlow (g, cursorPos, ring * 2.0f, lilac.withAlpha (0.3f + 0.2f * wet));
         g.setColour (violet.withAlpha (0.45f + 0.4f * (dragging ? 1.0f : 0.0f)));
         g.drawEllipse (juce::Rectangle<float> (ring * 1.4f, ring * 1.4f).withCentre (cursorPos), 1.0f);
         g.setColour (frost);
@@ -159,17 +159,17 @@ void AuraPad::paint (juce::Graphics& g)
         g.drawEllipse (juce::Rectangle<float> (7.0f, 7.0f).withCentre (cursorPos), 1.3f);
     }
 
-    g.setColour (ink.withAlpha (0.09f));
+    g.setColour (ink.withAlpha (0.16f));
     g.drawRoundedRectangle (f, corner, 1.0f);
 
     // Edge words.
-    g.setFont (Fonts::serifItalic (13.0f));
-    g.setColour (ink.withAlpha (0.45f));
-    const auto inner = f.reduced (14.0f, 8.0f);
-    g.drawText ("dust",  inner, juce::Justification::centredLeft, false);
-    g.drawText ("smear", inner, juce::Justification::centredRight, false);
-    g.drawText ("vast",  inner, juce::Justification::centredTop, false);
-    g.drawText ("close", inner, juce::Justification::centredBottom, false);
+    g.setFont (Fonts::sansMedium (9.5f, 0.14f));
+    g.setColour (ink.withAlpha (0.5f));
+    const auto inner = f.reduced (12.0f, 10.0f);
+    g.drawText ("DUST",  inner, juce::Justification::centredLeft, false);
+    g.drawText ("SMEAR", inner, juce::Justification::centredRight, false);
+    g.drawText ("VAST",  inner, juce::Justification::centredTop, false);
+    g.drawText ("CLOSE", inner, juce::Justification::centredBottom, false);
 }
 
 void AuraPad::paintBackdrop (juce::Graphics& g) const
@@ -178,19 +178,18 @@ void AuraPad::paintBackdrop (juce::Graphics& g) const
     const auto f = field() + getPosition().toFloat();
     const float t = (float) clock();
     const float wet = std::min (1.0f, engine.wetLevel.load() * 1.8f);
-    constexpr float corner = 18.0f;
+    constexpr float corner = 10.0f;
 
     juce::Graphics::ScopedSaveState save (g);
     juce::Path clip;
     clip.addRoundedRectangle (f, corner);
     g.reduceClipRegion (clip);
 
-    g.setColour (frost.withAlpha (0.6f));
+    // A shallow well in the glass, a shade cooler at the bottom.
+    g.setGradientFill (juce::ColourGradient (frost.withAlpha (0.35f), 0.0f, f.getY(),
+                                             juce::Colour (0xffe8ecf6).withAlpha (0.45f), 0.0f, f.getBottom(), false));
     g.fillRect (f);
-    drawGlow (g, { f.getX() + f.getWidth() * (0.5f + 0.3f * std::sin (t * 0.13f)), f.getBottom() },
-              f.getWidth() * 0.5f, sky.withAlpha (0.2f));
-    drawGlow (g, { f.getX() + f.getWidth() * (0.5f + 0.35f * std::cos (t * 0.09f)), f.getY() },
-              f.getWidth() * 0.4f, butter.withAlpha (0.12f + 0.08f * wet));
+    juce::ignoreUnused (t, wet);
 }
 
 void AuraPad::setFromMouse (juce::Point<float> p)

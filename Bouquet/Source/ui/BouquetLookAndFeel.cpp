@@ -99,7 +99,7 @@ void BouquetLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int 
                                           float startAngle, float endAngle, juce::Slider& s)
 {
     using namespace colours;
-    const auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) width, (float) height).reduced (3.0f);
+    const auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) width, (float) height).reduced (1.0f);
     const float radius = std::min (bounds.getWidth(), bounds.getHeight()) * 0.5f;
     const auto c = bounds.getCentre();
     const float hover = (s.isMouseOverOrDragging() ? 1.0f : 0.0f);
@@ -110,12 +110,18 @@ void BouquetLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int 
     const float valueAngle = startAngle + pos * (endAngle - startAngle);
     const float originAngle = bipolar ? (startAngle + endAngle) * 0.5f : startAngle;
 
-    // The well: a small frosted disc.
-    const auto well = juce::Rectangle<float> (radius * 1.35f, radius * 1.35f).withCentre (c);
-    g.setColour (frost.withAlpha (0.45f + 0.25f * hover));
-    g.fillEllipse (well);
-    g.setColour (ink.withAlpha (0.06f));
-    g.drawEllipse (well, 0.8f);
+    // A soft white disc, lit from above, resting a little above the glass.
+    const float discR = radius * 0.72f;
+    const auto disc = juce::Rectangle<float> (discR * 2.0f, discR * 2.0f).withCentre (c);
+    g.setColour (ink.withAlpha (0.12f));
+    g.fillEllipse (disc.translated (0.0f, 1.6f).expanded (0.6f));
+    juce::ColourGradient face (juce::Colours::white, c.x, c.y - discR * 0.25f,
+                               juce::Colour (0xffefebe6), c.x, c.y + discR, true);
+    face.addColour (0.55, hover > 0.0f ? juce::Colours::white : juce::Colour (0xfffbf9f7));
+    g.setGradientFill (face);
+    g.fillEllipse (disc);
+    g.setColour (ink.withAlpha (0.08f));
+    g.drawEllipse (disc, 0.5f);
 
     auto arc = [&] (float from, float to, float r)
     {
@@ -124,43 +130,37 @@ void BouquetLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int 
         return p;
     };
 
-    const float r = radius * 0.86f;
-    g.setColour (ink.withAlpha (0.10f));
-    g.strokePath (arc (startAngle, endAngle, r), juce::PathStrokeType (1.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    // The value: a thin coloured arc around the disc, with a dot at its end.
+    const float r = radius - 1.5f;
+    const float stroke = radius > 30.0f ? 2.6f : 2.0f;
+    const juce::PathStrokeType line (stroke, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
+    g.setColour (ink.withAlpha (0.09f));
+    g.strokePath (arc (startAngle, endAngle, r), line);
 
     if (std::abs (valueAngle - originAngle) > 0.001f)
     {
-        const auto value = arc (std::min (originAngle, valueAngle), std::max (originAngle, valueAngle), r);
-        juce::ColourGradient grad (a, c.x - radius, c.y + radius, b, c.x + radius, c.y - radius, false);
-
-        // Glow layers, then the bright line.
-        for (auto [w, alpha] : { std::pair { 9.0f, 0.08f }, std::pair { 5.0f, 0.16f } })
-        {
-            g.setGradientFill (grad);
-            g.setOpacity (alpha * (1.0f + 0.6f * hover));
-            g.strokePath (value, juce::PathStrokeType (w, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        }
-        g.setOpacity (1.0f);
-        g.setGradientFill (grad);
-        g.strokePath (value, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setGradientFill (juce::ColourGradient (a, c.x - radius, c.y + radius, b, c.x + radius, c.y - radius, false));
+        g.strokePath (arc (std::min (originAngle, valueAngle), std::max (originAngle, valueAngle), r), line);
     }
 
     const juce::Point<float> dot (c.x + r * std::sin (valueAngle), c.y - r * std::cos (valueAngle));
-    drawGlow (g, dot, 9.0f + 3.0f * hover, b.withAlpha (0.45f));
+    const float dotR = radius > 30.0f ? 3.6f : 2.8f;
     g.setColour (frost);
-    g.fillEllipse (juce::Rectangle<float> (5.0f, 5.0f).withCentre (dot));
-    g.setColour (b.interpolatedWith (ink, 0.15f));
-    g.drawEllipse (juce::Rectangle<float> (5.0f, 5.0f).withCentre (dot), 1.2f);
+    g.fillEllipse (juce::Rectangle<float> (dotR * 2.0f, dotR * 2.0f).withCentre (dot));
+    g.setColour (b);
+    g.drawEllipse (juce::Rectangle<float> (dotR * 2.0f, dotR * 2.0f).withCentre (dot), 1.4f);
 }
 
 void BouquetLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox& box)
 {
     const auto r = juce::Rectangle<float> (0, 0, (float) width, (float) height).reduced (0.5f);
-    g.setColour (colours::ink.withAlpha (box.isMouseOver (true) ? 0.22f : 0.12f));
-    g.drawRoundedRectangle (r, r.getHeight() * 0.5f, 1.0f);
+    g.setColour (colours::frost.withAlpha (box.isMouseOver (true) ? 0.6f : 0.4f));
+    g.fillRoundedRectangle (r, 10.0f);
+    g.setColour (colours::ink.withAlpha (0.2f));
+    g.drawRoundedRectangle (r, 10.0f, 1.0f);
 
     juce::Path chevron;
-    const float cx = r.getRight() - 14.0f, cy = r.getCentreY();
+    const float cx = r.getRight() - 12.0f, cy = r.getCentreY();
     chevron.startNewSubPath (cx - 3.5f, cy - 1.5f);
     chevron.lineTo (cx, cy + 2.0f);
     chevron.lineTo (cx + 3.5f, cy - 1.5f);
@@ -168,16 +168,16 @@ void BouquetLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height,
     g.strokePath (chevron, juce::PathStrokeType (1.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 
-juce::Font BouquetLookAndFeel::getComboBoxFont (juce::ComboBox&) { return Fonts::serifItalic (16.0f); }
+juce::Font BouquetLookAndFeel::getComboBoxFont (juce::ComboBox&) { return Fonts::sans (13.0f); }
 
 void BouquetLookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
 {
-    label.setBounds (12, 0, box.getWidth() - 30, box.getHeight());
+    label.setBounds (10, 0, box.getWidth() - 26, box.getHeight());
     label.setFont (getComboBoxFont (box));
     label.setJustificationType (juce::Justification::centredLeft);
 }
 
-juce::Font BouquetLookAndFeel::getPopupMenuFont() { return Fonts::serifItalic (16.0f); }
+juce::Font BouquetLookAndFeel::getPopupMenuFont() { return Fonts::sans (13.0f); }
 
 void BouquetLookAndFeel::drawPopupMenuBackground (juce::Graphics& g, int width, int height)
 {
