@@ -4,6 +4,7 @@
 #include "ui/Garden.h"
 #include "ui/PluginEditor.h"
 #include "ui/Meadow.h"
+#include "ui/BouquetLookAndFeel.h"
 #include "ui/Botany.h"
 #include "ui/RealFlowers.h"
 #include "Assets.h"
@@ -436,12 +437,194 @@ static int measure()
     return 0;
 }
 
+// Records a scripted showcase, frame by frame on a fixed clock, as numbered PNGs:
+// chords grow bouquets that sway and rot, then the preset garden, where two tonics are
+// stirred into the beaker and it is carried over to a flower and poured.
+static int recordShowcase (const juce::File& folder, int fps)
+{
+    using namespace bouquet::ui;
+    folder.createDirectory();
+    for (auto& f : folder.findChildFiles (juce::File::findFiles, false, "frame_*.png"))
+        f.deleteFile();
+    const auto presetFolder = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("bouquet-showcase-presets");
+    presetFolder.deleteRecursively();
+
+    juce::SharedResourcePointer<real::FlowerSprites> sprites;
+    sprites->waitForLoads = true;
+
+    BouquetProcessor p (false);
+    p.presets.setUserFolder (presetFolder);
+    p.setPlayConfigDetails (0, 2, sr, block);
+    p.prepareToPlay (sr, block);
+    p.setPhotorealFlowers (true);
+    p.applyPreset (*p.presets.find ("first light"), 0.0);
+
+    double now = 1.0;
+    setClockOverride (now);
+    std::unique_ptr<juce::AudioProcessorEditor> editor (p.createEditor());
+    std::function<juce::Component* (juce::Component&)> find = [&] (juce::Component& c) -> juce::Component*
+    {
+        if (dynamic_cast<Surface*> (&c) != nullptr) return &c;
+        for (auto* child : c.getChildren())
+            if (auto* found = find (*child)) return found;
+        return nullptr;
+    };
+    auto* surface = dynamic_cast<Surface*> (find (*editor));
+    std::function<Meadow* (juce::Component&)> findMeadow = [&] (juce::Component& c) -> Meadow*
+    {
+        if (auto* m = dynamic_cast<Meadow*> (&c)) return m;
+        for (auto* child : c.getChildren())
+            if (auto* found = findMeadow (*child)) return found;
+        return nullptr;
+    };
+    auto* meadow = findMeadow (*editor);
+    if (surface == nullptr || meadow == nullptr)
+        return 1;
+
+    juce::MidiBuffer midi;
+    juce::AudioBuffer<float> buf (2, block);
+    const float dt = 1.0f / (float) fps;
+    int frameIndex = 0;
+    juce::Point<float> cursor { -100.0f, -100.0f };
+    bool showCursor = false, pressed = false;
+    double sampleDebt = 0.0;
+
+    auto frame = [&]
+    {
+        now += dt;
+        setClockOverride (now);
+        for (sampleDebt += sr * dt; sampleDebt >= block; sampleDebt -= block)
+        {
+            buf.clear();
+            p.processBlock (buf, midi);
+            midi.clear();
+        }
+        surface->frame (dt);
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (1);
+        auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);
+        if (showCursor)
+        {
+            // A pointer, so you can see what is being clicked and carried.
+            juce::Graphics g (image);
+            juce::Path arrow;
+            arrow.startNewSubPath (0.0f, 0.0f);
+            arrow.lineTo (0.0f, 22.0f);
+            arrow.lineTo (5.5f, 17.0f);
+            arrow.lineTo (9.5f, 26.0f);
+            arrow.lineTo (13.0f, 24.5f);
+            arrow.lineTo (9.0f, 15.5f);
+            arrow.lineTo (16.0f, 15.5f);
+            arrow.closeSubPath();
+            arrow.applyTransform (juce::AffineTransform::scale (pressed ? 0.9f : 1.0f).translated (cursor));
+            g.setColour (juce::Colours::black.withAlpha (0.25f));
+            g.fillPath (arrow, juce::AffineTransform::translation (1.5f, 2.0f));
+            g.setColour (juce::Colours::white);
+            g.fillPath (arrow);
+            g.setColour (juce::Colours::black);
+            g.strokePath (arrow, juce::PathStrokeType (1.3f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        }
+        const auto file = folder.getChildFile ("frame_" + juce::String (frameIndex++).paddedLeft ('0', 5) + ".png");
+        juce::FileOutputStream out (file);
+        juce::PNGImageFormat().writeImageToStream (image, out);
+    };
+    auto hold = [&] (float seconds) { for (int i = 0; i < juce::roundToInt (seconds * (float) fps); ++i) frame(); };
+
+    // Mouse events delivered straight to the preset garden.
+    auto mouse = [&] (int kind, juce::Point<float> pos, juce::Point<float> downAt)
+    {
+        const auto source = juce::Desktop::getInstance().getMainMouseSource();
+        const auto mods = kind == 1 || kind == 2 ? juce::ModifierKeys (juce::ModifierKeys::leftButtonModifier) : juce::ModifierKeys();
+        const juce::MouseEvent e (source, pos, mods, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, meadow, meadow, juce::Time::getCurrentTime(),
+                                  downAt, juce::Time::getCurrentTime(), 1, pos.getDistanceFrom (downAt) > 4.0f);
+        if (kind == 0)      meadow->mouseMove (e);
+        else if (kind == 1) meadow->mouseDown (e);
+        else if (kind == 2) meadow->mouseDrag (e);
+        else                meadow->mouseUp (e);
+    };
+    auto glide = [&] (juce::Point<float> to, float seconds, bool dragging, juce::Point<float> downAt)
+    {
+        const auto from = cursor;
+        const int n = std::max (1, juce::roundToInt (seconds * (float) fps));
+        for (int i = 1; i <= n; ++i)
+        {
+            const float t = (float) i / (float) n;
+            const float e = t * t * (3.0f - 2.0f * t);
+            cursor = from + (to - from) * e + juce::Point<float> (0.0f, -std::sin (t * juce::MathConstants<float>::pi) * 30.0f);
+            mouse (dragging ? 2 : 0, cursor, downAt);
+            frame();
+        }
+    };
+    auto click = [&] (juce::Point<float> at)
+    {
+        pressed = true;
+        mouse (1, at, at);
+        frame();
+        frame();
+        pressed = false;
+        mouse (3, at, at);
+    };
+
+    // 1. A few chords: each grows a bouquet that sways, and rots once let go.
+    hold (0.8f);
+    const int roots[] = { 57, 53, 60, 64 };
+    const int shapes[] = { 6, 5, 8, 4 };
+    for (int i = 0; i < 4; ++i)
+    {
+        set (p, ids::chord, (float) shapes[i]);
+        p.keyboardState.noteOn (1, roots[i], 0.75f + 0.05f * (float) i);
+        hold (1.5f);
+        p.keyboardState.noteOff (1, roots[i], 0.0f);
+    }
+    hold (1.6f);
+
+    // 2. The preset garden: stir honey and moonwater into the beaker, carry it to a flower, pour.
+    surface->showPresetGarden();
+    hold (1.4f);
+    showCursor = true;
+    cursor = { 900.0f, 520.0f };
+    std::vector<juce::Point<float>> flasks;
+    for (int i = 0; i < 4; ++i)
+        flasks.push_back ({ 592.0f + 56.0f * (float) i, (float) editor->getHeight() - 36.0f });
+    glide (flasks[1], 0.8f, false, {});
+    hold (0.7f);
+    click (flasks[1]);
+    hold (0.6f);
+    glide (flasks[2], 0.4f, false, {});
+    hold (0.5f);
+    click (flasks[2]);
+    hold (0.7f);
+
+    const juce::Point<float> beaker (520.0f, (float) editor->getHeight() - 30.0f);
+    glide (beaker, 0.6f, false, {});
+    hold (0.6f);
+    pressed = true;
+    mouse (1, beaker, beaker);
+    frame();
+    // Over to a flower near the middle of the lawn, the spout over it.
+    const juce::Point<float> flowerAt (570.0f, 345.0f);
+    glide (flowerAt, 1.3f, true, beaker);
+    hold (0.3f);
+    pressed = false;
+    mouse (3, cursor, beaker);
+    glide ({ 960.0f, 600.0f }, 0.8f, false, {});
+    showCursor = false;
+    hold (3.2f);
+
+    setClockOverride (-1.0);
+    presetFolder.deleteRecursively();
+    std::cout << "Recorded " << frameIndex << " frames at " << fps << " fps\n";
+    return 0;
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;
 
     if (argc >= 2 && juce::String (argv[1]) == "--measure")
         return measure();
+
+    if (argc >= 3 && juce::String (argv[1]) == "--showcase")
+        return recordShowcase (juce::File (argv[2]), argc > 3 ? juce::String (argv[3]).getIntValue() : 30);
 
     if (argc >= 2 && juce::String (argv[1]) == "--where")
     {

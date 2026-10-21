@@ -40,6 +40,8 @@ struct Fonts
 
 // Seconds since start-up; every animation in the UI reads this one clock.
 double clock();
+// Offline rendering (videos, tests): the clock reads this time instead; negative releases it.
+void setClockOverride (double seconds);
 
 // A soft round pool of light.
 void drawGlow (juce::Graphics&, juce::Point<float> centre, float radius, juce::Colour);

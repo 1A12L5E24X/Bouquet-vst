@@ -7,6 +7,10 @@ and a preset garden where you water your sounds into richer ones.
 
 ![Bouquet](docs/bouquet.jpg)
 
+![Bouquet in motion: chords grow bouquets, then a flower is watered in the preset garden](docs/showcase.gif)
+
+[Watch the showcase in full quality (MP4)](docs/showcase.mp4)
+
 | Plugin | |
 | --- | --- |
 | **Bouquet** | instrument (+ standalone app) |
@@ -71,6 +75,7 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
 cmake --build build --config Release -j
 ctest --test-dir build -C Release        # render tests
+build/Bouquet/BouquetTest_artefacts/Release/BouquetTest --showcase frames   # the showcase video, as PNG frames
 scripts/package-macos.sh build           # Mac: sign, run auval, make the .pkg
 ```
 

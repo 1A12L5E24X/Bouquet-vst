@@ -322,6 +322,8 @@ bool FlowerSprites::ready (botany::Species s, int variant, int colour)
         if (atlases.count (atlasKey (s, variant, colour)) != 0)
             return true;
     }
+    if (waitForLoads)
+        return get (s, variant, colour, 0.0f).image.isValid();
     prefetch (s, variant, colour);
     return false;
 }
