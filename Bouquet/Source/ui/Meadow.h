@@ -1,7 +1,6 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
-#include <array>
 #include "Botany.h"
 #include "RealFlowers.h"
 #include "Widgets.h"
@@ -14,9 +13,8 @@ namespace bouquet::ui
 // The preset garden, seen from above: every preset is a flower in a sunlit lawn. Hover
 // to read its name, click to pick it, plant the current sound to grow a new one.
 //
-// And a little lab bench: click the flasks of tonic to dose a beaker of water (each
-// pour a different amount), then drag the beaker onto a flower to water it. A richer
-// version of that preset grows beside it, a little different every time.
+// And a bucket of water: drag it onto a flower and tip it to water it. A richer version
+// of that preset grows, and what the water brings out of it is a surprise every time.
 class Meadow : public juce::Component
 {
 public:
@@ -27,8 +25,8 @@ public:
     void highlight (int index) { hovered = index; }
     bool isOpen() const { return opening; }
 
-    // Stirs these tonics into the beaker and pours it on a flower, as if carried there.
-    void water (int plant, std::vector<Tonic> tonics);
+    // Pours the bucket on a flower, as if carried there.
+    void water (int plant);
 
     // Advances the fade, growth and hover; call once per frame.
     void tick (float dt);
@@ -59,14 +57,7 @@ private:
     float radiusOf (const Plant&) const;
     void paintGround (juce::Graphics&);
 
-    // --- The lab bench
-    struct Flask
-    {
-        Tonic tonic;
-        juce::Colour colour;
-        juce::Point<float> base;   // bottom centre
-        float hover = 0.0f, shake = 0.0f;
-    };
+    // --- The bucket
     struct Drop
     {
         juce::Point<float> pos, vel;
@@ -81,18 +72,13 @@ private:
         float age = 0.0f;
     };
 
-    int flaskAt (juce::Point<float>) const;
-    bool beakerAt (juce::Point<float>) const;
-    void dose (int flask);
-    void emptyBeaker();
+    bool bucketAt (juce::Point<float>) const;
+    float bucketScale() const;
+    juce::Point<float> lipFor (juce::Point<float> base) const;   // where the upright pail's lip is
+    juce::Point<float> lip() const;
     void finishPour();
-    juce::Colour beakerColour() const;
-    juce::AffineTransform beakerTransform() const;
-    juce::Point<float> spout() const;
-    void tickLab (float dt);
-    void paintLab (juce::Graphics&, float time);
-    void paintFlask (juce::Graphics&, const Flask&, float time) const;
-    void paintBeaker (juce::Graphics&, float time) const;
+    void tickBucket (float dt);
+    void paintBucket (juce::Graphics&, float time) const;
     void paintLabel (juce::Graphics&, const juce::String& title, const juce::String& text, juce::Point<float> above, float alpha) const;
 
     BouquetProcessor& processor;
@@ -104,13 +90,14 @@ private:
     bool opening = false;
     juce::String pendingGrowth;   // name of a newly planted preset, grows in from seed
 
-    std::array<Flask, (size_t) Tonic::count> flasks;
-    std::vector<Tonic> mixture;               // what is stirred into the beaker
-    float level = 0.35f, shownLevel = 0.35f;  // how full the beaker is, 0..1
-    juce::Point<float> beakerHome, beakerPos, grabOffset;
-    float tilt = 0.0f, slosh = 0.0f, lift = 1.0f;   // lift: larger once picked up off the bench
-    bool carrying = false, hoverBeaker = false;
-    int hoveredFlask = -1, target = -1;
+    juce::Point<float> bucketHome, bucketPos, grabOffset;   // where the upright pail stands
+    juce::Point<float> pourLip;                              // tipping: where its lip is held
+    float tilt = 0.0f;     // degrees, as rendered: 0 upright .. 90 on its side
+    float sway = 0.0f;     // radians, swinging as it is carried
+    float lift = 1.0f;     // larger once picked up
+    float hover = 0.0f;
+    bool carrying = false, hoverBucket = false;
+    int target = -1;
     struct Pour
     {
         int plant = -1;             // the flower being watered (until the new one grows)

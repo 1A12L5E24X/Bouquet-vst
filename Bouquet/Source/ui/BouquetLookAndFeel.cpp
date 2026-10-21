@@ -37,10 +37,19 @@ juce::Font Fonts::serifItalicRegular (float h)  { return make (typefaces().serif
 juce::Font Fonts::sans (float h, float t)       { return make (typefaces().sansRegular, h, t); }
 juce::Font Fonts::sansMedium (float h, float t) { return make (typefaces().sansMedium, h, t); }
 
+static std::atomic<double> clockOverride { -1.0 };
+
 double clock()
 {
     static const double start = juce::Time::getMillisecondCounterHiRes();
+    if (const double fixed = clockOverride.load(); fixed >= 0.0)
+        return fixed;
     return (juce::Time::getMillisecondCounterHiRes() - start) * 0.001;
+}
+
+void setClockOverride (double seconds)
+{
+    clockOverride.store (seconds);
 }
 
 void drawGlow (juce::Graphics& g, juce::Point<float> c, float radius, juce::Colour colour)

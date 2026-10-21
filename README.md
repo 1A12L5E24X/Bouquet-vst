@@ -2,9 +2,14 @@
 
 A granular instrument for macOS (AU + VST3, universal, macOS 11+; VST3 on Windows and Linux too).
 Recordings of real instruments on the left, played as if in a forest clearing; a granular Magic Lab
-on the right; and a garden that grows a bouquet for every chord you play, then lets it rot.
+on the right; and a garden that grows a bouquet for every chord you play, then lets it rot;
+and a preset garden where you water your sounds into richer ones.
 
 ![Bouquet](docs/bouquet.jpg)
+
+![Bouquet in motion: chords grow bouquets, then a flower is watered in the preset garden](docs/showcase.gif)
+
+[Watch the showcase in full quality (MP4)](docs/showcase.mp4)
 
 | Plugin | |
 | --- | --- |
@@ -42,12 +47,18 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
   keyboard in a meadow, the bouquets growing up from behind the keys.
 - **Presets**: click **Garden** to look down on a lawn where every preset is a flower. Hover to see a name,
   click to load, **plant this sound** to save yours as a new flower. Right-click to uproot.
-  **Water** a flower to grow a richer version of it: click the flasks on the lab bench to stir tonics
-  into the beaker (rain water for air and room, honey for warmth and more voices, moonwater for shimmer
-  and echoes, storm water for wildness), then drag the beaker onto a flower. Every pour measures a
-  little differently, and sometimes the mix fizzes into something unexpected. Click the beaker to tip it out.
 
   ![The preset garden](docs/meadow.jpg)
+- **Watering**: in the preset garden, an old galvanised bucket of water stands in the grass. Pick it up,
+  carry it over a flower and let go: it tips over and waters the flower, a richer version of that sound
+  grows, and Bouquet glides to it. Plain water makes everything a little fuller (more harmony, width, air
+  and motion); what else the water brings out is a surprise every time: more room and forest, warmth and
+  extra voices, shimmering echoes, or something wild and scattered. Now and then it fizzes into something
+  unexpected (a new harmony, a jump in register). The new preset is saved and named after the flower it
+  came from and what the water brought out, like *nocturne, honeyed & moonlit*. Water it again to keep
+  experimenting.
+
+  ![Watering a flower](docs/watering.jpg)
 
 ## Building
 
@@ -55,6 +66,7 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
 cmake --build build --config Release -j
 ctest --test-dir build -C Release        # render tests
+build/Bouquet/BouquetTest_artefacts/Release/BouquetTest --showcase frames   # the showcase video, as PNG frames
 scripts/package-macos.sh build           # Mac: sign, run auval, make the .pkg
 ```
 
@@ -71,6 +83,7 @@ needed): `MACOS_CERTIFICATES_P12` (base64 of a .p12 with both Developer ID certi
 - `Bouquet/assets/samples`: instrument recordings from [VSCO-2 CE](https://github.com/sgossner/VSCO-2-CE)
   (CC0) and the FluidR3 electric piano (MIT), prepared by `tools/samples/build_samples.py`.
 - `Bouquet/assets/flowers`: flowers, grass and lawn rendered in Blender by `tools/flowers/render_flowers.py`,
+  the watering bucket by `tools/flowers/render_bucket.py`,
   lit by a CC0 sky from Poly Haven; the sky by `tools/flowers/render_sky.py`; the meadow around the keys
   by `tools/flowers/render_meadow.py`.
 - Fonts: Newsreader and Inter, SIL Open Font License.
