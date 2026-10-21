@@ -2,7 +2,8 @@
 
 A granular instrument for macOS (AU + VST3, universal, macOS 11+; VST3 on Windows and Linux too).
 Recordings of real instruments on the left, played as if in a forest clearing; a granular Magic Lab
-on the right; and a garden that grows a bouquet for every chord you play, then lets it rot.
+on the right; and a garden that grows a bouquet for every chord you play, then lets it rot;
+and a preset garden where you water your sounds into richer ones.
 
 ![Bouquet](docs/bouquet.jpg)
 
@@ -42,12 +43,27 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
   keyboard in a meadow, the bouquets growing up from behind the keys.
 - **Presets**: click **Garden** to look down on a lawn where every preset is a flower. Hover to see a name,
   click to load, **plant this sound** to save yours as a new flower. Right-click to uproot.
-  **Water** a flower to grow a richer version of it: click the flasks on the lab bench to stir tonics
-  into the beaker (rain water for air and room, honey for warmth and more voices, moonwater for shimmer
-  and echoes, storm water for wildness), then drag the beaker onto a flower. Every pour measures a
-  little differently, and sometimes the mix fizzes into something unexpected. Click the beaker to tip it out.
 
   ![The preset garden](docs/meadow.jpg)
+- **Watering**: in the preset garden, water a flower to grow a richer version of its sound beside it.
+  The lab bench along the bottom holds a beaker of water and four flasks of tonic:
+
+  | Tonic | What it does to a sound |
+  | --- | --- |
+  | **rain water** | more air, room and forest |
+  | **honey** | thicker and warmer, more voices |
+  | **moonwater** | shimmering echoes and harmony |
+  | **storm water** | wild, scattered, unpredictable |
+
+  Click a flask to stir a dose into the beaker (up to three; each pour measures a little differently),
+  then drag the beaker onto a flower. It tips and pours, a new flower grows, and the sound glides to it.
+  Plain water alone makes everything a little fuller; each tonic pushes the sound further its own way.
+  About one pour in five fizzes into something unexpected (a new harmony, a jump in register, a wild
+  turn), and storm water makes that likelier. The new preset is saved and named after the flower it came
+  from and what it was given, like *nocturne, honeyed & moonlit*. Water it again to keep experimenting,
+  or click the beaker to tip the mix out.
+
+  ![Watering a flower](docs/watering.jpg)
 
 ## Building
 
