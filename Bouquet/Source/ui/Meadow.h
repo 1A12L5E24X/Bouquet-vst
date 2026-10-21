@@ -15,6 +15,10 @@ namespace bouquet::ui
 //
 // And a bucket of water: drag it onto a flower and tip it to water it. A richer version
 // of that preset grows, and what the water brings out of it is a surprise every time.
+//
+// Beside it a shelf of tools, each carried to a flower the same way: garden soil makes
+// its sound weirder, pruning shears smaller, a growth tonic bigger, a jar of fireflies
+// glowy, a jar of crickets glitchy. The flower itself is shaped to match.
 class Meadow : public juce::Component
 {
 public:
@@ -27,6 +31,9 @@ public:
 
     // Pours the bucket on a flower, as if carried there.
     void water (int plant);
+
+    // Uses a tool from the shelf on a flower, as if carried there.
+    void tend (Tending tool, int plant) { useTool ((int) tool, plant); }
 
     // Advances the fade, growth and hover; call once per frame.
     void tick (float dt);
@@ -48,6 +55,8 @@ private:
         juce::Point<float> centre;
         float radius, angle, appear = 0.0f, hover = 0.0f, delay = 0.0f;
         float wet = 0.0f;   // glistening after being watered
+        float earth = 0.0f;   // a patch of dark soil, after being soiled
+        float bigness = 0.0f, glow = 0.0f, glitch = 0.0f;   // how the tools have shaped it (see traits)
         int variant = 0;
     };
 
@@ -81,8 +90,46 @@ private:
     void paintBucket (juce::Graphics&, float time) const;
     void paintLabel (juce::Graphics&, const juce::String& title, const juce::String& text, juce::Point<float> above, float alpha) const;
 
+    // --- The shelf of tools
+    struct Tool
+    {
+        Tending kind;
+        juce::Point<float> home, pos, grab;
+        float lift = 1.0f, hover = 0.0f, sway = 0.0f;
+        bool carrying = false;
+    };
+    // Things in the air while a tool is used: crumbs of soil, cut petals, drops of tonic,
+    // fireflies, crickets.
+    struct Bit
+    {
+        juce::Point<float> pos, vel;
+        juce::Colour colour;
+        float size, life, maxLife, angle = 0.0f, spin = 0.0f, landY = 0.0f, aux = 0.0f;
+        bool landed = false;
+        Tending kind = Tending::soil;
+    };
+    struct Use
+    {
+        int tool = -1, plant = -1;
+        juce::Point<float> at, held;   // the flower; where the tool is held over it
+        float radius = 0.0f, t = 0.0f, emit = 0.0f;
+        bool done = false;
+    } use;
+
+    int toolAt (juce::Point<float>) const;
+    void useTool (int tool, int plant);
+    void finishUse();
+    void tickTools (float dt);
+    void paintTools (juce::Graphics&, float time) const;
+    void paintBits (juce::Graphics&, float time) const;
+    static void paintToolArt (juce::Graphics&, Tending, float size, float open, float time);
+    juce::Point<float> toolSize() const { return { 64.0f, 64.0f }; }
+
     BouquetProcessor& processor;
     juce::SharedResourcePointer<real::FlowerSprites> sprites;
+    std::array<Tool, (size_t) Tending::count> tools;
+    std::vector<Bit> bits;
+    int hoveredTool = -1;
     std::vector<Plant> plants;
     juce::Image drawnGround;   // the illustrated lawn, made once per size
     int hovered = -1;

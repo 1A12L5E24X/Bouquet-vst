@@ -52,6 +52,8 @@ public:
     bouquet::Preset plantPreset (const juce::String& name);   // saves the current sound as a user preset
     // Grows a richer version of a preset (see waterPreset), saves it and glides to it.
     bouquet::Watering waterPreset (const bouquet::Preset&, const std::vector<bouquet::Tonic>&);
+    // Tends a flower with one of the garden's other tools (see tendPreset): saves the result and glides to it.
+    bouquet::Watering tendPreset (const bouquet::Preset&, bouquet::Tending);
     juce::String getCurrentPresetName() const { return apvts.state.getProperty ("preset", "").toString(); }
     bouquet::PresetLibrary presets;
 

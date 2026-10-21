@@ -220,6 +220,67 @@ Preset capturePreset (const juce::AudioProcessorValueTreeState& state, const juc
     return p;
 }
 
+namespace
+{
+    // Reads and nudges the values of a preset being made from another one.
+    struct Editor
+    {
+        Editor (const juce::AudioProcessorValueTreeState& s, Preset& p, juce::Random& rnd) : state (s), preset (p), r (rnd) {}
+
+        float* find (const juce::String& id)
+        {
+            for (auto& [key, value] : preset.values)
+                if (key == id)
+                    return &value;
+            return nullptr;
+        }
+        float plain (const juce::String& id)
+        {
+            if (auto* v = find (id))
+                return *v;
+            auto* p = state.getParameter (id);
+            return p != nullptr ? p->convertFrom0to1 (p->getDefaultValue()) : 0.0f;
+        }
+        void set (const juce::String& id, float v)
+        {
+            if (auto* existing = find (id)) *existing = v;
+            else                            preset.values.push_back ({ id, v });
+        }
+        // Pushes a parameter along its own range, by a little more or less than asked.
+        void nudge (const juce::String& id, float amount)
+        {
+            auto* p = state.getParameter (id);
+            if (p == nullptr)
+                return;
+            const float norm = p->convertTo0to1 (plain (id)) + amount * (0.6f + 0.8f * r.nextFloat());
+            set (id, p->convertFrom0to1 (juce::jlimit (0.0f, 1.0f, norm)));
+        }
+        void setPlain (const juce::String& id, float v)
+        {
+            auto* p = state.getParameter (id);
+            set (id, p != nullptr ? p->convertFrom0to1 (p->convertTo0to1 (v)) : v);   // clamped to the parameter's range
+        }
+        void shape (const juce::String& trait, float amount, float lo, float hi)
+        {
+            set (trait, juce::jlimit (lo, hi, plain (trait) + amount));
+        }
+
+        // The name: the flower it came from, and what it was given; unique in the library.
+        void name (const PresetLibrary& names, const juce::String& base, const juce::StringArray& given)
+        {
+            auto result = base + ", " + given.joinIntoString (" & ");
+            static const char* numerals[] = { " ii", " iii", " iv", " v", " vi", " vii", " viii", " ix", " x" };
+            for (int i = 0; names.find (result) != nullptr; ++i)
+                result = base + ", " + given.joinIntoString (" & ") + (i < 9 ? juce::String (numerals[i]) : " " + juce::String (i + 2));
+            preset.name = result;
+        }
+
+        const juce::AudioProcessorValueTreeState& state;
+        Preset& preset;
+        juce::Random& r;
+    };
+}
+
 const TonicInfo& tonicInfo (Tonic t)
 {
     static const TonicInfo infos[] = {
@@ -238,36 +299,10 @@ Watering waterPreset (const juce::AudioProcessorValueTreeState& state, const Pre
     w.preset = source;
     w.preset.factory = false;
     w.preset.file = juce::File();
-    auto& values = w.preset.values;
-
-    auto find = [&values] (const juce::String& id) -> float*
-    {
-        for (auto& [key, value] : values)
-            if (key == id)
-                return &value;
-        return nullptr;
-    };
-    auto plain = [&] (const juce::String& id) -> float
-    {
-        if (auto* v = find (id))
-            return *v;
-        auto* p = state.getParameter (id);
-        return p != nullptr ? p->convertFrom0to1 (p->getDefaultValue()) : 0.0f;
-    };
-    auto set = [&] (const juce::String& id, float v)
-    {
-        if (auto* existing = find (id)) *existing = v;
-        else                            values.push_back ({ id, v });
-    };
-    // Pushes a parameter along its own range, by a little more or less than asked.
-    auto nudge = [&] (const juce::String& id, float amount)
-    {
-        auto* p = state.getParameter (id);
-        if (p == nullptr)
-            return;
-        const float norm = p->convertTo0to1 (plain (id)) + amount * (0.6f + 0.8f * r.nextFloat());
-        set (id, p->convertFrom0to1 (juce::jlimit (0.0f, 1.0f, norm)));
-    };
+    Editor edit (state, w.preset, r);
+    auto plain = [&] (const juce::String& id) { return edit.plain (id); };
+    auto set = [&] (const juce::String& id, float v) { edit.set (id, v); };
+    auto nudge = [&] (const juce::String& id, float amount) { edit.nudge (id, amount); };
 
     // Plain water: everything a little fuller.
     if (plain (ids::magic) < 0.5f)
@@ -352,12 +387,147 @@ Watering waterPreset (const juce::AudioProcessorValueTreeState& state, const Pre
             given.add (tonicInfo ((Tonic) t).adjective);
     if (given.isEmpty())
         given.add ("watered");
-    auto name = base + ", " + given.joinIntoString (" & ");
-    static const char* numerals[] = { " ii", " iii", " iv", " v", " vi", " vii", " viii", " ix", " x" };
-    for (int i = 0; names.find (name) != nullptr; ++i)
-        name = base + ", " + given.joinIntoString (" & ") + (i < 9 ? juce::String (numerals[i]) : " " + juce::String (i + 2));
-    w.preset.name = name;
+    edit.name (names, base, given);
+    edit.shape (traits::size, 0.1f, -1.0f, 1.0f);   // a watered flower grows a little
     w.note = (w.note.isEmpty() ? juce::String ("grew richer") : w.note.dropLastCharacters (2));
+    return w;
+}
+const TendingInfo& tendingInfo (Tending t)
+{
+    static const TendingInfo infos[] = {
+        { "garden soil", "scatter it on a flower: its sound grows stranger", "earthy" },
+        { "pruning shears", "snip a flower: its sound grows smaller and closer", "pruned" },
+        { "growth tonic", "a drop makes a sound bigger, deeper and longer", "towering" },
+        { "a jar of fireflies", "let them out: a sound turns glowy and bright", "glowing" },
+        { "a jar of crickets", "let them loose: a sound skips and glitches", "chirping" },
+    };
+    return infos[juce::jlimit (0, (int) Tending::count - 1, (int) t)];
+}
+
+Watering tendPreset (const juce::AudioProcessorValueTreeState& state, const Preset& source, Tending tending,
+                     const PresetLibrary& names, juce::Random& r)
+{
+    Watering w;
+    w.preset = source;
+    w.preset.factory = false;
+    w.preset.file = juce::File();
+    Editor e (state, w.preset, r);
+    const auto sign = [&r] { return r.nextBool() ? 1.0f : -1.0f; };
+    juce::String adjective = tendingInfo (tending).adjective;
+
+    // Everything but pruning needs the Magic Lab awake: that's where the sound goes strange.
+    if (tending != Tending::prune && e.plain (ids::magic) < 0.5f)
+    {
+        e.set (ids::magic, 1.0f);
+        e.set (ids::mix, 0.4f + 0.15f * r.nextFloat());
+        w.note << "woke the Magic Lab; ";
+    }
+
+    switch (tending)
+    {
+        case Tending::soil:
+        {
+            // Four soils pull four ways.
+            const int soil = r.nextInt (4);
+            static const char* soils[] = { "loamy", "peaty", "ashen", "clayed" };
+            adjective = soils[soil];
+            if (soil == 0)           // loam: the harmony bends out of tune and out of shape
+            {
+                e.nudge (ids::detune, 0.3f);  e.nudge (ids::harmonyAmount, 0.18f);
+                const int odd[] = { 10, 13, 11, 12, 7 };   // whole tone, cluster, shimmer, sub, minor ninth
+                e.set (ids::harmony, (float) odd[r.nextInt (5)]);
+                w.fizzed = true;
+                w.note << "loam bent the harmony; ";
+            }
+            else if (soil == 1)      // peat: drowned and drifting
+            {
+                e.nudge (ids::time, 0.14f);  e.nudge (ids::life, 0.25f);  e.nudge (ids::spray, 0.2f);
+                e.nudge (ids::reverse, 0.22f);  e.nudge (ids::size, 0.1f);
+                w.note << "peat set it drifting; ";
+            }
+            else if (soil == 2)      // ash: down, dark and long
+            {
+                const float down[] = { -5.0f, -7.0f, -12.0f };
+                e.setPlain (ids::pitch, e.plain (ids::pitch) + down[r.nextInt (3)]);
+                e.nudge (ids::colour, -0.3f);  e.nudge (ids::decay, 0.15f);  e.nudge (ids::feedback, 0.12f);
+                w.note << "ash pulled it down into the dark; ";
+            }
+            else                     // clay: smeared and backwards
+            {
+                e.nudge (ids::reverse, 0.35f);  e.nudge (ids::shape, 0.3f);
+                e.nudge (ids::size, 0.12f);  e.nudge (ids::chaos, 0.15f);
+                w.note << "clay smeared it backwards; ";
+            }
+            // Whatever the soil, three more things wander off somewhere odd.
+            const juce::String* wild[] = { &ids::pitch, &ids::colour, &ids::shape, &ids::reverse, &ids::size, &ids::time,
+                                           &ids::feedback, &ids::chaos, &ids::detune, &ids::spray, &ids::width };
+            for (int i = 0; i < 3; ++i)
+                e.nudge (*wild[r.nextInt ((int) std::size (wild))], sign() * (0.2f + 0.15f * r.nextFloat()));
+            e.shape (traits::glitch, 0.1f, 0.0f, 1.0f);
+            break;
+        }
+
+        case Tending::prune:
+            e.nudge (ids::release, -0.2f);  e.nudge (ids::decay, -0.2f);  e.nudge (ids::space, -0.15f);
+            e.nudge (ids::size, -0.15f);  e.nudge (ids::feedback, -0.15f);  e.nudge (ids::time, -0.1f);
+            e.nudge (ids::width, -0.1f);  e.nudge (ids::forest, -0.15f);  e.nudge (ids::attack, -0.1f);
+            e.nudge (ids::labTone, 0.08f);
+            e.shape (traits::size, -0.45f, -1.0f, 1.0f);
+            w.note << "snipped it shorter, closer and drier; ";
+            break;
+
+        case Tending::feed:
+            e.nudge (ids::release, 0.2f);  e.nudge (ids::decay, 0.2f);  e.nudge (ids::space, 0.15f);
+            e.nudge (ids::size, 0.15f);  e.nudge (ids::width, 0.12f);  e.nudge (ids::forest, 0.12f);
+            e.nudge (ids::density, 0.08f);  e.nudge (ids::harmonyAmount, 0.1f);  e.nudge (ids::labTone, -0.08f);
+            e.nudge (ids::attack, 0.05f);
+            if (e.plain (ids::octave) > -1.5f && (r.nextFloat() < 0.4f))
+            {
+                e.set (ids::octave, e.plain (ids::octave) - 1.0f);
+                w.note << "dropped an octave; ";
+            }
+            e.shape (traits::size, 0.45f, -1.0f, 1.0f);
+            w.note << "grew longer, wider and deeper; ";
+            break;
+
+        case Tending::lantern:
+        {
+            if (juce::roundToInt (e.plain (ids::harmony)) == 0 || (r.nextFloat() < 0.3f))
+                e.set (ids::harmony, (r.nextFloat() < 0.65f) ? 11.0f : (r.nextBool() ? 8.0f : 1.0f));   // shimmer, lydian or octaves
+            e.nudge (ids::harmonyAmount, 0.2f);  e.nudge (ids::feedback, 0.15f);  e.nudge (ids::colour, 0.25f);
+            e.nudge (ids::labTone, 0.12f);  e.nudge (ids::space, 0.12f);  e.nudge (ids::decay, 0.15f);
+            e.nudge (ids::life, 0.15f);  e.nudge (ids::detune, 0.08f);
+            if ((r.nextFloat() < 0.35f))
+            {
+                e.setPlain (ids::pitch, e.plain (ids::pitch) + 12.0f);
+                w.note << "the grains rose an octave; ";
+            }
+            e.shape (traits::glow, 0.5f, 0.0f, 1.0f);
+            w.note << "it shimmers and glows; ";
+            break;
+        }
+
+        case Tending::crickets:
+            // Tiny grains, a short stutter of an echo, and everything a little scattered.
+            e.setPlain (ids::size, 14.0f + 46.0f * r.nextFloat());
+            e.setPlain (ids::density, std::min (80.0f, e.plain (ids::density) * 1.5f + 14.0f));
+            e.setPlain (ids::time, 0.05f + 0.2f * r.nextFloat());
+            e.nudge (ids::chaos, 0.3f);  e.nudge (ids::spray, 0.15f);  e.nudge (ids::reverse, 0.2f);
+            e.nudge (ids::shape, 0.25f);  e.nudge (ids::feedback, 0.1f);
+            e.shape (traits::glitch, 0.55f, 0.0f, 1.0f);
+            w.note << "tiny grains, skipping and stuttering; ";
+            break;
+
+        case Tending::count:
+            break;
+    }
+
+    // Fuller sounds are louder ones, tighter sounds are quieter: keep them sitting where they were.
+    const float level = tending == Tending::prune ? 0.5f : -0.8f;
+    e.set (ids::sourceLevel, juce::jlimit (-36.0f, 12.0f, e.plain (ids::sourceLevel) + level));
+
+    e.name (names, source.name.upToFirstOccurrenceOf (",", false, false).trim(), juce::StringArray (adjective));
+    w.note = w.note.isEmpty() ? juce::String ("changed") : w.note.dropLastCharacters (2);
     return w;
 }
 } // namespace bouquet

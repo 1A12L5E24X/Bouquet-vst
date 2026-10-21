@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "ui/PluginEditor.h"
+#include "dsp/Weather.h"
 
 using namespace bouquet;
 
@@ -117,9 +118,12 @@ void BouquetProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     soundingVoices.store (soundLab.activeVoiceCount());
     keyPressure.store (soundLab.maxPressure());
 
-    // The instruments are heard as if recorded in a forest clearing.
+    // The instruments are heard as if recorded in a forest clearing, and what you play
+    // makes the weather there: low notes bring rain, high ones let in the light.
+    const auto held = soundLab.heldRange();
     forest.process (srcL, srcR, n, apvts.getRawParameterValue (ids::forest)->load(),
-                    apvts.getRawParameterValue (ids::wildlife)->load());
+                    apvts.getRawParameterValue (ids::wildlife)->load(),
+                    held.any ? rainForNote (held.lowest) : 0.0f, held.any ? lightForNote (held.highest) : 0.0f);
 
     const bool live = lab.instrument == Instrument::liveInput;
     sourceGain.setTargetValue (juce::Decibels::decibelsToGain (apvts.getRawParameterValue (ids::sourceLevel)->load()));
@@ -296,6 +300,16 @@ bouquet::Watering BouquetProcessor::waterPreset (const Preset& source, const std
         watering.preset = *saved;
     applyPreset (watering.preset, 1.6);
     return watering;
+}
+
+bouquet::Watering BouquetProcessor::tendPreset (const Preset& source, bouquet::Tending tending)
+{
+    auto tended = bouquet::tendPreset (apvts, source, tending, presets, random);
+    presets.save (tended.preset);
+    if (auto* saved = presets.find (tended.preset.name))
+        tended.preset = *saved;
+    applyPreset (tended.preset, 1.6);
+    return tended;
 }
 
 void BouquetProcessor::mutate()

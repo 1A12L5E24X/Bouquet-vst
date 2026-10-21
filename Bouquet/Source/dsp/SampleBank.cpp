@@ -16,8 +16,17 @@ namespace
             case Instrument::violin:  return "violin";
             case Instrument::cello:   return "cello";
             case Instrument::flute:   return "flute";
-            case Instrument::glass:                     // glass and choir are synthesised
+            case Instrument::clarinet: return "clarinet";
+            case Instrument::horn:    return "horn";
+            case Instrument::glockenspiel: return "glockenspiel";
+            case Instrument::bells:   return "bells";
+            case Instrument::glass:                     // the rest are synthesised
             case Instrument::choir:
+            case Instrument::kalimba:
+            case Instrument::chimes:
+            case Instrument::bowl:
+            case Instrument::drops:
+            case Instrument::birdsong:
             case Instrument::liveInput:
             case Instrument::count:   break;
         }

@@ -1767,6 +1767,730 @@
      "hivel": 127
     }
    ]
+  },
+  "clarinet": {
+   "sustained": true,
+   "channels": 1,
+   "regions": [
+    {
+     "file": "clarinet/058_000.ogg",
+     "key": 58,
+     "lo": 56,
+     "hi": 59,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 113525,
+     "loopEnd": 166446
+    },
+    {
+     "file": "clarinet/070_000.ogg",
+     "key": 70,
+     "lo": 68,
+     "hi": 71,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 120021,
+     "loopEnd": 164121
+    },
+    {
+     "file": "clarinet/082_000.ogg",
+     "key": 82,
+     "lo": 80,
+     "hi": 83,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 100995,
+     "loopEnd": 169351
+    },
+    {
+     "file": "clarinet/050_000.ogg",
+     "key": 50,
+     "lo": 50,
+     "hi": 51,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 123529,
+     "loopEnd": 156598
+    },
+    {
+     "file": "clarinet/062_000.ogg",
+     "key": 62,
+     "lo": 60,
+     "hi": 63,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 131564,
+     "loopEnd": 169049
+    },
+    {
+     "file": "clarinet/074_000.ogg",
+     "key": 74,
+     "lo": 72,
+     "hi": 75,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 97962,
+     "loopEnd": 161909
+    },
+    {
+     "file": "clarinet/086_000.ogg",
+     "key": 86,
+     "lo": 84,
+     "hi": 87,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 100138,
+     "loopEnd": 159674
+    },
+    {
+     "file": "clarinet/089_000.ogg",
+     "key": 89,
+     "lo": 88,
+     "hi": 90,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 101874,
+     "loopEnd": 157023
+    },
+    {
+     "file": "clarinet/053_000.ogg",
+     "key": 53,
+     "lo": 52,
+     "hi": 55,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 105444,
+     "loopEnd": 169395
+    },
+    {
+     "file": "clarinet/065_000.ogg",
+     "key": 65,
+     "lo": 64,
+     "hi": 67,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 116000,
+     "loopEnd": 168921
+    },
+    {
+     "file": "clarinet/077_000.ogg",
+     "key": 77,
+     "lo": 76,
+     "hi": 79,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 128822,
+     "loopEnd": 164102
+    },
+    {
+     "file": "clarinet/058_042.ogg",
+     "key": 58,
+     "lo": 56,
+     "hi": 59,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 102778,
+     "loopEnd": 162314
+    },
+    {
+     "file": "clarinet/070_042.ogg",
+     "key": 70,
+     "lo": 68,
+     "hi": 71,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 127058,
+     "loopEnd": 162339
+    },
+    {
+     "file": "clarinet/082_042.ogg",
+     "key": 82,
+     "lo": 80,
+     "hi": 83,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 112932,
+     "loopEnd": 157032
+    },
+    {
+     "file": "clarinet/050_042.ogg",
+     "key": 50,
+     "lo": 50,
+     "hi": 51,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 129256,
+     "loopEnd": 164604
+    },
+    {
+     "file": "clarinet/062_042.ogg",
+     "key": 62,
+     "lo": 60,
+     "hi": 63,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 135969,
+     "loopEnd": 169023
+    },
+    {
+     "file": "clarinet/074_042.ogg",
+     "key": 74,
+     "lo": 72,
+     "hi": 75,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 118689,
+     "loopEnd": 167200
+    },
+    {
+     "file": "clarinet/086_042.ogg",
+     "key": 86,
+     "lo": 84,
+     "hi": 87,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 136282,
+     "loopEnd": 167152
+    },
+    {
+     "file": "clarinet/089_042.ogg",
+     "key": 89,
+     "lo": 88,
+     "hi": 90,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 131440,
+     "loopEnd": 164516
+    },
+    {
+     "file": "clarinet/053_042.ogg",
+     "key": 53,
+     "lo": 52,
+     "hi": 55,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 118650,
+     "loopEnd": 169349
+    },
+    {
+     "file": "clarinet/065_042.ogg",
+     "key": 65,
+     "lo": 64,
+     "hi": 67,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 131449,
+     "loopEnd": 164526
+    },
+    {
+     "file": "clarinet/077_042.ogg",
+     "key": 77,
+     "lo": 76,
+     "hi": 79,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 103653,
+     "loopEnd": 156575
+    },
+    {
+     "file": "clarinet/058_084.ogg",
+     "key": 58,
+     "lo": 56,
+     "hi": 59,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 132379,
+     "loopEnd": 163249
+    },
+    {
+     "file": "clarinet/070_084.ogg",
+     "key": 70,
+     "lo": 68,
+     "hi": 71,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 105859,
+     "loopEnd": 163190
+    },
+    {
+     "file": "clarinet/082_084.ogg",
+     "key": 82,
+     "lo": 80,
+     "hi": 83,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 101436,
+     "loopEnd": 156562
+    },
+    {
+     "file": "clarinet/050_084.ogg",
+     "key": 50,
+     "lo": 50,
+     "hi": 51,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 136288,
+     "loopEnd": 169354
+    },
+    {
+     "file": "clarinet/062_084.ogg",
+     "key": 62,
+     "lo": 60,
+     "hi": 63,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 136348,
+     "loopEnd": 169413
+    },
+    {
+     "file": "clarinet/074_084.ogg",
+     "key": 74,
+     "lo": 72,
+     "hi": 75,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 112488,
+     "loopEnd": 156587
+    },
+    {
+     "file": "clarinet/086_084.ogg",
+     "key": 86,
+     "lo": 84,
+     "hi": 87,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 89542,
+     "loopEnd": 157898
+    },
+    {
+     "file": "clarinet/089_084.ogg",
+     "key": 89,
+     "lo": 88,
+     "hi": 90,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 100994,
+     "loopEnd": 167145
+    },
+    {
+     "file": "clarinet/053_084.ogg",
+     "key": 53,
+     "lo": 52,
+     "hi": 55,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 118196,
+     "loopEnd": 157883
+    },
+    {
+     "file": "clarinet/065_084.ogg",
+     "key": 65,
+     "lo": 64,
+     "hi": 67,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 102848,
+     "loopEnd": 157973
+    },
+    {
+     "file": "clarinet/077_084.ogg",
+     "key": 77,
+     "lo": 76,
+     "hi": 79,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 105429,
+     "loopEnd": 158348
+    }
+   ]
+  },
+  "horn": {
+   "sustained": true,
+   "channels": 1,
+   "regions": [
+    {
+     "file": "horn/046_000.ogg",
+     "key": 46,
+     "lo": 45,
+     "hi": 47,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 117316,
+     "loopEnd": 165825
+    },
+    {
+     "file": "horn/033_000.ogg",
+     "key": 33,
+     "lo": 33,
+     "hi": 34,
+     "lovel": 0,
+     "hivel": 127,
+     "loopStart": 104172,
+     "loopEnd": 157035
+    },
+    {
+     "file": "horn/057_000.ogg",
+     "key": 57,
+     "lo": 55,
+     "hi": 58,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 125747,
+     "loopEnd": 158831
+    },
+    {
+     "file": "horn/036_000.ogg",
+     "key": 36,
+     "lo": 35,
+     "hi": 37,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 119129,
+     "loopEnd": 167642
+    },
+    {
+     "file": "horn/060_000.ogg",
+     "key": 60,
+     "lo": 59,
+     "hi": 66,
+     "lovel": 0,
+     "hivel": 30,
+     "loopStart": 119539,
+     "loopEnd": 161449
+    },
+    {
+     "file": "horn/039_000.ogg",
+     "key": 39,
+     "lo": 38,
+     "hi": 40,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 109844,
+     "loopEnd": 169367
+    },
+    {
+     "file": "horn/050_000.ogg",
+     "key": 50,
+     "lo": 48,
+     "hi": 51,
+     "lovel": 0,
+     "hivel": 30,
+     "loopStart": 104160,
+     "loopEnd": 157065
+    },
+    {
+     "file": "horn/074_000.ogg",
+     "key": 74,
+     "lo": 67,
+     "hi": 75,
+     "lovel": 0,
+     "hivel": 127,
+     "loopStart": 118675,
+     "loopEnd": 169393
+    },
+    {
+     "file": "horn/053_000.ogg",
+     "key": 53,
+     "lo": 52,
+     "hi": 54,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 131513,
+     "loopEnd": 164591
+    },
+    {
+     "file": "horn/077_000.ogg",
+     "key": 77,
+     "lo": 76,
+     "hi": 77,
+     "lovel": 0,
+     "hivel": 127,
+     "loopStart": 104107,
+     "loopEnd": 165845
+    },
+    {
+     "file": "horn/043_000.ogg",
+     "key": 43,
+     "lo": 41,
+     "hi": 44,
+     "lovel": 0,
+     "hivel": 41,
+     "loopStart": 104567,
+     "loopEnd": 168511
+    },
+    {
+     "file": "horn/046_042.ogg",
+     "key": 46,
+     "lo": 45,
+     "hi": 47,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 88676,
+     "loopEnd": 157037
+    },
+    {
+     "file": "horn/057_042.ogg",
+     "key": 57,
+     "lo": 55,
+     "hi": 58,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 97961,
+     "loopEnd": 166283
+    },
+    {
+     "file": "horn/036_042.ogg",
+     "key": 36,
+     "lo": 35,
+     "hi": 37,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 93511,
+     "loopEnd": 157442
+    },
+    {
+     "file": "horn/060_031.ogg",
+     "key": 60,
+     "lo": 59,
+     "hi": 66,
+     "lovel": 31,
+     "hivel": 62,
+     "loopStart": 118355,
+     "loopEnd": 157891
+    },
+    {
+     "file": "horn/039_042.ogg",
+     "key": 39,
+     "lo": 38,
+     "hi": 40,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 102405,
+     "loopEnd": 164069
+    },
+    {
+     "file": "horn/050_031.ogg",
+     "key": 50,
+     "lo": 48,
+     "hi": 51,
+     "lovel": 31,
+     "hivel": 62,
+     "loopStart": 106311,
+     "loopEnd": 159219
+    },
+    {
+     "file": "horn/053_042.ogg",
+     "key": 53,
+     "lo": 52,
+     "hi": 54,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 100607,
+     "loopEnd": 157941
+    },
+    {
+     "file": "horn/043_042.ogg",
+     "key": 43,
+     "lo": 41,
+     "hi": 44,
+     "lovel": 42,
+     "hivel": 83,
+     "loopStart": 118192,
+     "loopEnd": 160090
+    },
+    {
+     "file": "horn/046_084.ogg",
+     "key": 46,
+     "lo": 45,
+     "hi": 47,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 124834,
+     "loopEnd": 164530
+    },
+    {
+     "file": "horn/057_084.ogg",
+     "key": 57,
+     "lo": 55,
+     "hi": 58,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 138503,
+     "loopEnd": 169363
+    },
+    {
+     "file": "horn/036_084.ogg",
+     "key": 36,
+     "lo": 35,
+     "hi": 37,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 101133,
+     "loopEnd": 156323
+    },
+    {
+     "file": "horn/060_063.ogg",
+     "key": 60,
+     "lo": 59,
+     "hi": 66,
+     "lovel": 63,
+     "hivel": 94,
+     "loopStart": 101880,
+     "loopEnd": 159209
+    },
+    {
+     "file": "horn/039_084.ogg",
+     "key": 39,
+     "lo": 38,
+     "hi": 40,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 103702,
+     "loopEnd": 165449
+    },
+    {
+     "file": "horn/050_063.ogg",
+     "key": 50,
+     "lo": 48,
+     "hi": 51,
+     "lovel": 63,
+     "hivel": 94,
+     "loopStart": 95266,
+     "loopEnd": 157003
+    },
+    {
+     "file": "horn/053_084.ogg",
+     "key": 53,
+     "lo": 52,
+     "hi": 54,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 116474,
+     "loopEnd": 167188
+    },
+    {
+     "file": "horn/043_084.ogg",
+     "key": 43,
+     "lo": 41,
+     "hi": 44,
+     "lovel": 84,
+     "hivel": 127,
+     "loopStart": 127900,
+     "loopEnd": 158863
+    },
+    {
+     "file": "horn/060_095.ogg",
+     "key": 60,
+     "lo": 59,
+     "hi": 66,
+     "lovel": 95,
+     "hivel": 127,
+     "loopStart": 101490,
+     "loopEnd": 156614
+    },
+    {
+     "file": "horn/050_095.ogg",
+     "key": 50,
+     "lo": 48,
+     "hi": 51,
+     "lovel": 95,
+     "hivel": 127,
+     "loopStart": 91743,
+     "loopEnd": 160111
+    }
+   ]
+  },
+  "glockenspiel": {
+   "sustained": false,
+   "channels": 1,
+   "regions": [
+    {
+     "file": "glockenspiel/072_000.ogg",
+     "key": 72,
+     "lo": 70,
+     "hi": 75,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "glockenspiel/084_000.ogg",
+     "key": 84,
+     "lo": 82,
+     "hi": 87,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "glockenspiel/096_000.ogg",
+     "key": 96,
+     "lo": 94,
+     "hi": 96,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "glockenspiel/067_000.ogg",
+     "key": 67,
+     "lo": 67,
+     "hi": 69,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "glockenspiel/079_000.ogg",
+     "key": 79,
+     "lo": 76,
+     "hi": 81,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "glockenspiel/091_000.ogg",
+     "key": 91,
+     "lo": 88,
+     "hi": 93,
+     "lovel": 0,
+     "hivel": 127
+    }
+   ]
+  },
+  "bells": {
+   "sustained": false,
+   "channels": 1,
+   "regions": [
+    {
+     "file": "bells/077_000.ogg",
+     "key": 77,
+     "lo": 75,
+     "hi": 79,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "bells/060_000.ogg",
+     "key": 60,
+     "lo": 60,
+     "hi": 63,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "bells/072_000.ogg",
+     "key": 72,
+     "lo": 70,
+     "hi": 74,
+     "lovel": 0,
+     "hivel": 127
+    },
+    {
+     "file": "bells/067_000.ogg",
+     "key": 67,
+     "lo": 64,
+     "hi": 69,
+     "lovel": 0,
+     "hivel": 127
+    }
+   ]
   }
  }
 }

@@ -252,10 +252,13 @@ Genome genomeForPreset (const Preset& p)
     juce::Random r ((juce::int64) seed);
 
     // Species follows the voice; the seed sometimes picks a cousin.
-    // live input, piano, rhodes, marimba, glass, harp, violin, cello, flute, choir
+    // live input, piano, rhodes, marimba, glass, harp, violin, cello, flute, choir,
+    // clarinet, horn, glockenspiel, tubular bells, kalimba, wind chimes, singing bowl, water drops, birdsong
     const Species byInstrument[] = { Species::cosmos, Species::rose, Species::dahlia, Species::daisy, Species::allium,
-                                     Species::lily, Species::poppy, Species::iris, Species::foxglove, Species::peony };
-    const int instrument = juce::jlimit (0, 9, (int) p.get (ids::instrument, 1.0f));
+                                     Species::lily, Species::poppy, Species::iris, Species::foxglove, Species::peony,
+                                     Species::tulip, Species::bell, Species::daisy, Species::bell, Species::cosmos,
+                                     Species::allium, Species::lily, Species::iris, Species::poppy };
+    const int instrument = juce::jlimit (0, (int) std::size (byInstrument) - 1, (int) p.get (ids::instrument, 1.0f));
     auto species = byInstrument[instrument];
     if (r.nextFloat() < 0.25f)
         species = (Species) r.nextInt ((int) Species::count);

@@ -427,7 +427,7 @@ juce::Image FlowerSprites::ground()
 //==============================================================================
 void paintFlower (juce::Graphics& g, FlowerSprites& sprites, botany::Species species, int variant, int colour,
                   juce::Point<float> base, float height, float lean, float grow, float bloom, float rot,
-                  float time, float glow, float alpha, float stretch)
+                  float time, float glow, float alpha, float stretch, float shade)
 {
     const float fade = (rot > 0.88f ? 1.0f - (rot - 0.88f) / 0.12f : 1.0f) * alpha;
     if (fade <= 0.01f || grow <= 0.0f)
@@ -468,6 +468,14 @@ void paintFlower (juce::Graphics& g, FlowerSprites& sprites, botany::Species spe
     g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
     g.drawImageTransformed (frame.image, juce::AffineTransform::scale (1.0f / frame.imageScale).followedBy (t));
     g.setOpacity (1.0f);
+
+    if (std::abs (shade) > 0.03f)
+    {
+        // Light and dark in the petals: a flower in the sun is washed with it, one in the bass sinks into shadow.
+        g.setColour (shade > 0.0f ? juce::Colour (0xfffff6dc).withAlpha (0.34f * shade * fade)
+                                  : juce::Colour (0xff2a1838).withAlpha (-0.46f * shade * fade));
+        g.drawImageTransformed (frame.image, juce::AffineTransform::scale (1.0f / frame.imageScale).followedBy (t), true);
+    }
 
     if (rot <= 0.15f)
         return;

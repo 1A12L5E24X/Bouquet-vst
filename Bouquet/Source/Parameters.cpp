@@ -5,7 +5,9 @@ namespace bouquet
 {
 juce::StringArray instrumentNames()
 {
-    return { "live input", "piano", "rhodes", "marimba", "glass", "harp", "violin", "cello", "flute", "choir" };
+    return { "live input", "piano", "rhodes", "marimba", "glass", "harp", "violin", "cello", "flute", "choir",
+             "clarinet", "horn", "glockenspiel", "tubular bells", "kalimba", "wind chimes", "singing bowl",
+             "water drops", "birdsong" };
 }
 
 juce::StringArray instrumentDescriptions()
@@ -21,6 +23,15 @@ juce::StringArray instrumentDescriptions()
         "low, close, the voice of the wood",
         "breath turned into a tone",
         "three voices, singing as one",
+        "a dark reed, woody and close",
+        "a French horn heard across the valley",
+        "tiny steel bars, bright as frost",
+        "long brass tubes, ringing out over the trees",
+        "steel tines on a wooden box, plucked with thumbs",
+        "tubes in the wind, a gust at a time",
+        "bronze humming under a slow mallet",
+        "a bubble rises, rings, and ripples away",
+        "a whistler on a branch, sung over and over",
     };
 }
 

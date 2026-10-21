@@ -3,7 +3,8 @@ Builds Bouquet's sampled instruments from recordings of real instruments.
 
 Sources (all free to use and redistribute):
   - Versilian Studios Chamber Orchestra 2, Community Edition (CC0): upright piano, solo
-    violin, cello section, flute, harp, marimba. https://github.com/sgossner/VSCO-2-CE
+    violin, cello section, flute, harp, marimba, clarinet, French horn, glockenspiel and
+    tubular bells. https://github.com/sgossner/VSCO-2-CE
     Point --vsco at a clone; only the needed files are fetched (partial clone is fine).
   - FluidR3 GM by Frank Wen (MIT), via the npm package soundfont-for-samplers: the
     electric piano. Point --fluid at the unpacked FluidR3_GM folder.
@@ -36,6 +37,10 @@ INSTRUMENTS = {
     "harp":    ("vsco", "Harp.sfz", None, 6.0, False, True),
     "marimba": ("vsco", "Marimba.sfz", None, 3.0, False, True),
     "rhodes":  ("fluid", "electric_piano_1-mp3", None, 5.0, False, True),
+    "clarinet": ("vsco", "ClarinetSus.sfz", None, 4.0, True, True),
+    "horn":    ("vsco", "FHornSus.sfz", None, 4.0, True, True),
+    "glockenspiel": ("vsco", "Glockenspiel.sfz", None, 5.0, False, True),
+    "bells":   ("vsco", "TubularBells.sfz", None, 8.0, False, True),
 }
 
 NOTE_NAMES = {"C": 0, "Db": 1, "D": 2, "Eb": 3, "E": 4, "F": 5, "Gb": 6, "G": 7, "Ab": 8, "A": 9, "Bb": 10, "B": 11}

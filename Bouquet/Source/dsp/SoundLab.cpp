@@ -54,7 +54,7 @@ void InstrumentVoice::prepare (float sampleRate)
     active = false;
 }
 
-void InstrumentVoice::addPartial (float hz, float a, float t60)
+void InstrumentVoice::addPartial (float hz, float a, float t60, int delaySamples)
 {
     if (numPartials >= maxPartials || hz >= sr * 0.45f || hz <= 0.0f)
         return;
@@ -62,7 +62,7 @@ void InstrumentVoice::addPartial (float hz, float a, float t60)
     const float w = twoPi * hz / sr;
     // Start at a random phase so stacked partials don't all peak together.
     const float ph = rng.uni() * twoPi;
-    partials[(size_t) numPartials++] = { std::cos (ph), std::sin (ph), std::cos (w), std::sin (w), a, t60ToMul (t60, sr) };
+    partials[(size_t) numPartials++] = { std::cos (ph), std::sin (ph), std::cos (w), std::sin (w), a, t60ToMul (t60, sr), delaySamples };
 }
 
 void InstrumentVoice::start (Instrument m, float midiNote, float vel, const SoundLabSettings& s, uint32_t seed,
@@ -139,7 +139,27 @@ void InstrumentVoice::start (Instrument m, float midiNote, float vel, const Soun
         case Instrument::piano:
         case Instrument::marimba:
         case Instrument::glass:
+        case Instrument::glockenspiel:
+        case Instrument::bells:
+        case Instrument::kalimba:
+        case Instrument::chimes:
             startModal (s);
+            break;
+
+        case Instrument::bowl:
+            startModal (s);
+            naturalAttack = 0.14f;      // a mallet circling the rim: the tone swells in
+            break;
+
+        case Instrument::drops:
+            startDrops();
+            percussive = false;         // the ripples come after the first drop has gone quiet
+            break;
+
+        case Instrument::birdsong:
+            startBird();
+            naturalAttack = 0.02f;
+            percussive = false;
             break;
 
         case Instrument::rhodes:
@@ -196,12 +216,14 @@ void InstrumentVoice::start (Instrument m, float midiNote, float vel, const Soun
             break;
 
         case Instrument::cello:
+        case Instrument::horn:          // until its recording is loaded, a mellow bowed tone
             startBowed (s, true);
-            naturalAttack = 0.1f;
+            naturalAttack = model == Instrument::horn ? 0.12f : 0.1f;
             percussive = false;
             break;
 
         case Instrument::flute:
+        case Instrument::clarinet:
             vibRate = 4.8f + rng.uni() * 0.6f;
             vibTarget = 0.12f;
             amp = 0.32f * (0.6f + 0.4f * vel);
@@ -269,6 +291,88 @@ void InstrumentVoice::startModal (const SoundLabSettings&)
         strikeNoise = 0.10f * velocity * b;
         strikeDecay = t60ToMul (0.012f, sr);
         strikeFilter.setup (sr, std::min (freq * 3.0f, 6000.0f), 0.8f);
+    }
+    else if (model == Instrument::kalimba)
+    {
+        // A steel tine on a wooden box: a bright pluck, a pure ring and a woody knock.
+        const float t = std::clamp (2.4f * std::pow (261.0f / freq, 0.45f), 0.5f, 4.5f);
+        add (freq,          1.0f,                 t);
+        add (freq * 1.0015f, 0.3f,                t * 1.4f);
+        add (freq * 5.4f,   0.3f * bright,        t * 0.16f);
+        add (freq * 13.1f,  0.08f * bright * bright, t * 0.05f);
+        strikeNoise = 0.08f * velocity * bright;
+        strikeDecay = t60ToMul (0.02f, sr);
+        strikeFilter.setup (sr, std::clamp (freq * 2.0f, 500.0f, 4500.0f), 0.9f);
+    }
+    else if (model == Instrument::glockenspiel)
+    {
+        const float ratios[] = { 1.0f, 2.76f, 5.4f };
+        const float amps[]   = { 1.0f, 0.4f, 0.16f };
+        const float t = std::clamp (4.0f * std::pow (1046.0f / freq, 0.3f), 1.0f, 7.0f);
+        for (int i = 0; i < 3; ++i)
+            add (freq * ratios[i], amps[i] * std::pow (std::max (bright, 0.05f), (float) i * 0.6f), t / (1.0f + 1.5f * (float) i));
+        strikeNoise = 0.06f * velocity * bright;
+        strikeDecay = t60ToMul (0.005f, sr);
+        strikeFilter.setup (sr, std::min (freq * 3.0f, 9000.0f), 1.0f);
+    }
+    else if (model == Instrument::bells)
+    {
+        // A tubular bell: its partials stand near 2 : 3 : 4, ringing for a long time.
+        const float ratios[] = { 1.0f, 2.0f, 2.99f, 4.13f, 5.63f };
+        const float amps[]   = { 1.0f, 0.55f, 0.5f, 0.3f, 0.18f };
+        const float t = std::clamp (10.0f * std::pow (262.0f / freq, 0.3f), 2.0f, 14.0f);
+        for (int i = 0; i < 5; ++i)
+        {
+            const float a = amps[i] * std::pow (std::max (bright, 0.05f), (float) i * 0.4f);
+            add (freq * ratios[i], a, t / (1.0f + 0.5f * (float) i));
+            add (freq * ratios[i] * 1.0008f, a * 0.5f, t / (1.0f + 0.4f * (float) i));
+        }
+        strikeNoise = 0.04f * velocity;
+        strikeDecay = t60ToMul (0.01f, sr);
+        strikeFilter.setup (sr, std::min (freq * 4.0f, 8000.0f), 1.2f);
+    }
+    else if (model == Instrument::chimes)
+    {
+        // Metal tubes in the wind: the struck one, and a couple of its neighbours knocked
+        // by the same gust a moment later.
+        const float ratios[] = { 1.0f, 2.32f, 4.25f, 6.63f };
+        const float amps[]   = { 1.0f, 0.55f, 0.3f, 0.15f };
+        const float decays[] = { 1.0f, 0.65f, 0.45f, 0.3f };
+        const float t = std::clamp (7.5f * std::pow (523.0f / freq, 0.3f), 2.0f, 12.0f);
+        for (int i = 0; i < 4; ++i)
+        {
+            const float a = amps[i] * std::pow (std::max (bright, 0.05f), (float) i * 0.5f);
+            add (freq * ratios[i], a, t * decays[i]);
+            add (freq * ratios[i] * 1.0009f, a * 0.6f, t * decays[i] * 1.25f);
+        }
+        const float steps[] = { 2.0f, 4.0f, 7.0f, 9.0f, 12.0f, -3.0f, -5.0f };
+        for (int g = 0; g < 2; ++g)
+        {
+            const float neighbour = freq * semitonesToRatio (steps[(size_t) (rng.uni() * 6.99f)]);
+            const int delay = (int) ((0.12f + 0.5f * rng.uni() + 0.35f * (float) g) * sr);
+            const float a = (0.34f - 0.1f * (float) g) * (0.6f + 0.4f * bright);
+            addPartial (neighbour, a, t * 0.7f, delay);
+            addPartial (neighbour * ratios[1], a * 0.4f, t * 0.35f, delay);
+            addPartial (neighbour * ratios[2], a * 0.15f, t * 0.2f, delay);
+        }
+        strikeNoise = 0.03f * velocity;
+        strikeDecay = t60ToMul (0.004f, sr);
+        strikeFilter.setup (sr, std::min (freq * 5.0f, 9000.0f), 1.0f);
+    }
+    else if (model == Instrument::bowl)
+    {
+        // A bronze bowl: partials near 1 : 2.7 : 5.1 : 8.3, each a pair that slowly beats.
+        const float ratios[] = { 1.0f, 2.71f, 5.08f, 8.3f };
+        const float amps[]   = { 1.0f, 0.5f, 0.22f, 0.1f };
+        const float t = std::clamp (11.0f * std::pow (220.0f / freq, 0.25f), 4.0f, 16.0f);
+        for (int i = 0; i < 4; ++i)
+        {
+            const float a = amps[i] * std::pow (std::max (bright, 0.05f), (float) i * 0.45f);
+            const float f = freq * ratios[i];
+            add (f, a, t / (1.0f + 0.6f * (float) i));
+            add (f + (0.35f + 0.9f * rng.uni()) * (1.0f + (float) i), a * 0.9f, t / (1.0f + 0.5f * (float) i));
+        }
+        strikeNoise = 0.0f;
     }
     else // glass
     {
@@ -353,6 +457,47 @@ void InstrumentVoice::startChoir (const SoundLabSettings&)
     amp = 1.3f * (0.6f + 0.4f * velocity);
 }
 
+void InstrumentVoice::startDrops()
+{
+    // A bubble's pitch climbs as it shrinks, then the ripples it sends out follow.
+    const float ratios[] = { 1.0f, 1.5f, 1.25f, 2.0f, 0.75f };
+    const float level = 0.5f * (0.3f + 0.7f * velocity);
+    const float t60 = std::clamp (0.2f * std::pow (261.0f / freq, 0.4f), 0.06f, 0.4f);
+    for (size_t i = 0; i < droplets.size(); ++i)
+    {
+        auto& d = droplets[i];
+        d = {};
+        d.delay = i == 0 ? 0 : (int) ((0.09f + 0.17f * (float) i + 0.12f * rng.uni()) * sr);
+        d.hz = freq * (i == 0 ? 1.0f : ratios[(size_t) (rng.uni() * 4.99f)]) / 1.25f;
+        d.amp = level * (i == 0 ? 1.0f : 0.5f - 0.1f * (float) i);
+        d.decay = t60ToMul (t60 * (i == 0 ? 1.0f : 0.7f), sr);
+        d.phase = rng.uni();
+    }
+}
+
+void InstrumentVoice::startBird()
+{
+    // A bird sings high: fold the note up into a whistler's range, keeping its pitch class.
+    float home = freq;
+    while (home < 900.0f)  home *= 2.0f;
+    while (home > 3800.0f) home *= 0.5f;
+    bird = {};
+    bird.home = home;
+    bird.at = bird.length = 1;
+    amp = 0.2f * (0.55f + 0.45f * velocity);
+}
+
+void InstrumentVoice::nextChirp()
+{
+    const float ratios[] = { 0.84f, 0.94f, 1.0f, 1.12f, 1.26f, 1.5f, 1.68f };
+    auto pick = [this, &ratios] { return ratios[(size_t) (rng.uni() * 6.99f)]; };
+    const bool fast = bird.trill > 0.0f;
+    bird.length = (int) ((fast ? 0.022f + 0.02f * rng.uni() : 0.05f + 0.09f * rng.uni()) * sr);
+    bird.at = 0;
+    bird.f0 = bird.home * pick();
+    bird.f1 = bird.home * pick();
+}
+
 void InstrumentVoice::release()
 {
     keyDown = false;
@@ -368,6 +513,11 @@ float InstrumentVoice::renderModal()
     for (int i = 0; i < numPartials; ++i)
     {
         auto& p = partials[(size_t) i];
+        if (p.delay > 0)   // not struck yet
+        {
+            --p.delay;
+            continue;
+        }
         out += p.im * p.amp;
         const float re = p.re * p.cr - p.im * p.ci;
         p.im = p.re * p.ci + p.im * p.cr;
@@ -461,6 +611,72 @@ float InstrumentVoice::renderFlute (float hz)
         strikeNoise *= strikeDecay;
     }
     return (body * 0.6f + breath) * (1.0f + 0.03f * vib) * amp;
+}
+
+float InstrumentVoice::renderDrops()
+{
+    float out = 0.0f;
+    const float liftMul = std::exp (-38.0f / sr);
+    for (auto& d : droplets)
+    {
+        if (d.delay > 0)
+        {
+            --d.delay;
+            continue;
+        }
+        if (d.amp < 1.0e-6f)
+            continue;
+        d.lift *= liftMul;
+        d.phase += d.hz * (1.0f + 0.55f * (1.0f - d.lift)) / sr;
+        d.phase -= std::floor (d.phase);
+        d.age += 1.0f / sr;
+        const float attack = std::min (1.0f, d.age / 0.002f);
+        out += (std::sin (twoPi * d.phase) + 0.12f * std::sin (2.0f * twoPi * d.phase)) * d.amp * attack;
+        d.amp *= d.decay;
+    }
+    return out;
+}
+
+float InstrumentVoice::renderBird()
+{
+    if (bird.gapLeft > 0)
+    {
+        --bird.gapLeft;
+        return 0.0f;
+    }
+    if (bird.at >= bird.length)   // between chirps: carry on with the phrase, or rest, then begin a new one
+    {
+        if (bird.chirpsLeft <= 0)
+        {
+            if (bird.rest > 0)
+            {
+                --bird.rest;
+                return 0.0f;
+            }
+            bird.trill = rng.chance (0.35f) ? 0.03f : 0.0f;
+            bird.chirpsLeft = bird.trill > 0.0f ? 7 + (int) (rng.uni() * 7.0f) : 3 + (int) (rng.uni() * 4.0f);
+        }
+        nextChirp();
+    }
+
+    const float t = (float) bird.at / (float) bird.length;
+    const float glide = t * t * (3.0f - 2.0f * t);
+    bird.trillPhase += 38.0f / sr;
+    bird.trillPhase -= std::floor (bird.trillPhase);
+    const float hz = (bird.f0 + (bird.f1 - bird.f0) * glide) * (1.0f + bird.trill * std::sin (twoPi * bird.trillPhase));
+    phase += hz / sr;
+    phase -= std::floor (phase);
+    const float swell = std::sin (pi * t);
+    const float out = (std::sin (twoPi * phase) + 0.2f * std::sin (2.0f * twoPi * phase)) * swell * swell * amp;
+
+    if (++bird.at >= bird.length)
+    {
+        --bird.chirpsLeft;
+        bird.gapLeft = (int) ((bird.trill > 0.0f ? 0.015f + 0.02f * rng.uni() : 0.03f + 0.08f * rng.uni()) * sr);
+        if (bird.chirpsLeft <= 0)
+            bird.rest = (int) ((0.6f + 1.8f * rng.uni()) * sr);
+    }
+    return out;
 }
 
 float InstrumentVoice::renderChoir (float hz)
@@ -602,13 +818,22 @@ void InstrumentVoice::render (float* left, float* right, int numSamples, float p
     {
         case Instrument::piano:
         case Instrument::marimba:
-        case Instrument::glass:   run ([this] { return renderModal(); }); break;
+        case Instrument::glass:
+        case Instrument::glockenspiel:
+        case Instrument::bells:
+        case Instrument::kalimba:
+        case Instrument::chimes:
+        case Instrument::bowl:    run ([this] { return renderModal(); }); break;
         case Instrument::rhodes:  run ([this] { return renderRhodes(); }); break;
         case Instrument::harp:    run ([this] { return renderHarp(); }); break;
         case Instrument::violin:
+        case Instrument::horn:
         case Instrument::cello:   run ([this, hz] { return renderBowed (hz); }); break;
-        case Instrument::flute:   run ([this, hz] { return renderFlute (hz); }); break;
+        case Instrument::flute:
+        case Instrument::clarinet: run ([this, hz] { return renderFlute (hz); }); break;
         case Instrument::choir:   run ([this, hz] { return renderChoir (hz); }); break;
+        case Instrument::drops:   run ([this] { return renderDrops(); }); break;
+        case Instrument::birdsong: run ([this] { return renderBird(); }); break;
         case Instrument::liveInput:
         case Instrument::count:   break;
     }
@@ -825,6 +1050,21 @@ float SoundLab::maxPressure() const
         if (v.active)
             p = std::max (p, v.getPressure());
     return p;
+}
+
+SoundLab::HeldRange SoundLab::heldRange() const
+{
+    HeldRange r;
+    for (auto& v : voices)
+    {
+        if (! v.active || ! (v.keyDown || v.sustained))
+            continue;
+        const float n = v.getNote();
+        r.lowest = r.any ? std::min (r.lowest, n) : n;
+        r.highest = r.any ? std::max (r.highest, n) : n;
+        r.any = true;
+    }
+    return r;
 }
 
 void SoundLab::releaseVoice (InstrumentVoice& v)

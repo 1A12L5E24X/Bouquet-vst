@@ -30,8 +30,9 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
 
 ## Using it
 
-- **Sound Lab**: piano, rhodes, marimba, harp, violin, cello and flute are recordings of real
-  instruments; glass and choir are synthesised; or use live input. One finger plays a whole chord
+- **Sound Lab**: piano, rhodes, marimba, harp, violin, cello, flute, clarinet, horn, glockenspiel and
+  tubular bells are recordings of real instruments; glass, choir, kalimba, wind chimes, a singing bowl,
+  water drops and birdsong are synthesised; or use live input. One finger plays a whole chord
   (shape, voicing, strum). **Distance** sets how deep in the trees the instrument is, **Ambience** how
   much of the forest you hear.
 - **Magic Lab**: 40 granular spells (chord smear, frozen breath, shimmer halo…). Click one and everything
@@ -41,8 +42,11 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
 - **Expression**: press into held keys (aftertouch, channel or polyphonic) to swell and brighten a note
   and lift its flowers; the mod wheel blows wind through the grains and the garden. The recordings
   cross-fade smoothly between soft and loud layers, and no two notes are played quite the same.
-- **The garden**: grass springs up under the keys you play and every chord grows a bouquet that rots when
-  you let go. The **Photoreal** switch chooses between 3D-rendered and illustrated flowers; photoreal
+- **The garden**: grass springs up under the keys you play and every note grows a flower out of its own key,
+  gathered into a bouquet per chord. The flowers keep growing and opening for as long as you hold the keys,
+  and rot when you let go. The higher the note, the brighter the flower. Low notes bring rain down onto
+  their flowers (and into the forest's ambience, with distant thunder when it pours); high notes shine
+  a shaft of light on theirs (and bring more birds and glittering dew). The **Photoreal** switch chooses between 3D-rendered and illustrated flowers; photoreal
   also puts a real daylight sky behind the glass, its clouds drifting slowly across, and lays the
   keyboard in a meadow, the bouquets growing up from behind the keys.
 - **Presets**: click **Garden** to look down on a lawn where every preset is a flower. Hover to see a name,
@@ -59,6 +63,13 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
   experimenting.
 
   ![Watering a flower](docs/watering.jpg)
+- **Tools**: beside the bucket, a shelf of tools used the same way, each growing a new preset out of the
+  flower and shaping the flower itself: **garden soil** makes the sound weirder (loam bends the harmony,
+  peat sets it drifting, ash pulls it down, clay smears it backwards); **pruning shears** make it smaller
+  (shorter, closer, drier) and the flower smaller; a **growth tonic** makes it bigger (longer, wider, deeper)
+  and the flower bigger; a **jar of fireflies** makes it glowy (shimmer, brightness, a tail of light) and
+  the flower glow; a **jar of crickets** makes it glitchy (tiny grains, stutters, scatter) and the flower
+  glitch. Combine them; each result is saved as a new flower.
 
 ## Building
 

@@ -139,8 +139,9 @@ private:
 
 // Draws one rendered flower standing at `base`, `height` tall, leaning by `lean`
 // radians, with live flies and dripping blood on top when it rots. stretch molds it:
-// below 0 squashed shorter and wider, above 0 drawn up taller and thinner.
+// below 0 squashed shorter and wider, above 0 drawn up taller and thinner. shade lights or
+// darkens the petals: -1 sunk in shadow .. 0 as rendered .. +1 washed with sun.
 void paintFlower (juce::Graphics&, FlowerSprites&, botany::Species, int variant, int colour,
                   juce::Point<float> base, float height, float lean, float grow, float bloom, float rot,
-                  float time, float glow, float alpha = 1.0f, float stretch = 0.0f);
+                  float time, float glow, float alpha = 1.0f, float stretch = 0.0f, float shade = 0.0f);
 } // namespace bouquet::ui::real

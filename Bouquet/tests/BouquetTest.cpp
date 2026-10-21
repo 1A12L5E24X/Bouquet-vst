@@ -1,6 +1,7 @@
 // Offline tests for Bouquet: every instrument through every spell, the live-input
 // path, freeze, state, and a rough CPU measurement.
 #include "PluginProcessor.h"
+#include "dsp/Weather.h"
 #include "ui/Garden.h"
 #include "ui/PluginEditor.h"
 #include "ui/Meadow.h"
@@ -142,20 +143,35 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
         }
     };
     p.keyboardState.noteOff (1, 57, 0.0f);
-    const int roots[] = { 45, 53, 60, 67 };
-    const int shapes[] = { 6, 5, 8, 4 };
-    for (int i = 0; i < 4; ++i)
+    if (mode.endsWith ("weather"))
     {
-        set (p, ids::chord, (float) shapes[i]);
-        p.keyboardState.noteOn (1, roots[i], 0.85f);
-        play (i < 3 ? 1.3f : 1.8f);
-        if (i < 3 || rotting)
-            p.keyboardState.noteOff (1, roots[i], 0.0f);
+        // Single notes held low to high: rain falls on the bass, light shines on the treble,
+        // and every flower is brighter than the one before.
+        set (p, ids::chord, 0.0f);
+        for (int note : { 36, 45, 54, 64, 76, 88, 96 })
+        {
+            p.keyboardState.noteOn (1, note, 0.8f);
+            play (0.45f);
+        }
+        play (2.5f);
     }
-    if (rotting)
-        play (2.2f);
     else
-        play (0.6f);   // the last bouquet opens fully
+    {
+        const int roots[] = { 45, 53, 60, 67 };
+        const int shapes[] = { 6, 5, 8, 4 };
+        for (int i = 0; i < 4; ++i)
+        {
+            set (p, ids::chord, (float) shapes[i]);
+            p.keyboardState.noteOn (1, roots[i], 0.85f);
+            play (i < 3 ? 1.3f : 1.8f);
+            if (i < 3 || rotting)
+                p.keyboardState.noteOff (1, roots[i], 0.0f);
+        }
+        if (rotting)
+            play (2.2f);
+        else
+            play (0.6f);   // the last bouquet opens fully
+    }
     if (mode == "meadow" || mode == "realmeadow")
     {
         if (auto* bouquetEditor = dynamic_cast<BouquetEditor*> (editor.get()))
@@ -163,7 +179,7 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
         play (2.0f);
     }
     // The bucket poured on a flower, mid-pour or just after.
-    if (mode.startsWith ("water") || mode.startsWith ("realwater"))
+    if (mode.startsWith ("water") || mode.startsWith ("realwater") || mode.contains ("tend"))
     {
         const auto temp = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("bouquet-snapshot-presets");
         temp.deleteRecursively();
@@ -181,8 +197,15 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
             return nullptr;
         };
         if (auto* meadow = findMeadow (*editor))
-            meadow->water (8);
-        play (mode.endsWith ("ed") ? 2.0f : 1.0f);
+        {
+            // "tend2" or "realtend2:1.2": tool 2 used on a flower, shown 1.2 s in.
+            if (mode.contains ("tend"))
+                meadow->tend ((bouquet::Tending) mode.fromFirstOccurrenceOf ("tend", false, false).getIntValue(), 8);
+            else
+                meadow->water (8);
+        }
+        play (mode.contains (":") ? mode.fromFirstOccurrenceOf (":", false, false).getFloatValue()
+                                  : mode.endsWith ("ed") ? 2.0f : 1.0f);
         temp.deleteRecursively();
     }
 
@@ -895,6 +918,28 @@ int main (int argc, char** argv)
         check (twice.preset.name == "bare cello, watered ii", "watering the same way again grows a sibling");
         const auto rewatered = p.waterPreset (again.preset, { Tonic::storm });
         check (rewatered.preset.name == "bare cello, storm-struck", "rewatering keeps the root name");
+
+        // The garden's other tools.
+        juce::Random tr (7);
+        const auto soiled = bouquet::tendPreset (p.apvts, cello, bouquet::Tending::soil, p.presets, tr);
+        check (soiled.preset.name.startsWith ("bare cello, ") && soiled.preset.get (ids::magic) > 0.5f, "soil names and wakes the Magic Lab");
+        const auto pruned = bouquet::tendPreset (p.apvts, nocturne, bouquet::Tending::prune, p.presets, tr);
+        check (pruned.preset.get (ids::release) < nocturne.get (ids::release) && pruned.preset.get (bouquet::traits::size) < 0.0f,
+               "pruning shortens the sound and shrinks the flower");
+        const auto fed = bouquet::tendPreset (p.apvts, nocturne, bouquet::Tending::feed, p.presets, tr);
+        check (fed.preset.get (ids::release) > nocturne.get (ids::release) && fed.preset.get (bouquet::traits::size) > 0.0f,
+               "a growth tonic lengthens the sound and grows the flower");
+        const auto lit = bouquet::tendPreset (p.apvts, nocturne, bouquet::Tending::lantern, p.presets, tr);
+        check (lit.preset.get (bouquet::traits::glow) > 0.4f && lit.preset.get (ids::feedback) >= nocturne.get (ids::feedback), "fireflies make a glowing flower");
+        const auto glitched = bouquet::tendPreset (p.apvts, nocturne, bouquet::Tending::crickets, p.presets, tr);
+        check (glitched.preset.get (ids::size) < 60.0f && glitched.preset.get (bouquet::traits::glitch) > 0.4f, "crickets make tiny grains and a glitching flower");
+        for (auto* t : { &soiled, &pruned, &fed, &lit, &glitched })
+            for (auto& [id, value] : t->preset.values)
+                if (auto* param = p.apvts.getParameter (id))
+                    check (std::isfinite (value) && param->convertTo0to1 (value) >= -0.001f && param->convertTo0to1 (value) <= 1.001f,
+                           "tended " + id + " stays in range");
+        auto traitsOnly = bouquet::capturePreset (p.apvts, "captured");
+        check (traitsOnly.get (bouquet::traits::size, 99.0f) == 99.0f, "traits are not sound parameters");
         for (auto* w : { &watered, &again, &twice, &rewatered })
             for (auto& [id, value] : w->preset.values)
                 if (auto* param = p.apvts.getParameter (id))
@@ -1094,6 +1139,35 @@ int main (int argc, char** argv)
                   << juce::String (100.0 * elapsed / seconds, 1) << "% of one core), "
                   << p.engine.activeGrains.load() << " grains, " << p.soundingVoices.load() << " voices\n";
         check (elapsed < seconds * 0.5, "renders comfortably faster than real time");
+    }
+
+    // Weather: low notes bring rain, high ones light; the forest sounds it.
+    {
+        check (bouquet::rainForNote (36.0f) > 0.9f && bouquet::rainForNote (72.0f) == 0.0f, "rain falls on low notes only");
+        check (bouquet::lightForNote (96.0f) > 0.9f && bouquet::lightForNote (60.0f) == 0.0f, "light shines on high notes only");
+        check (bouquet::brightnessForNote (40.0f) < bouquet::brightnessForNote (80.0f), "higher notes are brighter");
+        auto rms = [&] (int note)
+        {
+            BouquetProcessor q (false);
+            q.setNonRealtime (true);
+            q.setPlayConfigDetails (0, 2, sr, block);
+            q.prepareToPlay (sr, block);
+            set (q, ids::mix, 0.0f);
+            set (q, ids::instrument, (float) Instrument::kalimba);
+            set (q, ids::chord, 0.0f);
+            set (q, ids::wildlife, 1.0f);
+            set (q, ids::forest, 0.0f);
+            juce::MidiBuffer m;
+            m.addEvent (juce::MidiMessage::noteOn (1, note, 0.8f), 0);
+            render (q, m, 6.0f);
+            m.addEvent (juce::MidiMessage::noteOff (1, note), 0);
+            render (q, m, 1.0f);
+            m.clear();
+            return render (q, m, 3.0f).rms();   // what is left once the notes have gone: the weather
+        };
+        const float rainy = rms (30), dry = rms (66);
+        std::cout << "Ambience after a low note " << rainy << ", after a mid note " << dry << "\n";
+        check (rainy > dry * 1.3f, "a low note brings rain to the forest");
     }
 
     std::cout << (failures == 0 ? "All tests passed\n" : juce::String (failures) + " checks FAILED\n");

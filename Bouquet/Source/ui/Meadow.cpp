@@ -55,6 +55,16 @@ void Meadow::resized()
     bucketHome = { 540.0f, (float) getHeight() - 8.0f };
     if (! carrying && pour.plant < 0)
         bucketPos = bucketHome;
+
+    // The tools stand in a row on the planting strip, beside the bucket.
+    for (size_t i = 0; i < tools.size(); ++i)
+    {
+        auto& t = tools[i];
+        t.kind = (Tending) i;
+        t.home = { 650.0f + 68.0f * (float) i, (float) getHeight() - 38.0f };
+        if (! t.carrying && use.tool != (int) i)
+            t.pos = t.home;
+    }
     rebuild();
 }
 
@@ -108,7 +118,11 @@ void Meadow::rebuild()
         pl.centre = { area.getX() + ((float) col + 0.5f + stagger + (r.nextFloat() - 0.5f) * 0.4f) * cw,
                       area.getY() + ((float) row + 0.5f + (r.nextFloat() - 0.5f) * 0.35f) * ch };
         pl.centre.x = juce::jlimit (area.getX(), area.getRight(), pl.centre.x);
-        pl.radius = std::min (cw, ch) * (0.3f + 0.08f * r.nextFloat());
+        pl.bigness = pl.preset.get (traits::size);
+        pl.glow = pl.preset.get (traits::glow);
+        pl.glitch = pl.preset.get (traits::glitch);
+        // Pruned flowers are small, fed ones big.
+        pl.radius = std::min (cw, ch) * (0.3f + 0.08f * r.nextFloat()) * (1.0f + 0.4f * pl.bigness);
         pl.angle = r.nextFloat() * juce::MathConstants<float>::twoPi;
         pl.variant = (int) (pl.genome.seed % real::FlowerSprites::numVariants);
         pl.appear = 1.0f;
@@ -120,6 +134,7 @@ void Meadow::rebuild()
                 pl.appear = old.appear;
                 pl.delay = old.delay;
                 pl.wet = old.wet;
+                pl.earth = old.earth;
             }
         if (pl.preset.name == pendingGrowth)
         {
@@ -168,8 +183,10 @@ void Meadow::tick (float dt)
         const float lit = (int) i == hovered ? 1.0f : 0.0f;
         p.hover += (lit - p.hover) * (1.0f - std::exp (-dt / 0.12f));
         p.wet = std::max (0.0f, p.wet - dt / 4.0f);
+        p.earth = std::max (0.0f, p.earth - dt / 12.0f);
     }
     tickBucket (dt);
+    tickTools (dt);
     repaint();
 }
 
@@ -200,14 +217,24 @@ int Meadow::plantAt (juce::Point<float> pos) const
 
 void Meadow::mouseMove (const juce::MouseEvent& e)
 {
-    hoverBucket = pour.plant < 0 && bucketAt (e.position);
-    hovered = hoverBucket ? -1 : plantAt (e.position);
-    setMouseCursor (hoverBucket ? juce::MouseCursor::DraggingHandCursor
+    hoveredTool = pour.plant < 0 && use.tool < 0 ? toolAt (e.position) : -1;
+    hoverBucket = pour.plant < 0 && hoveredTool < 0 && bucketAt (e.position);
+    hovered = hoverBucket || hoveredTool >= 0 ? -1 : plantAt (e.position);
+    setMouseCursor (hoverBucket || hoveredTool >= 0 ? juce::MouseCursor::DraggingHandCursor
                                 : hovered >= 0 ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor);
 }
 
 void Meadow::mouseDown (const juce::MouseEvent& e)
 {
+    if (! e.mods.isPopupMenu() && pour.plant < 0 && use.tool < 0)
+        if (const int i = toolAt (e.position); i >= 0)
+        {
+            auto& t = tools[(size_t) i];
+            t.carrying = true;
+            t.grab = t.pos - e.position;
+            setMouseCursor (juce::MouseCursor::DraggingHandCursor);
+            return;
+        }
     if (! e.mods.isPopupMenu() && pour.plant < 0 && bucketAt (e.position))
     {
         carrying = true;
@@ -218,6 +245,15 @@ void Meadow::mouseDown (const juce::MouseEvent& e)
 
 void Meadow::mouseDrag (const juce::MouseEvent& e)
 {
+    for (auto& t : tools)
+        if (t.carrying)
+        {
+            const auto previous = t.pos;
+            t.pos = e.position + t.grab;
+            t.sway = juce::jlimit (-0.35f, 0.35f, t.sway - (t.pos.x - previous.x) * 0.004f);
+            hovered = plantAt (t.pos);
+            return;
+        }
     if (! carrying)
         return;
     const auto previous = bucketPos;
@@ -235,6 +271,16 @@ void Meadow::mouseExit (const juce::MouseEvent&)
 
 void Meadow::mouseUp (const juce::MouseEvent& e)
 {
+    for (size_t i = 0; i < tools.size(); ++i)
+        if (tools[i].carrying)
+        {
+            tools[i].carrying = false;
+            const int target = plantAt (tools[i].pos);
+            hovered = -1;
+            if (target >= 0)
+                useTool ((int) i, target);
+            return;
+        }
     if (carrying)
     {
         carrying = false;
@@ -281,6 +327,13 @@ bool Meadow::keyPressed (const juce::KeyPress& key)
 {
     if (key == juce::KeyPress::escapeKey)
     {
+        for (auto& t : tools)
+            if (t.carrying)
+            {
+                t.carrying = false;
+                hovered = -1;
+                return true;
+            }
         if (carrying)
         {
             carrying = false;
@@ -291,6 +344,468 @@ bool Meadow::keyPressed (const juce::KeyPress& key)
         return true;
     }
     return false;
+}
+
+//==============================================================================
+// The shelf of tools
+int Meadow::toolAt (juce::Point<float> pos) const
+{
+    for (size_t i = 0; i < tools.size(); ++i)
+        if (juce::Rectangle<float> (60.0f * tools[i].lift, 64.0f * tools[i].lift).withCentre (tools[i].pos).contains (pos))
+            return (int) i;
+    return -1;
+}
+
+void Meadow::useTool (int tool, int plant)
+{
+    if (pour.plant >= 0 || use.tool >= 0 || ! juce::isPositiveAndBelow (plant, (int) plants.size()))
+        return;
+    const auto& p = plants[(size_t) plant];
+    use = {};
+    use.tool = tool;
+    use.plant = plant;
+    use.at = p.centre;
+    use.radius = p.radius;
+    use.held = p.centre + juce::Point<float> (p.radius * 0.35f, -p.radius * 0.8f - 30.0f);
+}
+
+void Meadow::finishUse()
+{
+    use.done = true;
+    if (! juce::isPositiveAndBelow (use.plant, (int) plants.size()))
+        return;
+
+    const auto tending = (Tending) use.tool;
+    const auto source = plants[(size_t) use.plant].preset;
+    const auto at = plants[(size_t) use.plant].centre;
+    const auto tended = processor.tendPreset (source, tending);
+    notes.push_back ({ tended.preset.name, tended.note, at });
+
+    if (tended.fizzed)
+    {
+        const juce::Colour sparks[] = { colours::butter, colours::lilac, colours::mint, waterColour };
+        for (int i = 0; i < 14; ++i)
+        {
+            const float a = random.nextFloat() * juce::MathConstants<float>::twoPi;
+            const float speed = 80.0f + 160.0f * random.nextFloat();
+            drops.push_back ({ at, { std::cos (a) * speed, std::sin (a) * speed - 120.0f },
+                               sparks[random.nextInt (4)], 2.0f + 2.5f * random.nextFloat(), 0.0f, at.y + 60.0f });
+        }
+    }
+
+    pendingGrowth = tended.preset.name;
+    rebuild();
+    for (auto& p : plants)
+        if (p.preset.name == source.name)
+        {
+            if (tending == Tending::soil)
+                p.earth = 1.0f;
+            else
+                p.wet = 0.6f;
+        }
+}
+
+void Meadow::tickTools (float dt)
+{
+    const auto ease = [dt] (float speed) { return 1.0f - std::exp (-dt * speed); };
+    const float groundY = (float) getHeight();
+
+    for (size_t i = 0; i < tools.size(); ++i)
+    {
+        auto& t = tools[i];
+        const bool busy = use.tool == (int) i;
+        t.lift += ((t.carrying || busy ? 1.4f : 1.0f) - t.lift) * ease (8.0f);
+        t.hover += (((int) i == hoveredTool || t.carrying ? 1.0f : 0.0f) - t.hover) * ease (10.0f);
+        t.sway *= std::exp (-dt * 3.0f);
+        if (busy)
+            t.pos += (use.held - t.pos) * ease (7.0f);
+        else if (! t.carrying)
+            t.pos += (t.home - t.pos) * ease (7.0f);
+    }
+
+    if (use.tool >= 0)
+    {
+        use.t += dt;
+        const auto kind = (Tending) use.tool;
+        const float tPour = juce::jlimit (0.0f, 1.0f, (use.t - 0.25f) / 0.3f);
+        const bool active = use.t > 0.55f && use.t < 1.75f;
+
+        auto burst = [&] (float rate, auto&& make)
+        {
+            use.emit += rate * dt;
+            for (; use.emit >= 1.0f; use.emit -= 1.0f)
+                make();
+        };
+        const auto tip = tools[(size_t) use.tool].pos + juce::Point<float> (0.0f, 12.0f);
+        const auto landing = [&] { return use.at.y + (random.nextFloat() - 0.4f) * use.radius * 0.9f; };
+
+        if (active && kind == Tending::soil)
+            burst (80.0f, [&]
+            {
+                const float shade = random.nextFloat();
+                bits.push_back ({ tip + juce::Point<float> (random.nextFloat() * 16.0f - 8.0f, 0.0f),
+                                  { random.nextFloat() * 50.0f - 20.0f, 30.0f + 60.0f * random.nextFloat() },
+                                  juce::Colour (0xff4a3426).interpolatedWith (juce::Colour (0xff8a6a4a), shade * 0.7f),
+                                  2.0f + 3.0f * random.nextFloat(), 1.4f, 1.4f, 0.0f, 0.0f, landing(), 0.0f, false, kind });
+            });
+        else if (active && kind == Tending::feed)
+            burst (50.0f, [&]
+            {
+                bits.push_back ({ tip + juce::Point<float> (8.0f, 0.0f), { 15.0f + 25.0f * random.nextFloat(), 20.0f },
+                                  juce::Colour (0xff7fe3a1), 3.0f + 2.5f * random.nextFloat(), 1.4f, 1.4f, 0.0f, 0.0f, landing(), 0.0f, false, kind });
+            });
+        else if (kind == Tending::prune)
+        {
+            // Each snip of the blades drops a few cut petals and a leaf.
+            const float cycle = use.t * 11.0f;
+            if (use.t > 0.5f && use.t < 1.7f && (int) cycle != (int) ((use.t - dt) * 11.0f))
+            {
+                const auto petal = plants[(size_t) juce::jlimit (0, (int) plants.size() - 1, use.plant)].genome.petal;
+                for (int k = 0; k < 4; ++k)
+                {
+                    const float a = random.nextFloat() * juce::MathConstants<float>::twoPi;
+                    const bool leaf = k == 3;
+                    bits.push_back ({ use.at + juce::Point<float> (std::cos (a), std::sin (a)) * use.radius * 0.6f,
+                                      { (random.nextFloat() - 0.5f) * 90.0f, -70.0f - 50.0f * random.nextFloat() },
+                                      leaf ? juce::Colour (0xff7bae52) : petal, 5.0f + 3.0f * random.nextFloat(), 1.6f, 1.6f,
+                                      random.nextFloat() * 6.0f, (random.nextFloat() - 0.5f) * 10.0f, use.at.y + use.radius * 1.3f, 0.0f, false, kind });
+                }
+            }
+        }
+        else if ((kind == Tending::lantern || kind == Tending::crickets) && use.t >= 0.55f && use.t - dt < 0.55f)
+        {
+            const int n = kind == Tending::lantern ? 12 : 8;
+            for (int k = 0; k < n; ++k)
+            {
+                const float life = kind == Tending::lantern ? 3.2f : 2.6f;
+                bits.push_back ({ tools[(size_t) use.tool].pos, { (random.nextFloat() - 0.5f) * 160.0f, -140.0f - 60.0f * random.nextFloat() },
+                                  kind == Tending::lantern ? juce::Colour (0xfffff2a8) : juce::Colour (0xff3a2f24),
+                                  kind == Tending::lantern ? 2.5f + 1.5f * random.nextFloat() : 1.0f, life, life,
+                                  random.nextFloat() * 6.28f, 0.0f, use.at.y + use.radius * (0.2f + 0.6f * random.nextFloat()),
+                                  random.nextFloat() * 6.28f, false, kind });
+            }
+        }
+        juce::ignoreUnused (tPour, groundY);
+
+        if (use.t >= 1.3f && ! use.done)
+            finishUse();
+        if (use.t >= 2.2f)
+        {
+            use = {};
+        }
+    }
+
+    for (auto& b : bits)
+    {
+        b.life -= dt;
+        switch (b.kind)
+        {
+            case Tending::soil:
+            case Tending::feed:
+                if (! b.landed)
+                {
+                    b.vel.y += 900.0f * dt;
+                    b.pos += b.vel * dt;
+                    if (b.pos.y >= b.landY)
+                    {
+                        b.landed = true;
+                        b.life = std::min (b.life, 0.7f);
+                        b.maxLife = 0.7f;
+                    }
+                }
+                break;
+            case Tending::prune:
+                b.vel.y += 380.0f * dt;
+                b.vel.x *= std::exp (-dt * 0.8f);
+                b.pos += b.vel * dt;
+                b.angle += b.spin * dt;
+                break;
+            case Tending::lantern:
+            {
+                // Out of the jar and round the flower in ever wider circles.
+                const float age = 1.0f - b.life / b.maxLife;
+                b.angle += (1.6f + b.aux * 0.15f) * dt;
+                const float r = use.radius > 0.0f ? use.radius : 40.0f;
+                const juce::Point<float> target = (use.plant >= 0 ? use.at : b.pos) + juce::Point<float> (std::cos (b.angle) * r * (0.6f + 0.8f * age),
+                                                                                                         std::sin (b.angle * 1.3f) * r * 0.7f * (0.6f + 0.8f * age));
+                b.pos += (target - b.pos) * (1.0f - std::exp (-dt * 3.0f));
+                break;
+            }
+            case Tending::crickets:
+                b.vel.y += 900.0f * dt;
+                b.pos += b.vel * dt;
+                if (b.pos.y >= b.landY && b.vel.y > 0.0f)
+                {
+                    b.pos.y = b.landY;
+                    const bool hop = b.life > 0.6f;
+                    b.vel = hop ? juce::Point<float> ((random.nextFloat() - 0.5f) * 190.0f, -150.0f - 90.0f * random.nextFloat()) : juce::Point<float>();
+                    b.landed = true;
+                }
+                break;
+            case Tending::count:
+                break;
+        }
+    }
+    bits.erase (std::remove_if (bits.begin(), bits.end(), [] (const Bit& b) { return b.life <= 0.0f; }), bits.end());
+}
+
+void Meadow::paintBits (juce::Graphics& g, float time) const
+{
+    for (const auto& b : bits)
+    {
+        const float fade = juce::jlimit (0.0f, 1.0f, b.life / std::min (0.6f, b.maxLife));
+        switch (b.kind)
+        {
+            case Tending::soil:
+                g.setColour (b.colour.withAlpha (fade));
+                g.fillEllipse (juce::Rectangle<float> (b.size, b.size * (b.landed ? 0.6f : 1.0f)).withCentre (b.pos));
+                break;
+            case Tending::feed:
+                drawGlow (g, b.pos, b.size * 3.5f, b.colour.withAlpha (0.55f * fade));
+                g.setColour (juce::Colour (0xffc9ffd9).withAlpha (fade));
+                g.fillEllipse (juce::Rectangle<float> (b.size, b.size * 1.4f).withCentre (b.pos));
+                break;
+            case Tending::prune:
+            {
+                juce::Graphics::ScopedSaveState save (g);
+                g.addTransform (juce::AffineTransform::rotation (b.angle, b.pos.x, b.pos.y));
+                g.setColour (b.colour.withAlpha (fade));
+                g.fillEllipse (juce::Rectangle<float> (b.size * 1.6f, b.size).withCentre (b.pos));
+                break;
+            }
+            case Tending::lantern:
+            {
+                const float blink = 0.35f + 0.65f * (0.5f + 0.5f * std::sin (time * 9.0f + b.aux * 3.0f));
+                drawGlow (g, b.pos, b.size * 5.0f, b.colour.withAlpha (0.8f * blink * fade));
+                g.setColour (juce::Colours::white.withAlpha (blink * fade));
+                g.fillEllipse (juce::Rectangle<float> (b.size, b.size).withCentre (b.pos));
+                break;
+            }
+            case Tending::crickets:
+            {
+                juce::Graphics::ScopedSaveState save (g);
+                const float dir = b.vel.x < 0.0f ? -1.0f : 1.0f;
+                g.addTransform (juce::AffineTransform::scale (dir, 1.0f, b.pos.x, b.pos.y));
+                g.setColour (b.colour.withAlpha (fade));
+                g.fillEllipse (juce::Rectangle<float> (8.0f, 4.0f).withCentre (b.pos));
+                g.drawLine (b.pos.x - 3.0f, b.pos.y, b.pos.x - 6.0f, b.pos.y + 4.0f, 1.0f);
+                g.drawLine (b.pos.x + 2.0f, b.pos.y, b.pos.x + 6.0f, b.pos.y + 4.0f, 1.0f);
+                g.drawLine (b.pos.x + 4.0f, b.pos.y - 1.0f, b.pos.x + 9.0f, b.pos.y - 5.0f, 0.8f);
+                if (b.landed && std::fmod (time * 6.0f + b.aux, 2.0f) < 1.0f)
+                {
+                    g.setColour (colours::ink.withAlpha (0.45f * fade));
+                    for (int k = 1; k <= 2; ++k)
+                    {
+                        juce::Path arc;
+                        arc.addCentredArc (b.pos.x + 7.0f, b.pos.y - 7.0f, 3.0f * (float) k, 3.0f * (float) k, 0.0f, 0.2f, 1.3f, true);
+                        g.strokePath (arc, juce::PathStrokeType (0.9f));
+                    }
+                }
+                break;
+            }
+            case Tending::count:
+                break;
+        }
+    }
+}
+
+void Meadow::paintTools (juce::Graphics& g, float time) const
+{
+    for (size_t i = 0; i < tools.size(); ++i)
+    {
+        const auto& t = tools[i];
+        const float size = 64.0f * t.lift;
+        const bool busy = use.tool == (int) i;
+
+        // Standing on the strip it casts a small shadow; lifted, a softer one further off.
+        if (! busy)
+        {
+            const float up = (t.lift - 1.0f) * 2.0f;
+            g.setColour (juce::Colours::black.withAlpha (0.18f - 0.08f * up));
+            g.fillEllipse (juce::Rectangle<float> (size * 0.6f, size * 0.12f).withCentre (t.pos + juce::Point<float> (size * 0.05f + up * 8.0f, size * 0.5f + up * 12.0f)));
+        }
+        if (t.hover > 0.01f)
+            drawGlow (g, t.pos, size * 0.8f, colours::butter.withAlpha (0.4f * t.hover));
+
+        // Poured, scattered, opened or snipped, by how far into its use it is.
+        float open = 0.0f, tilt = t.sway;
+        if (busy)
+        {
+            const float tipT = juce::jlimit (0.0f, 1.0f, (use.t - 0.25f) / 0.3f) * (1.0f - juce::jlimit (0.0f, 1.0f, (use.t - 1.7f) / 0.4f));
+            const float eased = tipT * tipT * (3.0f - 2.0f * tipT);
+            if ((Tending) i == Tending::prune)
+                open = eased * (0.5f + 0.5f * std::sin (use.t * 22.0f));
+            else
+            {
+                tilt = 1.75f * eased;
+                open = eased;
+            }
+        }
+        else if (t.carrying)
+            tilt += std::sin (time * 9.0f) * 0.03f;
+
+        juce::Graphics::ScopedSaveState save (g);
+        g.addTransform (juce::AffineTransform::rotation (tilt).translated (t.pos));
+        paintToolArt (g, t.kind, size, open, time);
+    }
+}
+
+// Each tool is drawn in a 64 x 64 box centred on the origin.
+void Meadow::paintToolArt (juce::Graphics& g, Tending kind, float size, float open, float time)
+{
+    g.addTransform (juce::AffineTransform::scale (size / 64.0f));
+    const auto glass = [&g] (juce::Rectangle<float> body, float radius, juce::Colour tint)
+    {
+        g.setGradientFill (juce::ColourGradient (tint.withAlpha (0.9f), body.getX(), body.getY(), tint.withAlpha (0.5f), body.getRight(), body.getBottom(), false));
+        g.fillRoundedRectangle (body, radius);
+        g.setColour (juce::Colour (0xff5d6b66).withAlpha (0.8f));
+        g.drawRoundedRectangle (body, radius, 1.6f);
+        g.setColour (juce::Colours::white.withAlpha (0.55f));
+        g.fillRoundedRectangle (juce::Rectangle<float> (3.0f, body.getHeight() * 0.55f).withPosition (body.getX() + 4.0f, body.getY() + 6.0f), 1.5f);
+    };
+
+    switch (kind)
+    {
+        case Tending::soil:
+        {
+            // A burlap sack of dark earth, tied at the neck with twine.
+            juce::Path sack;
+            sack.startNewSubPath (-7.0f, -22.0f);
+            sack.cubicTo (-8.0f, -12.0f, -24.0f, -6.0f, -22.0f, 12.0f);
+            sack.cubicTo (-21.0f, 24.0f, -16.0f, 28.0f, 0.0f, 28.0f);
+            sack.cubicTo (16.0f, 28.0f, 21.0f, 24.0f, 22.0f, 12.0f);
+            sack.cubicTo (24.0f, -6.0f, 8.0f, -12.0f, 7.0f, -22.0f);
+            sack.closeSubPath();
+            g.setGradientFill (juce::ColourGradient (juce::Colour (0xffd2ad72), -20.0f, -10.0f, juce::Colour (0xff9a7440), 22.0f, 26.0f, false));
+            g.fillPath (sack);
+            g.setColour (juce::Colour (0xff7a5a30).withAlpha (0.55f));
+            for (int k = -2; k <= 2; ++k)
+                g.drawLine ((float) k * 7.0f, -6.0f, (float) k * 8.0f, 24.0f, 0.8f);
+            g.strokePath (sack, juce::PathStrokeType (1.2f));
+            // Soil heaped at the mouth, and the twine.
+            g.setColour (juce::Colour (0xff3d2b1d));
+            g.fillEllipse (-11.0f, -30.0f, 22.0f, 12.0f);
+            g.setColour (juce::Colour (0xff5b4130));
+            for (int k = 0; k < 5; ++k)
+                g.fillEllipse (-8.0f + (float) k * 4.0f, -29.0f + (float) (k % 2) * 3.0f, 3.0f, 2.5f);
+            g.setColour (juce::Colour (0xff6b4a2b));
+            g.drawLine (-8.0f, -18.0f, 8.0f, -16.0f, 2.2f);
+            // A sprout stamped on it.
+            g.setColour (juce::Colour (0xff4f7a35).withAlpha (0.9f));
+            g.drawLine (0.0f, 16.0f, 0.0f, 4.0f, 1.8f);
+            g.fillEllipse (-8.0f, 3.0f, 8.0f, 5.0f);
+            g.fillEllipse (1.0f, 0.0f, 8.0f, 5.0f);
+            break;
+        }
+
+        case Tending::prune:
+        {
+            // Secateurs: two steel blades crossing at a pin, red handles.
+            const float a = 0.12f + 0.5f * open;
+            for (int side = -1; side <= 1; side += 2)
+            {
+                juce::Graphics::ScopedSaveState save (g);
+                g.addTransform (juce::AffineTransform::rotation ((float) side * a, 0.0f, 4.0f));
+                juce::Path handle;
+                handle.startNewSubPath (0.0f, 4.0f);
+                handle.lineTo ((float) -side * 5.0f, 22.0f);
+                g.setColour (juce::Colour (0xffd94f3d));
+                g.strokePath (handle, juce::PathStrokeType (5.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+                g.setColour (juce::Colour (0xffb23a2b));
+                g.drawEllipse (juce::Rectangle<float> (12.0f, 12.0f).withCentre ({ (float) -side * 8.0f, 25.0f }), 2.4f);
+                juce::Path blade;
+                blade.startNewSubPath (0.0f, 4.0f);
+                blade.cubicTo ((float) side * 3.0f, -10.0f, (float) side * 3.0f, -22.0f, (float) side * 0.5f, -31.0f);
+                blade.lineTo ((float) -side * 3.5f, -30.0f);
+                blade.cubicTo ((float) -side * 3.5f, -20.0f, (float) -side * 3.0f, -8.0f, 0.0f, 4.0f);
+                g.setGradientFill (juce::ColourGradient (juce::Colour (0xfff2f5f7), -4.0f, -20.0f, juce::Colour (0xff98a2ab), 4.0f, -4.0f, false));
+                g.fillPath (blade);
+                g.setColour (juce::Colour (0xff6b747c));
+                g.strokePath (blade, juce::PathStrokeType (0.8f));
+            }
+            g.setColour (juce::Colour (0xff4b5259));
+            g.fillEllipse (-2.5f, 1.5f, 5.0f, 5.0f);
+            break;
+        }
+
+        case Tending::feed:
+        {
+            // A round flask of glowing green tonic with a cork and a leaf on its label.
+            const auto tonic = juce::Colour (0xff62d68f);
+            juce::Path flask;
+            flask.addEllipse (-19.0f, -8.0f, 38.0f, 38.0f);
+            flask.addRoundedRectangle (-6.0f, -28.0f, 12.0f, 24.0f, 2.0f);
+            g.setColour (juce::Colours::white.withAlpha (0.28f));
+            g.fillPath (flask);
+            {
+                juce::Graphics::ScopedSaveState save (g);
+                g.reduceClipRegion (juce::Rectangle<int> (-30, -6, 60, 40));
+                g.setGradientFill (juce::ColourGradient (tonic.brighter (0.3f), 0.0f, 0.0f, tonic.darker (0.3f), 0.0f, 30.0f, false));
+                g.fillPath (flask);
+            }
+            g.setColour (juce::Colours::white.withAlpha (0.75f));
+            g.strokePath (flask, juce::PathStrokeType (1.4f));
+            g.setColour (juce::Colours::white.withAlpha (0.6f));
+            g.fillEllipse (-13.0f, 2.0f, 5.0f, 12.0f);
+            g.setColour (juce::Colour (0xffb98a55));
+            g.fillRoundedRectangle (-7.5f, -35.0f, 15.0f, 9.0f, 2.5f);
+            g.setColour (juce::Colour (0xfffff4e0));
+            g.fillRoundedRectangle (-11.0f, 8.0f, 22.0f, 14.0f, 3.0f);
+            g.setColour (juce::Colour (0xff3f9f5f));
+            g.fillEllipse (-5.0f, 11.0f, 10.0f, 6.0f);
+            g.drawLine (-6.0f, 18.0f, 6.0f, 12.0f, 1.2f);
+            drawGlow (g, { 0.0f, 10.0f }, 26.0f, tonic.withAlpha (0.25f + 0.2f * open));
+            break;
+        }
+
+        case Tending::lantern:
+        case Tending::crickets:
+        {
+            const bool lit = kind == Tending::lantern;
+            const auto tint = lit ? juce::Colour (0xffe9f5ff) : juce::Colour (0xffbfe3b0);
+            const juce::Rectangle<float> body (-17.0f, -17.0f, 34.0f, 46.0f);
+            if (lit)
+                drawGlow (g, { 0.0f, 6.0f }, 34.0f, juce::Colour (0xfffff2a8).withAlpha (0.55f * (1.0f - 0.6f * open)));
+            glass (body, 7.0f, tint);
+            // The lid, lifting off as it is opened.
+            juce::Graphics::ScopedSaveState save (g);
+            g.addTransform (juce::AffineTransform::translation (open * 8.0f, -open * 10.0f).rotated (open * 0.5f, 0.0f, -22.0f));
+            g.setGradientFill (juce::ColourGradient (juce::Colour (lit ? 0xffe3c36e : 0xff7a8a60), -18.0f, -26.0f, juce::Colour (lit ? 0xffb08a3a : 0xff566340), 18.0f, -17.0f, false));
+            g.fillRoundedRectangle (-18.0f, -27.0f, 36.0f, 11.0f, 3.0f);
+            if (! lit)
+            {
+                g.setColour (juce::Colour (0xff2f3a20));
+                for (int k = -2; k <= 2; ++k)
+                    g.fillEllipse ((float) k * 6.0f - 1.2f, -23.0f, 2.4f, 2.4f);
+            }
+            g.restoreState();
+            g.saveState();
+            // What lives inside.
+            for (int k = 0; k < (lit ? 6 : 5); ++k)
+            {
+                const float ph = (float) k * 1.9f;
+                if (lit)
+                {
+                    const juce::Point<float> at (std::sin (time * 0.9f + ph) * 9.0f, 4.0f + std::cos (time * 0.7f + ph * 1.3f) * 14.0f);
+                    const float blink = 0.4f + 0.6f * (0.5f + 0.5f * std::sin (time * 6.0f + ph * 2.0f));
+                    drawGlow (g, at, 9.0f, juce::Colour (0xfffff2a8).withAlpha (0.9f * blink * (1.0f - open)));
+                    g.setColour (juce::Colours::white.withAlpha (blink * (1.0f - open)));
+                    g.fillEllipse (juce::Rectangle<float> (2.4f, 2.4f).withCentre (at));
+                }
+                else
+                {
+                    const juce::Point<float> at (-9.0f + (float) k * 4.5f, 23.0f - (float) (k % 2) * 7.0f - std::max (0.0f, std::sin (time * 3.0f + ph)) * 4.0f);
+                    g.setColour (juce::Colour (0xff3a2f24).withAlpha (1.0f - open));
+                    g.fillEllipse (juce::Rectangle<float> (6.0f, 3.2f).withCentre (at));
+                    g.drawLine (at.x + 2.0f, at.y, at.x + 5.0f, at.y - 4.0f, 0.8f);
+                }
+            }
+            break;
+        }
+
+        case Tending::count:
+            break;
+    }
 }
 
 //==============================================================================
@@ -320,7 +835,7 @@ bool Meadow::bucketAt (juce::Point<float> pos) const
 
 void Meadow::water (int plant)
 {
-    if (pour.plant >= 0 || ! juce::isPositiveAndBelow (plant, (int) plants.size()))
+    if (pour.plant >= 0 || use.tool >= 0 || ! juce::isPositiveAndBelow (plant, (int) plants.size()))
         return;
     pourLip = lipFor (bucketPos);
     pour = { plant, plants[(size_t) plant].centre, plants[(size_t) plant].radius, 0.0f, false };
@@ -580,7 +1095,31 @@ void Meadow::paint (juce::Graphics& g)
         const float angle = p.angle + std::sin (time * 0.6f + p.genome.phase) * 0.06f + p.hover * 0.15f;
         const auto centre = p.centre + juce::Point<float> (std::sin (time * 0.8f + p.genome.phase), std::cos (time * 0.7f + p.genome.phase))
                                            * (radius * 0.03f);
-        const float glow = std::max ({ p.hover, p.preset.name == current ? 0.55f : 0.0f, p.wet * 0.8f });
+        const float using_ = use.plant == (int) i ? juce::jlimit (0.0f, 1.0f, use.t / 0.4f) * (1.0f - juce::jlimit (0.0f, 1.0f, (use.t - 1.9f) / 0.3f)) : 0.0f;
+        const float lit = p.glow + (use.plant == (int) i && use.tool == (int) Tending::lantern ? using_ : 0.0f);
+        const float glitch = std::max (p.glitch, use.plant == (int) i && (use.tool == (int) Tending::crickets || use.tool == (int) Tending::soil) ? using_ : 0.0f);
+        const float pulse = 0.65f + 0.35f * std::sin (time * 1.6f + p.genome.phase);
+        const float glow = std::max ({ p.hover, p.preset.name == current ? 0.55f : 0.0f, p.wet * 0.8f, 0.5f * std::min (1.0f, lit) * pulse });
+
+        // Soil scattered on it darkens the ground beneath.
+        if (p.earth > 0.01f)
+        {
+            g.setColour (juce::Colour (0xff3b2a1c).withAlpha (0.5f * std::min (1.0f, p.earth * 1.5f)));
+            g.fillEllipse (juce::Rectangle<float> (radius * 2.3f, radius * 2.0f).withCentre (centre + juce::Point<float> (radius * 0.05f, radius * 0.1f)));
+        }
+        // A glowing flower has a halo of its own, and lights drifting around it.
+        if (lit > 0.01f)
+        {
+            const auto warm = p.genome.petal.interpolatedWith (juce::Colour (0xfffff2c4), 0.6f);
+            drawGlow (g, centre, radius * (2.2f + 0.5f * std::min (1.0f, lit)), warm.withAlpha (0.5f * std::min (1.0f, lit) * pulse));
+            for (int k = 0; k < 6; ++k)
+            {
+                const float a = time * (0.5f + 0.13f * (float) k) + (float) k * 1.047f + p.genome.phase;
+                const auto at = centre + juce::Point<float> (std::cos (a) * radius * (1.15f + 0.1f * (float) (k % 3)), std::sin (a * 1.2f) * radius * 0.95f);
+                const float tw = 0.5f + 0.5f * std::sin (time * 5.0f + (float) k * 2.1f);
+                drawGlow (g, at, 7.0f, juce::Colour (0xfffff2a8).withAlpha (0.8f * tw * std::min (1.0f, lit)));
+            }
+        }
 
         const auto image = photoreal ? sprites->top (p.genome.species, p.variant, real::FlowerSprites::nearestColour (p.genome.petal))
                                      : juce::Image();
@@ -594,14 +1133,52 @@ void Meadow::paint (juce::Graphics& g)
             g.setColour (juce::Colours::black.withAlpha (0.22f));
             g.fillEllipse (juce::Rectangle<float> (radius * 1.7f, radius * 1.7f).withCentre (centre + juce::Point<float> (radius * 0.14f, radius * 0.2f)));
             g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+            auto draw = [&] (juce::Point<float> c, bool tint)
+            {
+                g.drawImageTransformed (image, juce::AffineTransform::translation (-(float) image.getWidth() * 0.5f, -(float) image.getHeight() * 0.5f)
+                                                   .rotated (angle)
+                                                   .scaled (scale)
+                                                   .translated (c), tint);
+            };
+            if (glitch > 0.02f)
+            {
+                // Glitching: the colours split apart, and slices of it skip sideways.
+                juce::Random r ((juce::int64) p.genome.seed + (juce::int64) (time * 9.0f));
+                const float split = radius * 0.07f * glitch * (0.4f + r.nextFloat());
+                g.setColour (juce::Colour (0xff00e5ff).withAlpha (0.55f * glitch));
+                draw (centre + juce::Point<float> (-split, 0.0f), true);
+                g.setColour (juce::Colour (0xffff2fa8).withAlpha (0.5f * glitch));
+                draw (centre + juce::Point<float> (split, split * 0.3f), true);
+            }
             g.setOpacity (1.0f);   // images take the current colour's opacity
-            g.drawImageTransformed (image, juce::AffineTransform::translation (-(float) image.getWidth() * 0.5f, -(float) image.getHeight() * 0.5f)
-                                               .rotated (angle)
-                                               .scaled (scale)
-                                               .translated (centre));
+            draw (centre, false);
+            if (lit > 0.01f)
+            {
+                g.setColour (juce::Colour (0xfffff6dc).withAlpha (0.28f * std::min (1.0f, lit) * pulse));
+                draw (centre, true);
+            }
+            if (glitch > 0.02f)
+            {
+                juce::Random r ((juce::int64) p.genome.seed * 7 + (juce::int64) (time * 7.0f));
+                for (int k = 0; k < 2; ++k)
+                    if (r.nextFloat() < 0.6f * glitch + 0.1f)
+                    {
+                        const float y = centre.y + (r.nextFloat() - 0.5f) * radius * 1.7f;
+                        juce::Graphics::ScopedSaveState save (g);
+                        g.reduceClipRegion (juce::Rectangle<float> (radius * 2.2f, 3.0f + radius * 0.18f * r.nextFloat()).withCentre ({ centre.x, y }).toNearestInt());
+                        g.setOpacity (1.0f);
+                        draw (centre + juce::Point<float> ((r.nextFloat() - 0.5f) * radius * 0.7f * (0.4f + glitch), 0.0f), false);
+                    }
+            }
         }
         else
         {
+            if (glitch > 0.02f)
+            {
+                const float split = radius * 0.06f * glitch;
+                paintFromAbove (g, p.genome, centre + juce::Point<float> (-split, 0.0f), radius, angle, juce::jlimit (0.0f, 1.0f, p.appear * 1.4f - 0.2f), 0.0f, 0.4f * glitch);
+                paintFromAbove (g, p.genome, centre + juce::Point<float> (split, 0.0f), radius, angle, juce::jlimit (0.0f, 1.0f, p.appear * 1.4f - 0.2f), 0.0f, 0.4f * glitch);
+            }
             paintFromAbove (g, p.genome, centre, radius, angle, juce::jlimit (0.0f, 1.0f, p.appear * 1.4f - 0.2f), glow);
         }
     }
@@ -610,6 +1187,8 @@ void Meadow::paint (juce::Graphics& g)
     g.setColour (colours::frost.withAlpha (0.72f));
     g.fillRect (getLocalBounds().removeFromBottom (72));
     paintBucket (g, time);
+    paintTools (g, time);
+    paintBits (g, time);
 
     for (const auto& d : drops)
     {
@@ -624,6 +1203,12 @@ void Meadow::paint (juce::Graphics& g)
     if (hoverBucket && ! carrying)
         paintLabel (g, "a bucket of water", "drag it onto a flower: every watering grows something different",
                     bucketPos + juce::Point<float> (0.0f, -frameSize * lift * 0.8f), hover);
+
+    if (hoveredTool >= 0 && ! tools[(size_t) hoveredTool].carrying)
+    {
+        const auto& info = tendingInfo (tools[(size_t) hoveredTool].kind);
+        paintLabel (g, info.tool, info.hint, tools[(size_t) hoveredTool].pos + juce::Point<float> (0.0f, -52.0f), tools[(size_t) hoveredTool].hover);
+    }
 
     // What just grew, rising from the flower that was watered, and fading.
     for (const auto& n : notes)

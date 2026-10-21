@@ -8,7 +8,7 @@ namespace
     const juce::Rectangle<int> soundHome { 24, 84, 404, 548 };
     const juce::Rectangle<int> magicHome { 444, 84, 692, 548 };
     // The bouquets stand behind the keys, so their stems disappear behind the keyboard.
-    const juce::Rectangle<int> gardenArea { 24, 630, 1112, 142 };
+    const juce::Rectangle<int> gardenArea { 24, 630, 1112, 142 };   // the soil and the flowers; the garden reaches higher, for the weather
     const juce::Rectangle<int> keysArea  { 24, 752, 1112, 64 };
     const juce::Rectangle<int> meadowArea { 0, 760, 1160, 100 };
 
@@ -63,7 +63,7 @@ Surface::Surface (BouquetProcessor& p)
     {
         auto* item = instruments.add (new GlowItem (names[i], GlowItem::Style::text, colours::coral, colours::peach));
         item->setShowDot (true);
-        item->setFont (Fonts::serif (18.0f));
+        item->setFont (Fonts::serif (17.0f));
         item->onClick = [this, i] { setParam (ids::instrument, (float) i); };
         addAndMakeVisible (item);
     }
@@ -188,7 +188,7 @@ void Surface::resized()
     // Sound Lab
     const int lx = soundArea.getX() + pad, lw = soundArea.getWidth() - 2 * pad;
     for (int i = 0; i < instruments.size(); ++i)
-        instruments[i]->setBounds (lx + (i % 2) * (lw / 2), 176 + (i / 2) * 27, lw / 2, 27);
+        instruments[i]->setBounds (lx + (i % 3) * (lw / 3), 176 + (i / 3) * 24, lw / 3, 24);
 
     chords.setBounds (lx, 402, lw, 60);
     voicings.setBounds (lx, 496, 200, 30);
@@ -235,7 +235,7 @@ void Surface::resized()
     mutate.setBounds (1006, 28, 72, 30);
     output.setBounds (designWidth - 24 - 56, 12, 56, 62);
 
-    garden.setBounds (gardenArea);
+    garden.setBounds (gardenArea.withTop (gardenArea.getY() - Garden::headroom));
     keyboard.setBounds (keysArea);
     meadowUnder.setBounds (meadowArea);
     meadowOver.setBounds (meadowArea);
@@ -717,7 +717,7 @@ void Surface::paint (juce::Graphics& g)
     auto description = instrumentDescriptions()[instrument];
     if (instrument == 0 && ! processor.isEffect && processor.getMainBusNumInputChannels() == 0)
         description = "route audio into bouquet to hear it";
-    text (capitalised (description), Fonts::serifItalic (15.0f), ink.withAlpha (0.72f), { lx, 342, lw, 24 });
+    text (capitalised (description), Fonts::serifItalic (15.0f), ink.withAlpha (0.72f), { lx, 350, lw, 24 });
 
     label ("chord", lx, 384);
     label ("voicing", lx, 478);

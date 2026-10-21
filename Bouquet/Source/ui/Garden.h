@@ -9,12 +9,17 @@ class BouquetProcessor;
 
 namespace bouquet::ui
 {
-// The garden: every chord you play grows its own bouquet, rising whole from the soil and
-// molded by how you play it (pressing in draws it up and opens it, the mod wheel bends
-// it), and slowly rotting once it is let go.
+// The garden: every note you play grows a flower out of its own key, and the flowers of a
+// chord are gathered into a bouquet. They rise whole from the soil, keep growing and opening
+// for as long as the key is held, are molded by how you play (pressing in draws them up and
+// opens them, the mod wheel bends them), and slowly rot once let go. The higher the note,
+// the brighter the flower; low notes bring rain down on it, high notes shine light.
 class Garden : public juce::Component
 {
 public:
+    // The garden reaches this far above the soil, so rain and light have room to fall from.
+    static constexpr int headroom = 64;
+
     // noteToX maps a MIDI note to an x position in this component (the key below it).
     Garden (BouquetProcessor&, std::function<float (float note)> noteToX);
 
@@ -39,7 +44,13 @@ private:
     struct Flower
     {
         botany::Genome genome;
-        float note, height, spread;
+        float note, height;
+        float keyX = 0.0f;       // where its key is: the flower grows out of here
+        float spread = 0.0f;     // keyX relative to the middle of the bouquet
+        float bright = 0.5f;     // 0 dark .. 1 bright, from the note (Weather.h)
+        float rain = 0.0f, light = 0.0f;
+        float delay = 0.0f;      // seconds after the bouquet forms that this one starts to rise
+        float rainDue = 0.0f, moteDue = 0.0f;
     };
 
     struct Bunch
@@ -53,6 +64,8 @@ private:
         float age = 0.0f;
         bool formed = false;          // shown: its flowers are ready to draw
         float growth = 0.0f, growSeconds = 1.0f;   // 0 seed .. 1 grown (in time since formed)
+        float growthTime = 0.0f;      // seconds since formed
+        float heldFor = 0.0f;         // seconds the keys have been held: it keeps growing meanwhile
         float stiffness = 200.0f;     // how firmly it springs back into shape
         float stretch = 0.0f, stretchSpeed = 0.0f;   // squashed (-) .. drawn up (+)
         float open = 0.0f;            // how far its flowers have opened
@@ -71,7 +84,24 @@ private:
     bool ready (const Bunch&);
     void mold (Bunch&, float dt, float press);
 
+    // Where one flower stands and how far it has grown at this moment.
+    struct Placement
+    {
+        juce::Point<float> base, head, c1, c2;
+        float lean = 0.0f, fan = 0.0f, risen = 0.0f, opening = 0.0f, creep = 1.0f, droop = 0.0f, wide = 1.0f, breeze = 0.0f;
+        float weather = 0.0f;    // how much of its weather it has earned: it must be up, and not rotted away
+    };
+    Placement place (const Bunch&, const Flower&, float time, float sway) const;
     void paintBunch (juce::Graphics&, const Bunch&, float time, float sway) const;
+    void paintSprouts (juce::Graphics&, const Bunch&) const;
+
+    // Weather: rain falls onto a flower from a low note, light shines on one from a high note.
+    struct Drop  { juce::Point<float> pos; float speed, length, landY, alpha; };
+    struct Splash { juce::Point<float> at; float age; };
+    struct Mote  { juce::Point<float> pos, vel; float life, size, phase; };
+    void tickWeather (float dt);
+    void paintSky (juce::Graphics&, float time) const;       // clouds and shafts of light, behind the flowers
+    void paintWeather (juce::Graphics&, float time) const;   // rain, splashes, sparks, in front of them
 
     // Grass grows only where keys are played (and a little around them), then recedes.
     struct Patch
@@ -86,6 +116,9 @@ private:
 
     BouquetProcessor& processor;
     std::function<float (float)> noteToX;
+    std::vector<Drop> drops;
+    std::vector<Splash> splashes;
+    std::vector<Mote> motes;
     std::vector<Bunch> bouquets;
     std::array<NoteEvent, 256> incoming {};
 

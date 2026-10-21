@@ -9,9 +9,10 @@ namespace bouquet
 {
 struct SampledInstrument;
 
-// The voices of the Sound Lab. Piano, rhodes, marimba, harp, violin, cello and flute
-// play recordings of real instruments (SampleBank) and fall back to synthesised models
-// until those are loaded; glass and choir are always synthesised.
+// The voices of the Sound Lab. Piano, rhodes, marimba, harp, violin, cello, flute,
+// clarinet, horn, glockenspiel and tubular bells play recordings of real instruments
+// (SampleBank) and fall back to synthesised models until those are loaded; glass, choir,
+// kalimba, wind chimes, singing bowl, water drops and birdsong are always synthesised.
 enum class Instrument
 {
     liveInput = 0,
@@ -24,6 +25,15 @@ enum class Instrument
     cello,
     flute,
     choir,
+    clarinet,
+    horn,
+    glockenspiel,
+    bells,
+    kalimba,
+    chimes,
+    bowl,
+    drops,
+    birdsong,
     count
 };
 
@@ -101,11 +111,13 @@ private:
         float value = 0, attackInc = 0, releaseMul = 0;
     };
 
-    static constexpr int maxPartials = 24;
-    struct Partial { float re, im, cr, ci, amp, mul; };
+    static constexpr int maxPartials = 32;
+    struct Partial { float re, im, cr, ci, amp, mul; int delay; };   // delay: samples before it is struck
 
-    void addPartial (float hz, float amp, float t60);
+    void addPartial (float hz, float amp, float t60, int delaySamples = 0);
     void startModal (const SoundLabSettings&);
+    void startDrops();
+    void startBird();
     void startBowed (const SoundLabSettings&, bool isCello);
     void startChoir (const SoundLabSettings&);
 
@@ -115,6 +127,8 @@ private:
     float renderBowed (float hz);
     float renderFlute (float hz);
     float renderChoir (float hz);
+    float renderDrops();
+    float renderBird();
     void renderSampled (float* left, float* right, int numSamples, float bendRatio, float& peak);
 
     Instrument model = Instrument::piano;
@@ -132,6 +146,22 @@ private:
     int numPartials = 0;
     float strikeNoise = 0.0f, strikeDecay = 0.0f;
     Svf strikeFilter;
+
+    // Water drops: a bubble that rises in pitch as it shrinks, then its ripples.
+    struct Droplet
+    {
+        int delay = 0;
+        float phase = 0.0f, hz = 0.0f, amp = 0.0f, decay = 1.0f, lift = 1.0f, age = 0.0f;
+    };
+    std::array<Droplet, 4> droplets {};
+
+    // Birdsong: phrases of whistled chirps, sung over and over while the key is held.
+    struct Chirp
+    {
+        int length = 1, at = 0, gapLeft = 0, chirpsLeft = 0, rest = 0;
+        float f0 = 2000.0f, f1 = 2400.0f, trill = 0.0f, trillPhase = 0.0f, home = 2000.0f;
+    } bird;
+    void nextChirp();
 
     // Phase-based oscillators (rhodes, bowed, flute, choir)
     float phase = 0.0f, phase2 = 0.0f;
@@ -202,6 +232,11 @@ public:
 
     // The strongest key pressure on any held voice, 0..1 (for the UI).
     float maxPressure() const;
+
+    // The lowest and highest notes of the keys held down (for the weather); any is false
+    // when nothing is held.
+    struct HeldRange { float lowest = 0.0f, highest = 0.0f; bool any = false; };
+    HeldRange heldRange() const;
 
     // UI thread: pop note starts/releases since the last call.
     int popNoteEvents (NoteEvent* dest, int maxEvents);
