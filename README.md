@@ -49,23 +49,14 @@ The installer also removes Murmur, Simple Synth and Bouquet Real from older test
   click to load, **plant this sound** to save yours as a new flower. Right-click to uproot.
 
   ![The preset garden](docs/meadow.jpg)
-- **Watering**: in the preset garden, water a flower to grow a richer version of its sound beside it.
-  The lab bench along the bottom holds a beaker of water and four flasks of tonic:
-
-  | Tonic | What it does to a sound |
-  | --- | --- |
-  | **rain water** | more air, room and forest |
-  | **honey** | thicker and warmer, more voices |
-  | **moonwater** | shimmering echoes and harmony |
-  | **storm water** | wild, scattered, unpredictable |
-
-  Click a flask to stir a dose into the beaker (up to three; each pour measures a little differently),
-  then drag the beaker onto a flower. It tips and pours, a new flower grows, and the sound glides to it.
-  Plain water alone makes everything a little fuller; each tonic pushes the sound further its own way.
-  About one pour in five fizzes into something unexpected (a new harmony, a jump in register, a wild
-  turn), and storm water makes that likelier. The new preset is saved and named after the flower it came
-  from and what it was given, like *nocturne, honeyed & moonlit*. Water it again to keep experimenting,
-  or click the beaker to tip the mix out.
+- **Watering**: in the preset garden, an old galvanised bucket of water stands in the grass. Pick it up,
+  carry it over a flower and let go: it tips over and waters the flower, a richer version of that sound
+  grows, and Bouquet glides to it. Plain water makes everything a little fuller (more harmony, width, air
+  and motion); what else the water brings out is a surprise every time: more room and forest, warmth and
+  extra voices, shimmering echoes, or something wild and scattered. Now and then it fizzes into something
+  unexpected (a new harmony, a jump in register). The new preset is saved and named after the flower it
+  came from and what the water brought out, like *nocturne, honeyed & moonlit*. Water it again to keep
+  experimenting.
 
   ![Watering a flower](docs/watering.jpg)
 
@@ -92,6 +83,7 @@ needed): `MACOS_CERTIFICATES_P12` (base64 of a .p12 with both Developer ID certi
 - `Bouquet/assets/samples`: instrument recordings from [VSCO-2 CE](https://github.com/sgossner/VSCO-2-CE)
   (CC0) and the FluidR3 electric piano (MIT), prepared by `tools/samples/build_samples.py`.
 - `Bouquet/assets/flowers`: flowers, grass and lawn rendered in Blender by `tools/flowers/render_flowers.py`,
+  the watering bucket by `tools/flowers/render_bucket.py`,
   lit by a CC0 sky from Poly Haven; the sky by `tools/flowers/render_sky.py`; the meadow around the keys
   by `tools/flowers/render_meadow.py`.
 - Fonts: Newsreader and Inter, SIL Open Font License.

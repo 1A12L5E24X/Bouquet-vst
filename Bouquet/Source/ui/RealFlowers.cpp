@@ -135,6 +135,24 @@ FlowerSprites::FlowerSprites() : folder (assets::find ("Flowers", "daisy0.json")
     extrasSheet = juce::ImageFileFormat::loadFrom (folder.getChildFile ("extras.png"));
     extrasSize = (int) juce::JSON::parse (folder.getChildFile ("extras.json")).getProperty ("size", 64);
 
+    const auto bucketSheet = juce::ImageFileFormat::loadFrom (folder.getChildFile ("bucket.png"));
+    const auto bucketInfo = juce::JSON::parse (folder.getChildFile ("bucket.json"));
+    const int bucketSize = (int) bucketInfo.getProperty ("size", 0);
+    if (bucketSheet.isValid() && bucketSize > 0)
+        if (auto* poses = bucketInfo.getProperty ("poses", {}).getArray())
+            for (int i = 0; i < poses->size(); ++i)
+            {
+                const auto& pose = poses->getReference (i);
+                auto point = [&pose] (const char* key)
+                {
+                    const auto v = pose.getProperty (key, {});
+                    return juce::Point<float> ((float) (double) v[0], (float) (double) v[1]);
+                };
+                bucketPoses.push_back ({ bucketSheet.getClippedImage ({ i * bucketSize, 0, bucketSize, bucketSize }),
+                                         (float) (double) pose.getProperty ("tilt", 0.0), (float) (double) pose.getProperty ("fill", 1.0),
+                                         point ("base"), point ("lip") });
+            }
+
     pool = std::make_unique<juce::ThreadPool> (juce::ThreadPoolOptions().withThreadName ("Bouquet flowers").withNumberOfThreads (2));
 }
 

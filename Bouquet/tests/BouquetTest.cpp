@@ -162,7 +162,7 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
             bouquetEditor->showPresetGarden (17);
         play (2.0f);
     }
-    // The lab bench: honey and moonwater poured on a flower, mid-pour or just after.
+    // The bucket poured on a flower, mid-pour or just after.
     if (mode.startsWith ("water") || mode.startsWith ("realwater"))
     {
         const auto temp = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("bouquet-snapshot-presets");
@@ -181,7 +181,7 @@ static int snapshot (const juce::File& file, bool effect, int spell, int instrum
             return nullptr;
         };
         if (auto* meadow = findMeadow (*editor))
-            meadow->water (8, { Tonic::honey, Tonic::moon });
+            meadow->water (8);
         play (mode.endsWith ("ed") ? 2.0f : 1.0f);
         temp.deleteRecursively();
     }
@@ -438,8 +438,8 @@ static int measure()
 }
 
 // Records a scripted showcase, frame by frame on a fixed clock, as numbered PNGs:
-// chords grow bouquets that sway and rot, then the preset garden, where two tonics are
-// stirred into the beaker and it is carried over to a flower and poured.
+// chords grow bouquets that sway and rot, then the preset garden, where the bucket is
+// carried over to a flower and tipped to water it.
 static int recordShowcase (const juce::File& folder, int fps)
 {
     using namespace bouquet::ui;
@@ -554,16 +554,6 @@ static int recordShowcase (const juce::File& folder, int fps)
             frame();
         }
     };
-    auto click = [&] (juce::Point<float> at)
-    {
-        pressed = true;
-        mouse (1, at, at);
-        frame();
-        frame();
-        pressed = false;
-        mouse (3, at, at);
-    };
-
     // 1. A few chords: each grows a bouquet that sways, and rots once let go.
     hold (0.8f);
     const int roots[] = { 57, 53, 60, 64 };
@@ -577,38 +567,26 @@ static int recordShowcase (const juce::File& folder, int fps)
     }
     hold (1.6f);
 
-    // 2. The preset garden: stir honey and moonwater into the beaker, carry it to a flower, pour.
+    // 2. The preset garden: pick up the bucket, carry it to a flower and tip it over.
     surface->showPresetGarden();
     hold (1.4f);
     showCursor = true;
     cursor = { 900.0f, 520.0f };
-    std::vector<juce::Point<float>> flasks;
-    for (int i = 0; i < 4; ++i)
-        flasks.push_back ({ 592.0f + 56.0f * (float) i, (float) editor->getHeight() - 36.0f });
-    glide (flasks[1], 0.8f, false, {});
-    hold (0.7f);
-    click (flasks[1]);
-    hold (0.6f);
-    glide (flasks[2], 0.4f, false, {});
-    hold (0.5f);
-    click (flasks[2]);
-    hold (0.7f);
-
-    const juce::Point<float> beaker (520.0f, (float) editor->getHeight() - 30.0f);
-    glide (beaker, 0.6f, false, {});
-    hold (0.6f);
+    const juce::Point<float> bucket (540.0f, (float) editor->getHeight() - 40.0f);
+    glide (bucket, 1.0f, false, {});
+    hold (1.0f);
     pressed = true;
-    mouse (1, beaker, beaker);
+    mouse (1, bucket, bucket);
     frame();
-    // Over to a flower near the middle of the lawn, the spout over it.
-    const juce::Point<float> flowerAt (570.0f, 345.0f);
-    glide (flowerAt, 1.3f, true, beaker);
-    hold (0.3f);
+    // Over to a flower near the middle of the lawn, its lip above it.
+    const juce::Point<float> flowerAt (569.0f, 278.0f);
+    glide (flowerAt, 1.4f, true, bucket);
+    hold (0.4f);
     pressed = false;
-    mouse (3, cursor, beaker);
+    mouse (3, cursor, bucket);
     glide ({ 960.0f, 600.0f }, 0.8f, false, {});
     showCursor = false;
-    hold (3.2f);
+    hold (3.6f);
 
     setClockOverride (-1.0);
     presetFolder.deleteRecursively();

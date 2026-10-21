@@ -65,6 +65,15 @@ public:
     juce::Image fly (int wingPhase) const;
     juce::Image drop() const;
 
+    // The watering bucket, a galvanised pail, upright and tipping over to the right.
+    struct BucketPose
+    {
+        juce::Image image;
+        float tilt = 0.0f, fill = 1.0f;    // degrees; how full of water, 0..1
+        juce::Point<float> base, lip;      // in image pixels: where it stands, the rim it pours from
+    };
+    const std::vector<BucketPose>& bucket() const { return bucketPoses; }
+
     // The preset meadow seen from above.
     juce::Image ground();
 
@@ -119,6 +128,7 @@ private:
     std::map<int, Blend> blends;                      // per atlas: the last cross-fade made
 
     std::map<int, juce::Image> tops;
+    std::vector<BucketPose> bucketPoses;
     juce::Image grassSheet, extrasSheet, groundImage, skyImage, meadowUnder, meadowOver;
     int grassTufts = 0, extrasSize = 64;
     float grassGroundY = 0.0f;
