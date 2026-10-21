@@ -109,6 +109,7 @@ private:
     juce::Rectangle<int> spellLineArea;
     float magicShown = 1.0f;   // eases towards the Magic Lab switch: 1 open, 0 folded away
     int frameCount = 0;
+    juce::String photorealProblem;   // why photoreal can't be shown, if it can't
 };
 } // namespace bouquet::ui
 
