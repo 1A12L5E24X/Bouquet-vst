@@ -51,6 +51,8 @@ public:
     // Starts decoding a flower's frames in the background, so they are ready by the time
     // it has grown (call when it is planted).
     void prefetch (botany::Species, int variant, int colour);
+    // Whether a flower's frames are decoded and ready to draw (starts decoding them if not).
+    bool ready (botany::Species, int variant, int colour);
 
     // The flower in full bloom seen from straight above (centred), or invalid.
     juce::Image top (botany::Species, int variant, int colour);
@@ -123,8 +125,9 @@ private:
 };
 
 // Draws one rendered flower standing at `base`, `height` tall, leaning by `lean`
-// radians, with live flies and dripping blood on top when it rots.
+// radians, with live flies and dripping blood on top when it rots. stretch molds it:
+// below 0 squashed shorter and wider, above 0 drawn up taller and thinner.
 void paintFlower (juce::Graphics&, FlowerSprites&, botany::Species, int variant, int colour,
                   juce::Point<float> base, float height, float lean, float grow, float bloom, float rot,
-                  float time, float glow, float alpha = 1.0f);
+                  float time, float glow, float alpha = 1.0f, float stretch = 0.0f);
 } // namespace bouquet::ui::real

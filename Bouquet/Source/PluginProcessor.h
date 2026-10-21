@@ -50,6 +50,8 @@ public:
     // Presets: the whole instrument (Sound Lab, forest and Magic Lab). Message thread.
     void applyPreset (const bouquet::Preset&, double glideSeconds = 1.2);
     bouquet::Preset plantPreset (const juce::String& name);   // saves the current sound as a user preset
+    // Grows a richer version of a preset (see waterPreset), saves it and glides to it.
+    bouquet::Watering waterPreset (const bouquet::Preset&, const std::vector<bouquet::Tonic>&);
     juce::String getCurrentPresetName() const { return apvts.state.getProperty ("preset", "").toString(); }
     bouquet::PresetLibrary presets;
 

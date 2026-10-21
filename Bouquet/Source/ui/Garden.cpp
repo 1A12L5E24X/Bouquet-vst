@@ -77,11 +77,24 @@ void Garden::tick (float dt)
 
     // A loud granular tail keeps the flowers alive a little longer.
     const float wet = std::min (1.0f, processor.engine.wetLevel.load() * 3.0f);
+    const float press = processor.keyPressure.load();
     for (auto& b : bouquets)
     {
         b.age += dt;
         if (b.released)
             b.rot += dt / 5.0f * (1.0f - 0.6f * wet);
+
+        // A bouquet starts growing once its flowers can be drawn, so it rises whole from the soil
+        // rather than being revealed bit by bit.
+        if (! b.formed)
+        {
+            if (b.age < 0.5f && ! ready (b))
+                continue;
+            b.formed = true;
+            b.open = juce::jlimit (0.0f, 1.0f, 0.3f + 0.4f * b.velocity);
+        }
+        b.growth = std::min (1.0f, b.growth + dt / b.growSeconds);
+        mold (b, dt, press);
     }
 
     bouquets.erase (std::remove_if (bouquets.begin(), bouquets.end(), [] (const Bunch& b) { return b.rot >= 1.0f; }),
@@ -211,6 +224,7 @@ void Garden::noteOn (const NoteEvent& e)
             growGrass (note, 0.6f + 0.4f * e.velocity);
             last.held.push_back (note);
             last.velocity = std::max (last.velocity, e.velocity);
+            last.stretchSpeed -= 2.5f * e.velocity;   // each note of the strum presses it down again
             arrange (last);
             return;
         }
@@ -256,6 +270,37 @@ void Garden::releaseBunch (Bunch& b)
 {
     b.released = true;
     b.held.clear();
+}
+
+bool Garden::ready (const Bunch& b)
+{
+    if (! processor.photorealFlowers())
+        return true;
+    for (const auto& f : b.flowers)
+        if (sprites->has (f.genome.species)
+            && ! sprites->ready (f.genome.species, (int) (f.genome.seed % real::FlowerSprites::numVariants),
+                                 real::FlowerSprites::nearestColour (f.genome.petal)))
+            return false;
+    return true;
+}
+
+void Garden::mold (Bunch& b, float dt, float press)
+{
+    // Touch opens the flowers: a harder strike further, pressing in further still.
+    const float touch = b.released ? 0.0f : press;
+    const float openTarget = b.released ? 1.0f : juce::jlimit (0.0f, 1.0f, 0.4f + 0.45f * b.velocity + 0.5f * touch);
+    b.open += (openTarget - b.open) * (1.0f - std::exp (-dt * 5.0f));
+
+    // Squash and stretch on a soft spring, like clay: pressing in draws the bouquet up.
+    const float rest = 0.18f * touch;
+    const float damping = 2.0f * 0.32f * std::sqrt (b.stiffness);
+    const float h = std::min (dt, 0.1f) / 4.0f;
+    for (int i = 0; i < 4; ++i)
+    {
+        b.stretchSpeed += (-b.stiffness * (b.stretch - rest) - damping * b.stretchSpeed) * h;
+        b.stretch += b.stretchSpeed * h;
+    }
+    b.stretch = juce::jlimit (-0.7f, 0.6f, b.stretch);
 }
 
 void Garden::listenToLiveInput (float dt)
@@ -309,7 +354,8 @@ void Garden::arrange (Bunch& b)
     b.ribbon = ribbonColours[(size_t) juce::jlimit (0, 9, b.instrument)];
 
     const float attack = processor.apvts.getRawParameterValue (ids::attack)->load();
-    b.growSeconds = juce::jlimit (0.5f, 2.6f, 1.15f - 0.5f * b.velocity + attack * 0.4f);
+    b.stiffness = 260.0f / (1.0f + 1.5f * attack);   // a slow attack settles slowly
+    b.growSeconds = juce::jlimit (0.4f, 2.4f, 0.95f - 0.45f * b.velocity + attack * 0.4f);
 
     // Up to six flowers: spread the chord tones if there are more.
     std::vector<int> tones = b.notes;
@@ -368,22 +414,37 @@ void Garden::paint (juce::Graphics& g)
 
 void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sway) const
 {
+    if (! b.formed)
+        return;
+
     const float baseY = (float) getHeight() - 3.0f;
     const juce::Point<float> tie (b.x, baseY - 16.0f);
-    const float grow = 1.0f - std::pow (1.0f - juce::jlimit (0.0f, 1.0f, b.age / b.growSeconds), 3.0f);
-    const float bloomT = juce::jlimit (0.0f, 1.0f, (b.age - 0.55f * b.growSeconds) / (0.9f * b.growSeconds));
-    const float bloom = bloomT * bloomT * (3.0f - 2.0f * bloomT);
     const float rot = b.rot;
-    // Expression: pressing into held keys lifts and lights the bouquet; the mod wheel is wind.
+    // Expression: pressing into held keys lifts and lights the bouquet; the mod wheel is wind
+    // that bends every stem one way.
     const float press = b.released ? 0.0f : processor.keyPressure.load();
     const float gust = processor.modWheel.load();
+    // Squashed it grows wide, drawn up it grows thin, as clay keeps its volume.
+    const float tall = 1.0f + b.stretch, wide = 1.0f / std::sqrt (tall);
+    const float bend = gust * 0.3f * (1.0f - rot);
+
+    // Growing: the whole plant rises from the soil, overshooting a touch and settling like
+    // soft clay, its stems fanning out and its buds opening as it gets there.
+    const float t = b.growth - 1.0f;
+    const float rise = 1.0f + 2.2f * t * t * t + 1.2f * t * t;
+    const float risen = 0.08f + 0.92f * rise;
+    const float fanned = 0.45f + 0.55f * juce::jlimit (0.0f, 1.0f, rise);
+    const float budT = juce::jlimit (0.0f, 1.0f, (b.growth - 0.45f) / 0.55f);
+    const float opening = budT * budT * (3.0f - 2.0f * budT);
 
     for (const auto& f : b.flowers)
     {
         // The head sways, lifts with the breath, and bows over as it rots.
         const float lean = f.spread >= 0.0f ? 1.0f : -1.0f;
         const float breeze = (std::sin (time * (0.9f + 1.6f * gust) + f.genome.phase) * 3.0f * (1.0f + 2.5f * gust) + sway * 2.5f) * (1.0f - rot);
-        juce::Point<float> head (b.x + f.spread * 2.1f + breeze, baseY - f.height - (4.0f * breath + 10.0f * press) * (1.0f - rot));
+        const float height = f.height * tall * risen;
+        const float spread = f.spread * fanned;
+        juce::Point<float> head (b.x + spread * 2.1f * wide + breeze + bend * height, baseY - height - (4.0f * breath + 10.0f * press) * (1.0f - rot));
         const float droop = std::pow (rot, 1.2f) * 1.45f * lean;
         auto rotate = [&tie] (juce::Point<float> p, float a)
         {
@@ -393,23 +454,24 @@ void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sw
         head = rotate (head, droop);
 
         Pose pose;
-        pose.base = { b.x + f.spread * 0.1f, baseY };
-        pose.c1 = { b.x + f.spread * 0.2f, baseY - 6.0f };
-        pose.c2 = rotate ({ b.x + f.spread * 1.4f + breeze * 0.4f, baseY - f.height * 0.55f }, droop * 0.6f);
+        pose.base = { b.x + spread * 0.1f * wide, baseY };
+        pose.c1 = { b.x + spread * 0.2f * wide, baseY - 6.0f * risen };
+        pose.c2 = rotate ({ b.x + spread * 1.4f * wide + breeze * 0.4f + bend * height * 0.3f, baseY - height * 0.55f }, droop * 0.6f);
         pose.head = head;
-        pose.grow = grow;
-        pose.bloom = std::max (bloom, 0.12f * juce::jlimit (0.0f, 1.0f, (grow - 0.65f) / 0.35f));
+        pose.grow = 1.0f;
+        pose.bloom = b.open * opening;
         pose.rot = rot;
         pose.time = time;
-        pose.stemWidth = 2.4f;
+        pose.stemWidth = 2.4f * wide;
         pose.glow = press;
         if (processor.photorealFlowers() && sprites->has (f.genome.species))
         {
-            // Rendered flowers carry their own droop; we only fan them out and sway them.
-            const float fan = f.spread * 0.011f + breeze * 0.008f;
+            // Rendered flowers carry their own droop; we only fan them out, sway and mold them.
+            const float fan = spread * 0.011f * wide + breeze * 0.008f + bend;
             real::paintFlower (g, *sprites, f.genome.species, (int) (f.genome.seed % real::FlowerSprites::numVariants),
                                real::FlowerSprites::nearestColour (f.genome.petal),
-                               pose.base, f.height * 0.9f * (1.0f + 0.06f * press), fan, grow, pose.bloom, rot, time, press);
+                               pose.base, f.height * risen * 0.9f * (1.0f + 0.06f * press), fan, 1.0f, pose.bloom, rot, time, press,
+                               1.0f, b.stretch);
         }
         else
         {
@@ -418,9 +480,9 @@ void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sw
     }
 
     // Twine and a ribbon holding the stems together.
-    if (grow > 0.25f)
+    if (b.growth > 0.25f)
     {
-        const float s = juce::jlimit (0.0f, 1.0f, (grow - 0.25f) / 0.4f);
+        const float s = juce::jlimit (0.0f, 1.0f, (b.growth - 0.25f) / 0.4f);
         const float fade = rot > 0.85f ? 1.0f - (rot - 0.85f) / 0.15f : 1.0f;
         const auto ribbon = b.ribbon.interpolatedWith (juce::Colour (0xff5a0910), juce::jlimit (0.0f, 1.0f, rot * 1.2f) * 0.7f)
                                 .withMultipliedAlpha (fade);

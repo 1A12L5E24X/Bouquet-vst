@@ -219,4 +219,145 @@ Preset capturePreset (const juce::AudioProcessorValueTreeState& state, const juc
                 p.values.push_back ({ ranged->getParameterID(), ranged->convertFrom0to1 (ranged->getValue()) });
     return p;
 }
+
+const TonicInfo& tonicInfo (Tonic t)
+{
+    static const TonicInfo infos[] = {
+        { "rain water", "more air, room and forest", "rain-fed" },
+        { "honey", "thicker, warmer, more voices", "honeyed" },
+        { "moonwater", "shimmering echoes and harmony", "moonlit" },
+        { "storm water", "wild, scattered, unpredictable", "storm-struck" },
+    };
+    return infos[juce::jlimit (0, (int) Tonic::count - 1, (int) t)];
+}
+
+Watering waterPreset (const juce::AudioProcessorValueTreeState& state, const Preset& source, const std::vector<Tonic>& tonics,
+                      const PresetLibrary& names, juce::Random& r)
+{
+    Watering w;
+    w.preset = source;
+    w.preset.factory = false;
+    w.preset.file = juce::File();
+    auto& values = w.preset.values;
+
+    auto find = [&values] (const juce::String& id) -> float*
+    {
+        for (auto& [key, value] : values)
+            if (key == id)
+                return &value;
+        return nullptr;
+    };
+    auto plain = [&] (const juce::String& id) -> float
+    {
+        if (auto* v = find (id))
+            return *v;
+        auto* p = state.getParameter (id);
+        return p != nullptr ? p->convertFrom0to1 (p->getDefaultValue()) : 0.0f;
+    };
+    auto set = [&] (const juce::String& id, float v)
+    {
+        if (auto* existing = find (id)) *existing = v;
+        else                            values.push_back ({ id, v });
+    };
+    // Pushes a parameter along its own range, by a little more or less than asked.
+    auto nudge = [&] (const juce::String& id, float amount)
+    {
+        auto* p = state.getParameter (id);
+        if (p == nullptr)
+            return;
+        const float norm = p->convertTo0to1 (plain (id)) + amount * (0.6f + 0.8f * r.nextFloat());
+        set (id, p->convertFrom0to1 (juce::jlimit (0.0f, 1.0f, norm)));
+    };
+
+    // Plain water: everything a little fuller.
+    if (plain (ids::magic) < 0.5f)
+    {
+        set (ids::magic, 1.0f);
+        set (ids::mix, std::max (0.0f, 0.25f + 0.1f * r.nextFloat()));
+        w.note << "woke the Magic Lab; ";
+    }
+    for (auto& [id, amount] : std::initializer_list<std::pair<const juce::String*, float>> {
+             { &ids::harmonyAmount, 0.12f }, { &ids::detune, 0.05f }, { &ids::width, 0.1f }, { &ids::density, 0.06f },
+             { &ids::space, 0.06f }, { &ids::decay, 0.05f }, { &ids::life, 0.06f }, { &ids::mix, 0.05f }, { &ids::wildlife, 0.04f } })
+        nudge (*id, amount);
+    if (plain (ids::voicing) < 0.5f && r.nextFloat() < 0.5f)
+        set (ids::voicing, 1.0f);
+
+    // Each tonic pushes its own way; a second dose of the same one less than the first.
+    int doses[(int) Tonic::count] = {};
+    for (auto t : tonics)
+    {
+        const float dose = 1.0f / (float) (1 + doses[(int) t]++);
+        switch (t)
+        {
+            case Tonic::rain:
+                nudge (ids::space, 0.15f * dose);  nudge (ids::decay, 0.12f * dose);
+                nudge (ids::width, 0.12f * dose);  nudge (ids::wildlife, 0.08f * dose);
+                nudge (ids::forest, 0.06f * dose);
+                break;
+            case Tonic::honey:
+                nudge (ids::density, 0.12f * dose);  nudge (ids::size, 0.1f * dose);
+                nudge (ids::harmonyAmount, 0.12f * dose);  nudge (ids::labTone, -0.06f * dose);
+                nudge (ids::attack, 0.03f * dose);
+                break;
+            case Tonic::moon:
+                nudge (ids::feedback, 0.12f * dose);  nudge (ids::detune, 0.1f * dose);
+                nudge (ids::harmonyAmount, 0.1f * dose);  nudge (ids::time, 0.08f * dose);
+                if (juce::roundToInt (plain (ids::harmony)) == 0)
+                    set (ids::harmony, r.nextBool() ? 1.0f : 11.0f);   // octaves or shimmer
+                break;
+            case Tonic::storm:
+                nudge (ids::chaos, 0.15f * dose);  nudge (ids::spray, 0.15f * dose);
+                nudge (ids::reverse, 0.12f * dose);  nudge (ids::life, 0.1f * dose);
+                break;
+            case Tonic::count:
+                break;
+        }
+    }
+
+    // Sometimes the mix fizzes and something unexpected grows; storms make it likelier.
+    if (r.nextFloat() < 0.18f + 0.08f * (float) doses[(int) Tonic::storm])
+    {
+        w.fizzed = true;
+        const juce::String* wild[] = { &ids::pitch, &ids::colour, &ids::shape, &ids::reverse, &ids::size, &ids::time,
+                                       &ids::feedback, &ids::chaos, &ids::detune };
+        const int which = r.nextInt (4);
+        if (which == 0)
+        {
+            set (ids::harmony, (float) r.nextInt (14));
+            w.note << "it fizzed, and the harmony changed; ";
+        }
+        else if (which == 1)
+        {
+            set (ids::pitch, plain (ids::pitch) + (r.nextBool() ? 12.0f : -12.0f) * (r.nextFloat() < 0.3f ? 0.5833f : 1.0f));
+            set (ids::pitch, juce::jlimit (-24.0f, 24.0f, plain (ids::pitch)));
+            w.note << "it fizzed, and the grains jumped register; ";
+        }
+        else
+        {
+            for (int i = 0; i < 2; ++i)
+                nudge (*wild[r.nextInt ((int) std::size (wild))], (r.nextFloat() * 2.0f - 1.0f) * 0.3f);
+            w.note << "it fizzed over; ";
+        }
+    }
+
+    // A fuller sound is a louder one: trim it back to sit where it was.
+    set (ids::sourceLevel, juce::jlimit (-36.0f, 12.0f, plain (ids::sourceLevel) - 1.0f - 0.6f * (float) tonics.size()));
+
+    // The name: the flower it came from, and what it was given.
+    auto base = source.name.upToFirstOccurrenceOf (",", false, false).trim();
+    juce::StringArray given;
+    for (int t = 0; t < (int) Tonic::count; ++t)
+        if (doses[t] > 0)
+            given.add (tonicInfo ((Tonic) t).adjective);
+    if (given.isEmpty())
+        given.add ("watered");
+    auto name = base + ", " + given.joinIntoString (" & ");
+    static const char* numerals[] = { " ii", " iii", " iv", " v", " vi", " vii", " viii", " ix", " x" };
+    for (int i = 0; names.find (name) != nullptr; ++i)
+        name = base + ", " + given.joinIntoString (" & ") + (i < 9 ? juce::String (numerals[i]) : " " + juce::String (i + 2));
+    w.preset.name = name;
+    w.note = (w.note.isEmpty() ? juce::String ("grew richer") : w.note.dropLastCharacters (2));
+    return w;
+}
 } // namespace bouquet

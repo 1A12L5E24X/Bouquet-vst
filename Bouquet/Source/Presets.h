@@ -45,4 +45,29 @@ private:
 
 // Captures every parameter except the output level.
 Preset capturePreset (const juce::AudioProcessorValueTreeState&, const juce::String& name);
+
+// Watering: pouring water on a preset grows a richer version of it (fuller harmony,
+// wider, more air and motion), and each tonic stirred into the water pushes it further
+// its own way. No two waterings come out quite the same.
+enum class Tonic { rain, honey, moon, storm, count };
+
+struct TonicInfo
+{
+    const char* name;        // "rain water"
+    const char* effect;      // what it does to a sound
+    const char* adjective;   // what it does to a name: "rain-fed"
+};
+const TonicInfo& tonicInfo (Tonic);
+
+struct Watering
+{
+    Preset preset;           // the new, richer preset (not yet saved)
+    bool fizzed = false;     // something unexpected happened in the mix
+    juce::String note;       // a line for the lab notebook
+};
+
+// tonics: what was stirred into the water, in order (repeats are stronger doses).
+// names: the library, to keep the new name unique.
+Watering waterPreset (const juce::AudioProcessorValueTreeState&, const Preset& source, const std::vector<Tonic>& tonics,
+                      const PresetLibrary& names, juce::Random&);
 } // namespace bouquet
