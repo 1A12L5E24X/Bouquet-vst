@@ -11,7 +11,9 @@ namespace bouquet::ui
 {
 // The garden: every chord you play grows its own bouquet, rising whole from the soil and
 // molded by how you play it (pressing in draws it up and opens it, the mod wheel bends
-// it), and slowly rotting once it is let go.
+// it), and slowly rotting once it is let go. Low notes grow deep, dusky flowers and rain
+// falls on them; high notes grow bright ones and light shines down on them; and while a
+// chord is held its bouquet keeps growing, as if tended under your fingertips.
 class Garden : public juce::Component
 {
 public:
@@ -40,6 +42,7 @@ private:
     {
         botany::Genome genome;
         float note, height, spread;
+        float pitch = 0.5f;           // 0 lowest .. 1 highest: dusky and rained on .. bright and sunlit
     };
 
     struct Bunch
@@ -59,6 +62,8 @@ private:
         bool released = false;
         bool fromInput = false;       // planted by live input rather than notes
         float rot = 0.0f;             // 0 fresh .. 1 gone
+        float tended = 0.0f;          // 0 just grown .. 1 fully grown by being held
+        float weather = 0.0f;         // how hard it rains or shines on it (only while held)
         uint32_t seed = 0;
         juce::Colour ribbon;
     };
@@ -72,6 +77,8 @@ private:
     void mold (Bunch&, float dt, float press);
 
     void paintBunch (juce::Graphics&, const Bunch&, float time, float sway) const;
+    // Rain over a low flower, a shaft of light over a high one, falling from the top of the garden.
+    void paintWeather (juce::Graphics&, const Flower&, juce::Point<float> head, float strength, float time) const;
 
     // Grass grows only where keys are played (and a little around them), then recedes.
     struct Patch

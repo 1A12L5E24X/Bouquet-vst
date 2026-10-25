@@ -95,6 +95,13 @@ void Garden::tick (float dt)
         }
         b.growth = std::min (1.0f, b.growth + dt / b.growSeconds);
         mold (b, dt, press);
+
+        // Held, it keeps growing (faster when pressed into) and the weather stays on it;
+        // let go, the weather clears but what it grew remains.
+        if (! b.released)
+            b.tended += (1.0f - b.tended) * (1.0f - std::exp (-dt * (0.35f + 0.9f * press)));
+        const float weatherTarget = b.released ? 0.0f : 1.0f;
+        b.weather += (weatherTarget - b.weather) * (1.0f - std::exp (-dt / (b.released ? 1.2f : 0.35f)));
     }
 
     bouquets.erase (std::remove_if (bouquets.begin(), bouquets.end(), [] (const Bunch& b) { return b.rot >= 1.0f; }),
@@ -374,13 +381,16 @@ void Garden::arrange (Bunch& b)
         Flower f;
         f.note = (float) tones[(size_t) i];
         const float pitch = juce::jlimit (0.0f, 1.0f, (f.note - 36.0f) / 60.0f);
+        f.pitch = pitch;
         const float centreness = 1.0f - std::abs ((float) i - mid) / std::max (1.0f, mid + 0.5f);
         f.height = maxHeight * juce::jlimit (0.35f, 1.0f, 0.42f + 0.32f * pitch + 0.2f * centreness + 0.06f * r.nextFloat());
         f.spread = ((float) i - mid) * (17.0f + 7.0f * r.nextFloat()) + (r.nextFloat() - 0.5f) * 6.0f;
 
+        // The higher the note, the brighter the flower: low ones deep and dusky, high ones luminous.
         auto c = palette[(size_t) ((i + r.nextInt (3)) % (int) palette.size())];
-        c = juce::Colour::fromHSV (std::fmod (c.getHue() + hueShift + 1.0f, 1.0f), c.getSaturation(),
-                                   c.getBrightness() * (0.95f + 0.05f * r.nextFloat()), 1.0f);
+        c = juce::Colour::fromHSV (std::fmod (c.getHue() + hueShift + 1.0f, 1.0f),
+                                   juce::jlimit (0.0f, 1.0f, c.getSaturation() * (1.25f - 0.45f * pitch)),
+                                   juce::jlimit (0.25f, 1.0f, c.getBrightness() * (0.5f + 0.6f * pitch) * (0.95f + 0.05f * r.nextFloat())), 1.0f);
         const auto species = r.nextFloat() < 0.6f ? dominant : (Species) r.nextInt ((int) Species::count);
         f.genome = makeGenome (species, c, 10.5f + 6.0f * b.velocity + 3.5f * r.nextFloat(), b.seed + (uint32_t) i * 7919u);
         if (processor.photorealFlowers())
@@ -437,12 +447,14 @@ void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sw
     const float budT = juce::jlimit (0.0f, 1.0f, (b.growth - 0.45f) / 0.55f);
     const float opening = budT * budT * (3.0f - 2.0f * budT);
 
+    std::vector<juce::Point<float>> heads;
     for (const auto& f : b.flowers)
     {
         // The head sways, lifts with the breath, and bows over as it rots.
         const float lean = f.spread >= 0.0f ? 1.0f : -1.0f;
         const float breeze = (std::sin (time * (0.9f + 1.6f * gust) + f.genome.phase) * 3.0f * (1.0f + 2.5f * gust) + sway * 2.5f) * (1.0f - rot);
-        const float height = f.height * tall * risen;
+        const float tending = 0.8f + 0.2f * b.tended;
+        const float height = f.height * tall * risen * tending;
         const float spread = f.spread * fanned;
         juce::Point<float> head (b.x + spread * 2.1f * wide + breeze + bend * height, baseY - height - (4.0f * breath + 10.0f * press) * (1.0f - rot));
         const float droop = std::pow (rot, 1.2f) * 1.45f * lean;
@@ -463,21 +475,31 @@ void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sw
         pose.rot = rot;
         pose.time = time;
         pose.stemWidth = 2.4f * wide;
-        pose.glow = press;
+        pose.glow = std::max (press, 0.6f * f.pitch * f.pitch * b.weather);
         if (processor.photorealFlowers() && sprites->has (f.genome.species))
         {
             // Rendered flowers carry their own droop; we only fan them out, sway and mold them.
             const float fan = spread * 0.011f * wide + breeze * 0.008f + bend;
             real::paintFlower (g, *sprites, f.genome.species, (int) (f.genome.seed % real::FlowerSprites::numVariants),
                                real::FlowerSprites::nearestColour (f.genome.petal),
-                               pose.base, f.height * risen * 0.9f * (1.0f + 0.06f * press), fan, 1.0f, pose.bloom, rot, time, press,
-                               1.0f, b.stretch);
+                               pose.base, f.height * risen * tending * 0.9f * (1.0f + 0.06f * press), fan, 1.0f, pose.bloom, rot, time,
+                               pose.glow, 1.0f, b.stretch);
+            // Roughly where its head is: the sprite stands its full height, leaning by fan.
+            const float h = f.height * risen * tending * 0.9f * tall;
+            head = pose.base + juce::Point<float> (std::sin (fan) * h, -std::cos (fan) * h);
         }
         else
         {
             paintPlant (g, f.genome, pose);
         }
+        heads.push_back (head);
     }
+
+    // Rain or light falls on each flower while its chord is held.
+    const float weather = b.weather * (0.6f + 0.4f * b.velocity) * juce::jlimit (0.0f, 1.0f, b.growth * 2.0f) * (1.0f - rot);
+    if (weather > 0.01f)
+        for (size_t i = 0; i < b.flowers.size(); ++i)
+            paintWeather (g, b.flowers[i], heads[i], weather, time);
 
     // Twine and a ribbon holding the stems together.
     if (b.growth > 0.25f)
@@ -498,6 +520,79 @@ void Garden::paintBunch (juce::Graphics& g, const Bunch& b, float time, float sw
         g.strokePath (bow, juce::PathStrokeType (2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         g.setColour (ribbon.darker (0.35f));
         g.fillEllipse (juce::Rectangle<float> (3.4f, 3.4f).withCentre (tie));
+    }
+}
+
+void Garden::paintWeather (juce::Graphics& g, const Flower& f, juce::Point<float> head, float strength, float time) const
+{
+    const auto smoothstep = [] (float x) { x = juce::jlimit (0.0f, 1.0f, x); return x * x * (3.0f - 2.0f * x); };
+    // Low notes are rained on, high notes shone on; the middle of the keyboard gets a little of both.
+    const float rain = smoothstep ((0.55f - f.pitch) / 0.35f) * strength;
+    const float sun = smoothstep ((f.pitch - 0.45f) / 0.35f) * strength;
+    const float top = 2.0f;
+    const float fall = std::max (8.0f, head.y - top);
+    const float seed = (float) (f.genome.seed % 997u) * 0.137f;
+
+    if (rain > 0.01f)
+    {
+        // A low grey cloud at the top of the garden, and streaks falling from it onto the flower.
+        drawGlow (g, juce::Rectangle<float> (64.0f, 18.0f).withCentre ({ head.x, top + 2.0f }),
+                  juce::Colour (0xff5d6b80).withAlpha (0.55f * rain));
+        const int drops = 4 + (int) (8.0f * rain);
+        for (int i = 0; i < drops; ++i)
+        {
+            const float k = (float) i;
+            const float speed = 1.5f + 0.4f * std::sin (k * 3.7f + seed);
+            const float phase = std::fmod (time * speed + k * 0.618f + seed, 1.0f);
+            const float x = head.x + std::sin (k * 2.3f + seed) * 22.0f - phase * 3.0f;   // a little wind slants it
+            const float y = top + fall * phase;
+            const float length = 5.0f + 4.0f * rain;
+            g.setColour (juce::Colour (0xff7d9cc0).withAlpha (0.75f * rain * (1.0f - phase * 0.3f)));
+            g.drawLine (x + 1.0f, y - length, x, y, 1.1f);
+
+            // Drops landing near the head splash.
+            if (phase > 0.88f && std::abs (x - head.x) < 16.0f)
+            {
+                const float s = (phase - 0.88f) / 0.12f;
+                g.setColour (juce::Colour (0xff8aa8cc).withAlpha (0.7f * rain * (1.0f - s)));
+                g.drawEllipse (juce::Rectangle<float> (3.0f + 9.0f * s, 1.5f + 3.0f * s).withCentre ({ x, head.y }), 0.8f);
+            }
+        }
+    }
+
+    if (sun > 0.01f)
+    {
+        // A shaft of warm light widening as it comes down onto the flower, shimmering.
+        const float shimmer = 0.85f + 0.15f * std::sin (time * 2.1f + seed);
+        const auto warm = juce::Colour (0xffffd66e);
+        // Nested, ever narrower shafts so the beam has a soft edge and a bright core.
+        for (float w : { 1.0f, 0.65f, 0.35f })
+        {
+            juce::Path shaft;
+            shaft.startNewSubPath (head.x - 7.0f * w, top - 2.0f);
+            shaft.lineTo (head.x + 7.0f * w, top - 2.0f);
+            shaft.lineTo (head.x + 30.0f * w, head.y);
+            shaft.lineTo (head.x - 30.0f * w, head.y);
+            shaft.closeSubPath();
+            juce::ColourGradient beam (warm.withAlpha (0.2f * sun * shimmer), head.x, top,
+                                       warm.withAlpha (0.07f * sun * shimmer), head.x, head.y, false);
+            g.setGradientFill (beam);
+            g.fillPath (shaft);
+        }
+
+        drawGlow (g, head, f.genome.size * 3.6f, warm.withAlpha (0.75f * sun * shimmer));
+
+        // Motes of light drifting down through the beam and twinkling.
+        for (int i = 0; i < 5; ++i)
+        {
+            const float k = (float) i;
+            const float phase = std::fmod (time * 0.18f + k * 0.21f + seed, 1.0f);
+            const float y = top + fall * phase;
+            const float x = head.x + std::sin (time * 0.7f + k * 1.9f + seed) * (4.0f + 18.0f * phase);
+            const float twinkle = std::max (0.0f, std::sin (time * 3.0f + k * 2.7f + seed));
+            g.setColour (juce::Colour (0xffffc23d).withAlpha (0.9f * sun * twinkle * std::sin (phase * juce::MathConstants<float>::pi)));
+            g.fillEllipse (juce::Rectangle<float> (2.2f, 2.2f).withCentre ({ x, y }));
+        }
     }
 }
 } // namespace bouquet::ui
