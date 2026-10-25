@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "PixelArt.h"
 
 namespace bouquet::ui
 {
@@ -37,8 +38,8 @@ Surface::Surface (BouquetProcessor& p)
       attack  (state, ids::attack, "attack", colours::coral, colours::peach),
       release (state, ids::release, "release", colours::coral, colours::peach),
       strum   (state, ids::strum, "strum", colours::rose, colours::amber),
-      forest  (state, ids::forest, "distance", juce::Colour (0xff6f9f5c), colours::mint),
-      wildlife (state, ids::wildlife, "ambience", juce::Colour (0xff6f9f5c), colours::butter),
+      forest  (state, ids::forest, "depth", juce::Colour (0xff6f9f5c), colours::mint),
+      wildlife (state, ids::wildlife, "wild", juce::Colour (0xff6f9f5c), colours::butter),
       level   (state, ids::sourceLevel, "level", colours::coral, colours::amber),
       aura    (state, p.engine),
       mix     (state, ids::mix, "mix", colours::violet, colours::aqua),
@@ -56,6 +57,8 @@ Surface::Surface (BouquetProcessor& p)
       meadow (p)
 {
     setOpaque (true);
+    // Everything, children too, is painted on the pixel grid.
+    setCachedComponentImage (new pixel::Canvas (*this));
 
     // --- Sound Lab
     const auto names = instrumentNames();
@@ -114,10 +117,10 @@ Surface::Surface (BouquetProcessor& p)
 
     struct InnerDef { const juce::String& id; const char* label; bool bipolar; };
     const InnerDef innerDefs[] = {
-        { ids::density, "density", false }, { ids::size, "size", false },      { ids::time, "delay", false },
-        { ids::spray, "spray", false },     { ids::pitch, "pitch", true },     { ids::harmonyAmount, "harmony", false },
-        { ids::detune, "detune", false },   { ids::reverse, "reverse", false }, { ids::chaos, "jitter", false },
-        { ids::shape, "shape", false },      { ids::width, "width", false },    { ids::feedback, "feedback", false },
+        { ids::density, "dense", false }, { ids::size, "size", false },      { ids::time, "delay", false },
+        { ids::spray, "spray", false },     { ids::pitch, "pitch", true },     { ids::harmonyAmount, "harm", false },
+        { ids::detune, "detune", false },   { ids::reverse, "rev", false }, { ids::chaos, "jitter", false },
+        { ids::shape, "shape", false },      { ids::width, "width", false },    { ids::feedback, "regen", false },
         { ids::colour, "tone", true },    { ids::decay, "decay", false },
     };
     for (size_t i = 0; i < std::size (innerDefs); ++i)
@@ -144,12 +147,7 @@ Surface::Surface (BouquetProcessor& p)
     addChildComponent (meadow);
     magicShown = param (ids::magic) > 0.5f ? 1.0f : 0.0f;
 
-    // A fixed field of film grain (signed brightness offsets), tiled over the light.
-    {
-        juce::Random r (7);
-        for (auto& n : grainNoise)
-            n = (juce::int8) juce::roundToInt ((r.nextFloat() + r.nextFloat() - 1.0f) * 3.0f);
-    }
+    // No film grain on the pixel grid: the palette's dither is the texture.
     aurora = juce::Image (juce::Image::RGB, designWidth / 4, designHeight / 4, false);
 
     // Open on the category of the current spell.
@@ -230,7 +228,7 @@ void Surface::resized()
     // Header
     gardenButton.setBounds (28, 28, 76, 30);
     flowerStyle.setBounds (116, 28, 110, 30);
-    syncSwitch.setBounds (770, 28, 116, 30);
+    syncSwitch.setBounds (752, 28, 134, 30);
     magicSwitch.setBounds (892, 28, 108, 30);
     mutate.setBounds (1006, 28, 72, 30);
     output.setBounds (designWidth - 24 - 56, 12, 56, 62);
@@ -389,11 +387,8 @@ void Surface::frame (float dt)
 
 int Surface::pixelScale() const
 {
-    // The editor's own zoom times the display's pixel density (2 on Retina screens).
-    float s = juce::Component::getApproximateScaleFactorForComponent (this);
-    if (auto* display = juce::Desktop::getInstance().getDisplays().getDisplayForRect (getScreenBounds()))
-        s *= (float) display->scale;
-    return juce::jlimit (1, 3, (int) std::ceil (s - 0.05f));
+    // Everything ends up on the pixel grid (half a point per pixel), so a point a pixel is plenty.
+    return 1;
 }
 
 //==============================================================================
@@ -490,7 +485,7 @@ void Surface::renderBackground()
         juce::ignoreUnused (t, breath);
     }
 
-    // Stretch the aurora to full size (bilinear) and sprinkle film grain in the same pass.
+    // Stretch the aurora to full size (bilinear).
     {
         const juce::Image::BitmapData src (aurora, juce::Image::BitmapData::readOnly);
         juce::Image::BitmapData dst (background, juce::Image::BitmapData::writeOnly);
@@ -517,7 +512,6 @@ void Surface::renderBackground()
             const juce::uint8* row0 = src.getLinePointer (y0);
             const juce::uint8* row1 = src.getLinePointer (y0 + 1);
             juce::uint8* out = dst.getLinePointer (y);
-            const juce::int8* noise = grainNoise.data() + (size_t) ((y & 255) * 256);
             const int stride = src.pixelStride;
 
             for (int x = 0; x < pixelW; ++x, out += dst.pixelStride)
@@ -525,12 +519,11 @@ void Surface::renderBackground()
                 const auto& col = columns[(size_t) x];
                 const juce::uint8* a = row0 + col.offset;
                 const juce::uint8* b = row1 + col.offset;
-                const int n = noise[x & 255];
                 for (int c = 0; c < 3; ++c)
                 {
                     const int top = a[c] * 256 + (a[c + stride] - a[c]) * col.t;
                     const int bottom = b[c] * 256 + (b[c + stride] - b[c]) * col.t;
-                    const int v = ((top * 256 + (bottom - top) * ty) >> 16) + n;
+                    const int v = (top * 256 + (bottom - top) * ty) >> 16;
                     out[c] = (juce::uint8) juce::jlimit (0, 255, v);
                 }
             }
@@ -594,7 +587,10 @@ void Surface::paintPanel (juce::Graphics& g, juce::Rectangle<float> r, const juc
                               colours::ink.withAlpha (0.1f), r.getX(), r.getBottom(), false);
     rim.addColour (0.1, colours::frost.withAlpha (0.5f));
     g.setGradientFill (rim);
-    g.drawRoundedRectangle (r.reduced (0.5f), radius, 1.0f);
+    g.drawRoundedRectangle (r.reduced (1.0f), radius, 2.0f);
+    // A crisp pixel outline around the glass.
+    g.setColour (colours::ink.withAlpha (0.14f));
+    g.drawRoundedRectangle (r.expanded (1.0f), radius + 1.0f, 2.0f);
 }
 
 bool MeadowLayer::sway (float time, float wind, int scale, const std::vector<botany::Ripple>& gusts, float gustOffset)
@@ -757,9 +753,10 @@ BouquetEditor::BouquetEditor (BouquetProcessor& p)
 
     setResizable (true, true);
     const double ratio = (double) bouquet::ui::Surface::designWidth / bouquet::ui::Surface::designHeight;
-    getConstrainer()->setFixedAspectRatio (ratio);
-    setResizeLimits (bouquet::ui::Surface::designWidth / 2, bouquet::ui::Surface::designHeight / 2,
-                     bouquet::ui::Surface::designWidth * 2, bouquet::ui::Surface::designHeight * 2);
+    zoom.setFixedAspectRatio (ratio);
+    zoom.setSizeLimits (bouquet::ui::Surface::designWidth / 2, bouquet::ui::Surface::designHeight / 2,
+                        bouquet::ui::Surface::designWidth * 2, bouquet::ui::Surface::designHeight * 2);
+    setConstrainer (&zoom);
     setSize (bouquet::ui::Surface::designWidth, bouquet::ui::Surface::designHeight);
 
     lastFrame = bouquet::ui::clock();

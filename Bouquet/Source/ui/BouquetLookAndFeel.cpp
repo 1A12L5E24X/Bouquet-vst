@@ -10,13 +10,12 @@ namespace
         return juce::Typeface::createSystemTypefaceFor (data, (size_t) size);
     }
 
+    // Two pixel fonts, each only ever drawn at the size its pixels were drawn for (on the
+    // pixel grid): Tiny5 for all the words, Jersey 10 for the two titles.
     struct Typefaces
     {
-        juce::Typeface::Ptr serifLight       = load (BouquetAssets::NewsreaderLight_ttf, BouquetAssets::NewsreaderLight_ttfSize);
-        juce::Typeface::Ptr serifLightItalic = load (BouquetAssets::NewsreaderLightItalic_ttf, BouquetAssets::NewsreaderLightItalic_ttfSize);
-        juce::Typeface::Ptr serifItalic      = load (BouquetAssets::NewsreaderItalic_ttf, BouquetAssets::NewsreaderItalic_ttfSize);
-        juce::Typeface::Ptr sansRegular      = load (BouquetAssets::InterRegular_ttf, BouquetAssets::InterRegular_ttfSize);
-        juce::Typeface::Ptr sansMedium       = load (BouquetAssets::InterMedium_ttf, BouquetAssets::InterMedium_ttfSize);
+        juce::Typeface::Ptr small = load (BouquetAssets::Tiny5Regular_ttf, BouquetAssets::Tiny5Regular_ttfSize);
+        juce::Typeface::Ptr title = load (BouquetAssets::Jersey10Regular_ttf, BouquetAssets::Jersey10Regular_ttfSize);
     };
 
     const Typefaces& typefaces()
@@ -25,17 +24,25 @@ namespace
         return t;
     }
 
-    juce::Font make (const juce::Typeface::Ptr& tf, float height, float tracking = 0.0f)
+    // A font's height is its ascent plus descent, in points (two to an art pixel): Tiny5's
+    // 8 pixel em is 9 pixels of that, Jersey 10's 18.67 pixel em 20.
+    constexpr float smallHeight = 18.0f;
+    constexpr float titleHeight = 40.0f;
+
+    // Large type becomes a title, everything else the small font.
+    juce::Font make (float height)
     {
-        return juce::Font (juce::FontOptions (tf).withHeight (height).withKerningFactor (tracking));
+        if (height >= 26.0f)
+            return juce::Font (juce::FontOptions (typefaces().title).withHeight (titleHeight));
+        return juce::Font (juce::FontOptions (typefaces().small).withHeight (smallHeight));
     }
 }
 
-juce::Font Fonts::serif (float h)               { return make (typefaces().serifLight, h); }
-juce::Font Fonts::serifItalic (float h)         { return make (typefaces().serifLightItalic, h); }
-juce::Font Fonts::serifItalicRegular (float h)  { return make (typefaces().serifItalic, h); }
-juce::Font Fonts::sans (float h, float t)       { return make (typefaces().sansRegular, h, t); }
-juce::Font Fonts::sansMedium (float h, float t) { return make (typefaces().sansMedium, h, t); }
+juce::Font Fonts::serif (float h)             { return make (h); }
+juce::Font Fonts::serifItalic (float h)       { return make (h); }
+juce::Font Fonts::serifItalicRegular (float h) { return make (h); }
+juce::Font Fonts::sans (float h, float)       { return make (h); }
+juce::Font Fonts::sansMedium (float h, float) { return make (h); }
 
 static std::atomic<double> clockOverride { -1.0 };
 
@@ -100,7 +107,7 @@ BouquetLookAndFeel::BouquetLookAndFeel()
 juce::Typeface::Ptr BouquetLookAndFeel::getTypefaceForFont (const juce::Font& f)
 {
     if (f.getTypefaceName() == juce::Font::getDefaultSansSerifFontName())
-        return typefaces().sansRegular;
+        return typefaces().small;
     return LookAndFeel_V4::getTypefaceForFont (f);
 }
 
@@ -129,8 +136,9 @@ void BouquetLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int 
     face.addColour (0.55, hover > 0.0f ? juce::Colours::white : juce::Colour (0xfffbf9f7));
     g.setGradientFill (face);
     g.fillEllipse (disc);
-    g.setColour (ink.withAlpha (0.08f));
-    g.drawEllipse (disc, 0.5f);
+    // A pixel-wide rim, so the disc reads on the grid.
+    g.setColour (ink.withAlpha (0.16f));
+    g.drawEllipse (disc, 2.0f);
 
     auto arc = [&] (float from, float to, float r)
     {
@@ -139,11 +147,11 @@ void BouquetLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int 
         return p;
     };
 
-    // The value: a thin coloured arc around the disc, with a dot at its end.
-    const float r = radius - 1.5f;
-    const float stroke = radius > 30.0f ? 2.6f : 2.0f;
+    // The value: a coloured arc around the disc, two pixels thick, with a dot at its end.
+    const float r = radius - 2.0f;
+    const float stroke = radius > 30.0f ? 6.0f : 4.0f;
     const juce::PathStrokeType line (stroke, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
-    g.setColour (ink.withAlpha (0.09f));
+    g.setColour (ink.withAlpha (0.12f));
     g.strokePath (arc (startAngle, endAngle, r), line);
 
     if (std::abs (valueAngle - originAngle) > 0.001f)
@@ -153,11 +161,11 @@ void BouquetLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int 
     }
 
     const juce::Point<float> dot (c.x + r * std::sin (valueAngle), c.y - r * std::cos (valueAngle));
-    const float dotR = radius > 30.0f ? 3.6f : 2.8f;
+    const float dotR = radius > 30.0f ? 5.0f : 4.0f;
     g.setColour (frost);
     g.fillEllipse (juce::Rectangle<float> (dotR * 2.0f, dotR * 2.0f).withCentre (dot));
     g.setColour (b);
-    g.drawEllipse (juce::Rectangle<float> (dotR * 2.0f, dotR * 2.0f).withCentre (dot), 1.4f);
+    g.drawEllipse (juce::Rectangle<float> (dotR * 2.0f, dotR * 2.0f).withCentre (dot), 2.0f);
 }
 
 void BouquetLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox& box)

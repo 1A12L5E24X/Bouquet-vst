@@ -5,6 +5,16 @@ Recordings of real instruments on the left, played as if in a forest clearing; a
 on the right; and a garden that grows a bouquet for every chord you play, then lets it rot;
 and a preset garden where you water your sounds into richer ones.
 
+> **Pixel art edition.** This branch draws the whole interface as pixel art: everything is
+> painted onto a grid of two points to the pixel, snapped to a 64-colour palette taken from
+> Bouquet's own garden (with an ordered dither), and blown up with hard square edges. The type
+> is set in the pixel fonts Tiny5 and Jersey 10, and the window zooms in whole half steps so
+> every pixel stays square. The sound is unchanged.
+>
+> ![Bouquet, in pixels](docs/pixel.png)
+>
+> ![Watering, in pixels](docs/pixel-watering.png)
+
 ![Bouquet](docs/bouquet.jpg)
 
 ![Bouquet in motion: chords grow bouquets, then a flower is watered in the preset garden](docs/showcase.gif)
@@ -86,7 +96,8 @@ needed): `MACOS_CERTIFICATES_P12` (base64 of a .p12 with both Developer ID certi
   the watering bucket by `tools/flowers/render_bucket.py`,
   lit by a CC0 sky from Poly Haven; the sky by `tools/flowers/render_sky.py`; the meadow around the keys
   by `tools/flowers/render_meadow.py`.
-- Fonts: Newsreader and Inter, SIL Open Font License.
+- Fonts: [Tiny5](https://github.com/Gissio/font_tiny5) and [Jersey 10](https://github.com/scfried/soft-type-jersey), SIL Open Font License.
+- Pixel palette: `tools/ui/make_palette.py`, from screenshots of the smooth interface.
 
 ## Licence
 

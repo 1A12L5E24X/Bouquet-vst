@@ -7,6 +7,7 @@
 #include "AuraPad.h"
 #include "Garden.h"
 #include "Meadow.h"
+#include "PixelArt.h"
 
 namespace bouquet::ui
 {
@@ -99,7 +100,6 @@ private:
     juce::SharedResourcePointer<real::FlowerSprites> sprites;
     juce::Image skyStrip;           // the photoreal sky at the window's pixel height, then mirrored
     bool paintSky (juce::Graphics&, int pixelW, int pixelH, float t);
-    std::array<juce::int8, 256 * 256> grainNoise {};
     struct Column { int offset, t; };
     std::vector<Column> columns;
     int backgroundScale = 1;
@@ -130,6 +130,7 @@ private:
 
     bouquet::ui::BouquetLookAndFeel lookAndFeel;
     bouquet::ui::Surface surface;
+    bouquet::ui::pixel::ZoomConstrainer zoom { bouquet::ui::Surface::designWidth, bouquet::ui::Surface::designHeight };
     double lastFrame = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BouquetEditor)

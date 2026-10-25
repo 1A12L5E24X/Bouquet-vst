@@ -10,11 +10,8 @@
 juce_add_binary_data(BouquetAssets
     NAMESPACE BouquetAssets
     SOURCES
-        assets/fonts/Newsreader-Light.ttf
-        assets/fonts/Newsreader-LightItalic.ttf
-        assets/fonts/Newsreader-Italic.ttf
-        assets/fonts/Inter-Regular.ttf
-        assets/fonts/Inter-Medium.ttf)
+        assets/fonts/Tiny5-Regular.ttf
+        assets/fonts/Jersey10-Regular.ttf)
 
 set(BOUQUET_SOURCES
     Source/PluginProcessor.cpp
@@ -26,6 +23,7 @@ set(BOUQUET_SOURCES
     Source/dsp/SampleBank.cpp
     Source/dsp/GranularEngine.cpp
     Source/ui/BouquetLookAndFeel.cpp
+    Source/ui/PixelArt.cpp
     Source/ui/Widgets.cpp
     Source/ui/AuraPad.cpp
     Source/ui/Botany.cpp

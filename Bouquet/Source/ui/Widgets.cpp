@@ -53,7 +53,7 @@ void GlowKnob::resized()
 void GlowKnob::paint (juce::Graphics& g)
 {
     const bool touching = slider.isMouseOverOrDragging();
-    const auto text = touching ? (param->getCurrentValueAsText() + " " + param->getLabel()).trim() : label.toUpperCase();
+    const auto text = touching ? (param->getCurrentValueAsText() + " " + param->getLabel()).trim() : label;   // lower case: narrower on the pixel grid
     g.setFont (touching ? Fonts::sans (10.5f) : Fonts::sansMedium (getWidth() < 52 ? 8.5f : 9.0f, getWidth() < 52 ? 0.05f : 0.1f));
     g.setColour (colours::ink.withAlpha (touching ? 0.9f : 0.5f));
     g.drawText (text, getLocalBounds().removeFromBottom (16), juce::Justification::centred, false);
